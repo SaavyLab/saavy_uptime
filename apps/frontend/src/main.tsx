@@ -13,10 +13,11 @@ import Header from "@/components/Header";
 import * as TanStackQueryProvider from "@/integrations/tanstack-query/root-provider.tsx";
 
 import DashboardRoute from "@/routes/dashboard.tsx";
-import MonitorsRoute from "@/routes/monitors.tsx";
-import MonitorNewRoute from "@/routes/monitor-new.tsx";
+import MonitorsRoute from "@/routes/monitors/monitors";
+import MonitorNewRoute from "@/routes/monitors/monitor-new";
 import IncidentsRoute from "@/routes/incidents.tsx";
 import StatusRoute from "@/routes/status.tsx";
+import OrganizationRoute from "@/routes/organization/organization";
 
 import "@/styles.css";
 import reportWebVitals from "@/reportWebVitals.ts";
@@ -41,6 +42,7 @@ const routeTree = rootRoute.addChildren([
 	MonitorNewRoute(rootRoute as any),
 	IncidentsRoute(rootRoute as any),
 	StatusRoute(rootRoute as any),
+	OrganizationRoute(rootRoute as any),
 ]);
 
 const TanStackQueryProviderContext = TanStackQueryProvider.getContext();
