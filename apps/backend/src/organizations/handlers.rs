@@ -57,13 +57,13 @@ pub async fn create_organization(
     let statement = d1
         .prepare("INSERT INTO organizations (id, slug, name, created_at) VALUES (?1, ?2, ?3, ?4)");
     let id = create_id().to_string();
-    let created_at = 1_762_845_925;
+    let now = js_sys::Date::now() as i64 / 1000;
 
     let bind_values = vec![
         JsValue::from_str(&id),
         JsValue::from_str(&payload.slug),
         JsValue::from_str(&payload.name),
-        js_number(created_at),
+        js_number(now),
     ];
 
     let query = statement
@@ -74,7 +74,12 @@ pub async fn create_organization(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    match query.first::<Organization>(None).await {
+    let get_statement = d1.prepare("SELECT * FROM organizations WHERE id = ?1");
+    let get_query = get_statement
+        .bind(&[id.into()])
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    match get_query.first::<Organization>(None).await {
         Ok(Some(organization)) => Ok(Json(organization)),
         Ok(None) => Err(StatusCode::INTERNAL_SERVER_ERROR),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),

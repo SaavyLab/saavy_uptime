@@ -102,6 +102,7 @@ pub async fn create_monitor(
     let d1 = get_d1(&state).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let statement = d1.prepare("INSERT INTO monitors (id, org_id, name, kind, url, interval_s, timeout_ms, follow_redirects, verify_tls, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)");
     let id = create_id().to_string();
+    let now = js_sys::Date::now() as i64 / 1000;
 
     let bind_values = vec![
         JsValue::from_str(&id),
@@ -113,19 +114,25 @@ pub async fn create_monitor(
         js_number(monitor.timeout),
         js_number(monitor.follow_redirects as i64),
         js_number(monitor.verify_tls as i64),
-        js_number(1762845925),
-        js_number(1762845925),
+        js_number(now),
+        js_number(now),
     ];
 
     let query = statement
         .bind(&bind_values)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
     query
         .run()
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    match query.first::<Monitor>(None).await {
+    let get_statement = d1.prepare("SELECT * FROM monitors WHERE id = ?1");
+    let get_query = get_statement
+        .bind(&[id.into()])
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    match get_query.first::<Monitor>(None).await {
         Ok(Some(monitor)) => Ok(Json(monitor)),
         Ok(None) => Err(StatusCode::INTERNAL_SERVER_ERROR),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),

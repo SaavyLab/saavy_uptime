@@ -19,4 +19,5 @@ getrandom = { version = "^0.3.4", features = ["wasm_js"] }
 cuid2 = "0.1.4"
 jwt = "0.16.0"
 tower-http = { version = "0.6.6", features = ["cors"] }
+js-sys = "0.3.82"
 
