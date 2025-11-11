@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use cuid2::create_id;
+use serde::{Deserialize, Serialize};
 use worker::{wasm_bindgen::JsValue, Response, Result, RouteContext};
 
 use crate::utils::wasm_types::js_number;

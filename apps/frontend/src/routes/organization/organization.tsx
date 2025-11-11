@@ -8,10 +8,7 @@ import { Hero } from "@/components/layout/Hero";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-	createOrganization,
-	getOrganization,
-} from "@/lib/organizations";
+import { createOrganization, getOrganization } from "@/lib/organizations";
 import type { RouterContext } from "@/router-context";
 
 const formatTimestamp = (value?: number) => {
