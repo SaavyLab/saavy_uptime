@@ -3,6 +3,7 @@ import { useState } from "react";
 import {
 	Activity,
 	AlertCircle,
+	Building2,
 	Home,
 	Menu,
 	Monitor,
@@ -74,6 +75,19 @@ export default function Header() {
 					>
 						<Monitor size={20} strokeWidth={2.5} />
 						<span>Monitors</span>
+					</Link>
+
+					<Link
+						to="/organization"
+						onClick={() => setIsOpen(false)}
+						className="flex items-center gap-3 p-3 border-2 border-white hover:bg-white hover:text-black transition-colors mb-2 font-bold uppercase tracking-tight"
+						activeProps={{
+							className:
+								"flex items-center gap-3 p-3 border-2 border-[#ff6633] bg-[#ff6633] text-black transition-colors mb-2 font-bold uppercase tracking-tight",
+						}}
+					>
+						<Building2 size={20} strokeWidth={2.5} />
+						<span>Organization</span>
 					</Link>
 
 					<Link

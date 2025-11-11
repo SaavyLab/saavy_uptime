@@ -11,7 +11,5 @@ pub fn js_optional_number(value: Option<i64>) -> JsValue {
 }
 
 pub fn js_optional_string(value: Option<&String>) -> JsValue {
-    value
-        .map(|v| JsValue::from_str(v))
-        .unwrap_or(JsValue::NULL)
+    value.map(|v| JsValue::from_str(v)).unwrap_or(JsValue::NULL)
 }

@@ -1,7 +1,20 @@
 use serde::{Deserialize, Serialize};
-use worker::{wasm_bindgen::JsValue, RouteContext, Result, Response};
+use cuid2::create_id;
+use worker::{wasm_bindgen::JsValue, Response, Result, RouteContext};
 
-use crate::utils::wasm_types::{js_number, js_optional_number, js_optional_string};
+use crate::utils::wasm_types::js_number;
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all(deserialize = "camelCase"))]
+pub struct CreateMonitor {
+    pub org_id: String,
+    pub name: String,
+    pub url: String,
+    pub interval: i64,
+    pub timeout: i64,
+    pub verify_tls: bool,
+    pub follow_redirects: bool,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Monitor {
@@ -51,34 +64,23 @@ pub async fn get_monitors_by_org_id(ctx: &RouteContext<()>, org_id: &str) -> Res
     Response::from_json(&monitors)
 }
 
-pub async fn create_monitor(ctx: &RouteContext<()>, monitor: Monitor) -> Result<Response> {
+pub async fn create_monitor(ctx: &RouteContext<()>, monitor: CreateMonitor) -> Result<Response> {
     let d1 = ctx.env.d1("DB")?;
-    let statement = d1.prepare("INSERT INTO monitors (id, org_id, name, kind, url, interval_s, timeout_ms, follow_redirects, verify_tls, expect_status_low, expect_status_high, expect_substring, headers_json, tags_json, enabled, last_checked_at_ts, next_run_at_ts, current_status, last_ok, consecutive_failures, current_incident_id, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23)");
+    let statement = d1.prepare("INSERT INTO monitors (id, org_id, name, kind, url, interval_s, timeout_ms, follow_redirects, verify_tls, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)");
+    let id = create_id().to_string();
 
     let bind_values = vec![
-        JsValue::from_str(&monitor.id),
+        JsValue::from_str(&id),
         JsValue::from_str(&monitor.org_id),
         JsValue::from_str(&monitor.name),
-        JsValue::from_str(&monitor.kind),
+        JsValue::from_str("http"),
         JsValue::from_str(&monitor.url),
-        js_number(monitor.interval_s),
-        js_number(monitor.timeout_ms),
-        js_number(monitor.follow_redirects),
-        js_number(monitor.verify_tls),
-        js_optional_number(monitor.expect_status_low),
-        js_optional_number(monitor.expect_status_high),
-        js_optional_string(monitor.expect_substring.as_ref()),
-        js_optional_string(monitor.headers_json.as_ref()),
-        js_optional_string(monitor.tags_json.as_ref()),
-        js_number(monitor.enabled),
-        js_optional_number(monitor.last_checked_at_ts),
-        js_optional_number(monitor.next_run_at_ts),
-        JsValue::from_str(&monitor.current_status),
-        js_number(monitor.last_ok),
-        js_number(monitor.consecutive_failures),
-        js_optional_string(monitor.current_incident_id.as_ref()),
-        js_number(monitor.created_at),
-        js_number(monitor.updated_at),
+        js_number(monitor.interval),
+        js_number(monitor.timeout),
+        js_number(monitor.follow_redirects as i64),
+        js_number(monitor.verify_tls as i64),
+        js_number(1762845925),
+        js_number(1762845925),
     ];
 
     let query = statement.bind(&bind_values)?;
