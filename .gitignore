@@ -1,0 +1,13 @@
+.task
+target
+node_modules
+.wrangler
+dist
+build
+.vite
+.env
+.env.*
+*.local
+*.log
+coverage
+.DS_Store

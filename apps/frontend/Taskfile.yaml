@@ -1,0 +1,63 @@
+# packages/frontend/Taskfile.yml
+version: '3'
+
+tasks:
+  install:
+    desc: "Install frontend dependencies"
+    cmds:
+      - bun install
+    sources:
+      - package.json
+      - bun.lock
+    generates:
+      - node_modules/**/*
+
+  dev:
+    desc: "Run Vite dev server"
+    cmds:
+      - bun run dev
+
+  build:
+    desc: "Build frontend for production"
+    deps: [typecheck]
+    cmds:
+      - bun run build
+    sources:
+      - src/**/*
+      - index.html
+      - vite.config.ts
+    generates:
+      - dist/**/*
+
+  typecheck:
+    desc: "Type check TypeScript"
+    cmds:
+      - bun run tsc --noEmit
+
+  format:
+    desc: "Format code"
+    cmds:
+      - bun run format
+
+  format:fix:
+    desc: "Format code and fix issues"
+    cmds:
+      - bun run format:fix
+
+  preview:
+    desc: "Preview production build"
+    deps: [build]
+    cmds:
+      - bun run preview
+
+  deploy:
+    desc: "Deploy to Cloudflare Pages"
+    deps: [build]
+    cmds:
+      - wrangler pages deploy dist --project-name={{.PROJECT_NAME}}
+
+  clean:
+    desc: "Clean build artifacts"
+    cmds:
+      - rm -rf dist
+      - rm -rf .vite

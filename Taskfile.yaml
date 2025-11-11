@@ -1,0 +1,64 @@
+# Taskfile.yml (root)
+version: '3'
+
+dotenv: ['.env', 'apps/backend/.env']
+
+includes:
+  frontend:
+    taskfile: ./apps/frontend/Taskfile.yaml
+    dir: ./apps/frontend
+  backend:
+    taskfile: ./apps/backend/Taskfile.yaml
+    dir: ./apps/backend
+
+vars:
+  PROJECT_NAME: cf-uptime-monitor
+
+tasks:
+  default:
+    desc: "Show available tasks"
+    cmds:
+      - task --list
+
+  install:
+    desc: "Install all dependencies"
+    cmds:
+      - task: frontend:install
+      - task: backend:install
+
+  dev:
+    desc: "Run frontend and backend in dev mode"
+    deps:
+      - frontend:dev
+      - backend:dev
+
+  build:
+    desc: "Build frontend and backend"
+    cmds:
+      - task: frontend:build
+      - task: backend:build
+
+  deploy:
+    desc: "Deploy everything to Cloudflare"
+    deps: [build]
+    cmds:
+      - task: frontend:deploy
+      - task: backend:deploy
+
+  typecheck:
+    desc: "Type check all packages"
+    cmds:
+      - task: frontend:typecheck
+      - task: backend:check
+
+  clean:
+    desc: "Clean all build artifacts"
+    cmds:
+      - task: frontend:clean
+      - task: backend:clean
+
+  db:shell:
+    desc: "Open D1 shell"
+    dir: ./apps/backend
+    cmds:
+      - wrangler d1 execute {{.PROJECT_NAME}}-db --command=".tables"

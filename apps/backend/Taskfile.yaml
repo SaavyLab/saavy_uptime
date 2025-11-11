@@ -1,0 +1,86 @@
+version: '3'
+
+vars:
+  WASM_TARGET: wasm32-unknown-unknown
+  DATABASE_NAME: '{{.DATABASE_NAME | default (env "DATABASE_NAME")}}'
+
+tasks:
+  install:
+    desc: "Install Rust dependencies"
+    cmds:
+      - cargo fetch
+    sources:
+      - Cargo.toml
+      - Cargo.lock
+
+  dev:
+    desc: "Run Wrangler dev server"
+    cmds:
+      - wrangler dev
+    
+  test-env:
+    cmds:
+      - echo "{{.DATABASE_NAME}}"
+  
+  migrate:
+    desc: "Apply D1 migrations"
+    cmds:
+      - wrangler d1 migrations apply {{.DATABASE_NAME}} {{.CLI_ARGS}}
+
+  build:
+    desc: "Build Rust worker to WASM"
+    deps: [check]
+    cmds:
+      - cargo build --target {{.WASM_TARGET}} --release
+    sources:
+      - src/**/*.rs
+      - Cargo.toml
+    generates:
+      - target/{{.WASM_TARGET}}/release/*.wasm
+
+  check:
+    desc: "Check Rust code without building"
+    cmds:
+      - cargo check --target {{.WASM_TARGET}}
+
+  test:
+    desc: "Run Rust tests"
+    cmds:
+      - cargo test
+
+  fmt:
+    desc: "Format Rust code"
+    cmds:
+      - cargo fmt
+
+  clippy:
+    desc: "Run Clippy linter"
+    cmds:
+      - cargo clippy --target {{.WASM_TARGET}} -- -D warnings
+
+  deploy:
+    desc: "Deploy worker to Cloudflare"
+    deps: [build]
+    cmds:
+      - wrangler deploy
+
+  clean:
+    desc: "Clean build artifacts"
+    cmds:
+      - cargo clean
+      - rm -rf worker-build
+
+  tail:
+    desc: "Tail worker logs"
+    cmds:
+      - wrangler tail
+
+  do:list:
+    desc: "List all Durable Objects"
+    cmds:
+      - wrangler d1 objects list
+
+  kv:list:
+    desc: "List KV namespaces"
+    cmds:
+      - wrangler kv:namespace list
