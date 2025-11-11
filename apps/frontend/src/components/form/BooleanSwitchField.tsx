@@ -1,5 +1,5 @@
-import { useId } from "react";
 import { useStore } from "@tanstack/react-form";
+import { useId } from "react";
 
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -11,7 +11,10 @@ type BooleanSwitchFieldProps = {
 	description?: string;
 };
 
-export function BooleanSwitchField({ label, description }: BooleanSwitchFieldProps) {
+export function BooleanSwitchField({
+	label,
+	description,
+}: BooleanSwitchFieldProps) {
 	const autoId = useId();
 	const field = useFieldContext<boolean>();
 	const state = useStore(field.store, (s) => s);
@@ -23,17 +26,19 @@ export function BooleanSwitchField({ label, description }: BooleanSwitchFieldPro
 		<div className="space-y-2">
 			<div className="flex items-center justify-between gap-4">
 				<div>
-					<Label htmlFor={switchId} className="font-semibold tracking-wide">
+					<Label htmlFor={switchId} className="tracking-[0.3em]">
 						{label}
 					</Label>
 					{description ? (
-						<p className="text-sm text-muted-foreground">{description}</p>
+						<p className="text-sm text-[var(--text-muted)]">{description}</p>
 					) : null}
 				</div>
 				<Switch
 					id={switchId}
 					checked={checked}
-					onCheckedChange={(value) => field.handleChange(Boolean(value) as never)}
+					onCheckedChange={(value) =>
+						field.handleChange(Boolean(value) as never)
+					}
 					onBlur={() => field.handleBlur()}
 				/>
 			</div>

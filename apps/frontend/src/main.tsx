@@ -1,24 +1,22 @@
-import { StrictMode } from "react";
-import ReactDOM from "react-dom/client";
+import type { QueryClient } from "@tanstack/react-query";
+import type { Register, RootRoute } from "@tanstack/react-router";
 import {
-	Outlet,
-	RouterProvider,
 	createRootRoute,
 	createRouter,
+	Outlet,
+	RouterProvider,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
-import type { QueryClient } from "@tanstack/react-query";
-
+import { StrictMode } from "react";
+import ReactDOM from "react-dom/client";
 import Header from "@/components/Header";
 import * as TanStackQueryProvider from "@/integrations/tanstack-query/root-provider.tsx";
-
 import DashboardRoute from "@/routes/dashboard.tsx";
-import MonitorsRoute from "@/routes/monitors/monitors";
-import MonitorNewRoute from "@/routes/monitors/monitor-new";
 import IncidentsRoute from "@/routes/incidents.tsx";
-import StatusRoute from "@/routes/status.tsx";
+import MonitorNewRoute from "@/routes/monitors/monitor-new";
+import MonitorsRoute from "@/routes/monitors/monitors";
 import OrganizationRoute from "@/routes/organization/organization";
-
+import StatusRoute from "@/routes/status.tsx";
 import "@/styles.css";
 import reportWebVitals from "@/reportWebVitals.ts";
 
@@ -36,13 +34,19 @@ const rootRoute = createRootRoute<RouterContext>({
 	),
 });
 
-const routeTree = rootRoute.addChildren([
-	DashboardRoute(rootRoute as any), // what the fuck?
-	MonitorsRoute(rootRoute as any),
-	MonitorNewRoute(rootRoute as any),
-	IncidentsRoute(rootRoute as any),
-	StatusRoute(rootRoute as any),
-	OrganizationRoute(rootRoute as any),
+const typedRootRoute = rootRoute as RootRoute<
+	Register,
+	undefined,
+	RouterContext
+>;
+
+const routeTree = typedRootRoute.addChildren([
+	DashboardRoute(typedRootRoute),
+	MonitorsRoute(typedRootRoute),
+	MonitorNewRoute(typedRootRoute),
+	IncidentsRoute(typedRootRoute),
+	StatusRoute(typedRootRoute),
+	OrganizationRoute(typedRootRoute),
 ]);
 
 const TanStackQueryProviderContext = TanStackQueryProvider.getContext();

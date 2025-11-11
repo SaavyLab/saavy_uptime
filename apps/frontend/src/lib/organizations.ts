@@ -12,8 +12,12 @@ export type Organization = {
 
 const apiBase = import.meta.env.VITE_API_URL;
 
-export const getOrganization = async (organizationId: string): Promise<Organization> => {
-	const response = await fetch(`${apiBase}/api/organizations/${organizationId}`);
+export const getOrganization = async (
+	organizationId: string,
+): Promise<Organization> => {
+	const response = await fetch(
+		`${apiBase}/api/organizations/${organizationId}`,
+	);
 
 	if (!response.ok) {
 		throw new Error(`Unable to load organization (${response.status})`);

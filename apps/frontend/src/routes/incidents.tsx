@@ -1,50 +1,81 @@
-import { createRoute } from "@tanstack/react-router";
 import type { Register, RootRoute } from "@tanstack/react-router";
+import { createRoute } from "@tanstack/react-router";
+import { AlertOctagon, ShieldOff } from "lucide-react";
+
+import { Hero } from "@/components/layout/Hero";
+import { SectionCard } from "@/components/layout/SectionCard";
+import { Button } from "@/components/ui/button";
+import { StatsGrid } from "@/components/ui/StatsCard";
 import type { RouterContext } from "@/router-context";
-import { AlertCircle } from "lucide-react";
+
+const metrics = [
+	{ label: "MTTR", value: "--", hint: "mean time to recovery" },
+	{ label: "Incidents (30d)", value: "0", hint: "last month" },
+	{ label: "Avg downtime", value: "0m", hint: "rolling window" },
+	{ label: "Longest incident", value: "—", hint: "awaiting data" },
+];
 
 function IncidentsPage() {
 	return (
-		<div className="min-h-screen bg-white dark:bg-black text-black dark:text-white p-8">
-			<div className="max-w-7xl mx-auto">
-				<div className="border-4 border-black dark:border-white p-6 mb-8 bg-[#ff6633]">
-					<h1 className="text-4xl mb-2">INCIDENTS</h1>
-					<p className="font-mono text-sm normal-case">
-						Monitor downtime and incident history
-					</p>
-				</div>
+		<main className="min-h-screen bg-[var(--surface)] px-6 py-10 text-[var(--text-primary)] lg:px-8">
+			<div className="mx-auto max-w-6xl space-y-10">
+				<Hero
+					eyebrow="Incidents"
+					title="Incident room for Saavy Uptime"
+					description="When the worker detects downtime, this board becomes the logbook for responders—statuses, timestamps, and notes in one place."
+					actions={<Button variant="secondary">Export history</Button>}
+				/>
 
-				<div className="border-4 border-black dark:border-white p-8 bg-white dark:bg-black">
-					<div className="text-center py-12">
-						<AlertCircle
-							size={64}
-							strokeWidth={2}
-							className="mx-auto mb-4 text-muted-foreground"
-						/>
-						<h3 className="text-2xl mb-2">NO INCIDENTS</h3>
-						<p className="font-mono text-sm normal-case text-muted-foreground">
-							All systems operational
+				<SectionCard title="Incident metrics">
+					<StatsGrid
+						items={metrics}
+						className="sm:grid-cols-2"
+						cardClassName="bg-white/[0.02] border-white/10"
+					/>
+				</SectionCard>
+
+				<SectionCard contentClassName="space-y-4 text-center">
+					<AlertOctagon size={48} className="mx-auto text-[var(--text-soft)]" />
+					<h2 className="text-2xl font-medium">All systems operational</h2>
+					<p className="text-sm text-[var(--text-muted)]">
+						Incidents appear here instantly with live badges and postmortems
+						once they close.
+					</p>
+					<div className="mt-4 flex flex-wrap justify-center gap-3">
+						<Button variant="secondary">Create test incident</Button>
+						<Button variant="ghost">View status page</Button>
+					</div>
+				</SectionCard>
+
+				<SectionCard
+					title="Incident playbook"
+					description="Lightweight guardrails for on-call responders"
+					contentClassName="space-y-4"
+				>
+					<div className="flex items-center gap-3 text-[var(--text-muted)]">
+						<ShieldOff className="text-[var(--accent)]" />
+						<p className="text-sm">
+							Use this playbook as a baseline while the product is still in MVP
+							mode.
 						</p>
 					</div>
-				</div>
-
-				<div className="mt-8 border-4 border-black dark:border-white p-6 bg-black text-white">
-					<h2 className="mb-4 text-[#ff6633]">// INCIDENT METRICS</h2>
-					<pre className="font-mono text-xs">
-						{`MTTR (Mean Time To Recovery): --
-Total Incidents (30d):         0
-Average Downtime:               0m
-Longest Incident:               --`}
-					</pre>
-				</div>
+					<ul className="list-inside list-disc space-y-2 text-sm text-[var(--text-muted)]">
+						<li>Live ticker surfaces failing monitors immediately.</li>
+						<li>
+							Timeline records action items, responders, and follow-ups for each
+							event.
+						</li>
+						<li>
+							Export JSON or Markdown postmortems directly from this surface.
+						</li>
+					</ul>
+				</SectionCard>
 			</div>
-		</div>
+		</main>
 	);
 }
 
-export default (
-	parentRoute: RootRoute<Register, undefined, RouterContext>,
-) =>
+export default (parentRoute: RootRoute<Register, undefined, RouterContext>) =>
 	createRoute({
 		path: "/incidents",
 		component: IncidentsPage,

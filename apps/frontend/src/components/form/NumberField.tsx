@@ -1,5 +1,5 @@
-import { useId } from "react";
 import { useStore } from "@tanstack/react-form";
+import { useId } from "react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,7 +34,7 @@ export function NumberField({
 
 	return (
 		<div className="space-y-2">
-			<Label htmlFor={inputId} className="font-semibold tracking-wide">
+			<Label htmlFor={inputId} className="tracking-[0.3em]">
 				{label}
 			</Label>
 			<Input
@@ -58,7 +58,7 @@ export function NumberField({
 				className={cn(errorMessage && "border-destructive", className)}
 			/>
 			{description ? (
-				<p className="text-sm text-muted-foreground">{description}</p>
+				<p className="text-sm text-[var(--text-muted)]">{description}</p>
 			) : null}
 			{errorMessage ? (
 				<p className="text-sm text-destructive" role="alert">
