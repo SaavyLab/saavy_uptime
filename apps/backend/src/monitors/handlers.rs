@@ -1,8 +1,14 @@
+use crate::router::AppState;
+use crate::utils::wasm_types::js_number;
+use axum::{
+    extract::{Path, State},
+    http::StatusCode,
+    response::Result,
+    Json,
+};
 use cuid2::create_id;
 use serde::{Deserialize, Serialize};
-use worker::{wasm_bindgen::JsValue, Response, Result, RouteContext};
-
-use crate::utils::wasm_types::js_number;
+use worker::{wasm_bindgen::JsValue, D1Database};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all(deserialize = "camelCase"))]
@@ -43,29 +49,50 @@ pub struct Monitor {
     pub updated_at: i64,
 }
 
-pub async fn get_monitor_by_id(ctx: &RouteContext<()>, id: &str) -> Result<Response> {
-    let d1 = ctx.env.d1("DB")?;
+fn get_d1(state: &AppState) -> Result<D1Database> {
+    state.env.d1("DB")
+}
+
+pub async fn get_monitor_by_id(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<Json<Monitor>, StatusCode> {
+    let d1 = get_d1(&state)?.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
     let statement = d1.prepare("SELECT * FROM monitors WHERE id = ?1");
-    let query = statement.bind(&[id.into()])?;
-    let result = query.first::<Monitor>(None).await?;
-    match result {
-        Some(monitor) => Response::from_json(&monitor),
-        None => Response::error("Monitor not found", 404),
+    let query = statement
+        .bind(&[id.into()])?
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    match query.first::<Monitor>(None).await {
+        Ok(Some(monitor)) => Ok(Json(monitor)),
+        Ok(None) => Err(StatusCode::NOT_FOUND),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }
 
-pub async fn get_monitors_by_org_id(ctx: &RouteContext<()>, org_id: &str) -> Result<Response> {
-    let d1 = ctx.env.d1("DB")?;
-    let statement = d1.prepare("SELECT * FROM monitors WHERE org_id = ?1 ORDER BY created_at DESC");
-    let query = statement.bind(&[org_id.into()])?;
-    let result = query.all().await?;
-    let monitors = result.results::<Monitor>()?;
+pub async fn get_monitors_by_org_id(
+    State(state): State<AppState>,
+    Path(org_id): Path<String>,
+) -> Result<Json<Vec<Monitor>>, StatusCode> {
+    let d1 = get_d1(&state)?.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Response::from_json(&monitors)
+    let statement = d1.prepare("SELECT * FROM monitors WHERE org_id = ?1 ORDER BY created_at DESC");
+    let query = statement
+        .bind(&[org_id.into()])?
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    match query.all().await {
+        Ok(result) => Ok(Json(result.results::<Monitor>()?)),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
 }
 
-pub async fn create_monitor(ctx: &RouteContext<()>, monitor: CreateMonitor) -> Result<Response> {
-    let d1 = ctx.env.d1("DB")?;
+pub async fn create_monitor(
+    State(state): State<AppState>,
+    Json(monitor): Json<CreateMonitor>,
+) -> Result<Json<Monitor>, StatusCode> {
+    let d1 = get_d1(&state)?.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let statement = d1.prepare("INSERT INTO monitors (id, org_id, name, kind, url, interval_s, timeout_ms, follow_redirects, verify_tls, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)");
     let id = create_id().to_string();
 
@@ -83,8 +110,17 @@ pub async fn create_monitor(ctx: &RouteContext<()>, monitor: CreateMonitor) -> R
         js_number(1762845925),
     ];
 
-    let query = statement.bind(&bind_values)?;
-    query.run().await?;
+    let query = statement
+        .bind(&bind_values)?
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    query
+        .run()
+        .await?
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Response::from_json(&monitor)
+    match query.first::<Monitor>(None).await {
+        Ok(Some(monitor)) => Ok(Json(monitor)),
+        Ok(None) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
 }

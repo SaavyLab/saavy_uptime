@@ -11,10 +11,12 @@ crate-type = ["cdylib"]
 [dependencies]
 worker = { version = "0.6", features = ['http', 'axum', 'd1'] }
 worker-macros = { version = "0.6", features = ['http'] }
-axum = { version = "0.8", default-features = false }
+axum = { version = "0.8", default-features = false, features = ["json"] }
 tower-service = "0.3.3"
 serde = "1.0.228"
 console_error_panic_hook = "0.1.7"
 getrandom = { version = "^0.3.4", features = ["wasm_js"] }
 cuid2 = "0.1.4"
+jwt = "0.16.0"
+tower-http = { version = "0.6.6", features = ["cors"] }
 
