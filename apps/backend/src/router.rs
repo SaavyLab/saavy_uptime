@@ -1,15 +1,27 @@
 use crate::{monitors, organizations};
-use axum::Router;
+use axum::{routing::get, Router};
 use tower_http::cors::{Any, CorsLayer};
-use worker::Env;
+use worker::{send::SendWrapper, Env};
 
 #[derive(Clone)]
 pub struct AppState {
-    env: Env,
+    env: SendWrapper<Env>,
 }
 
-pub async fn create_router(env: Env) -> Router {
-    let app_state = AppState { env };
+impl AppState {
+    pub fn new(env: Env) -> Self {
+        Self {
+            env: SendWrapper::new(env),
+        }
+    }
+
+    pub fn env(&self) -> &Env {
+        &self.env
+    }
+}
+
+pub fn create_router(env: Env) -> Router {
+    let app_state = AppState::new(env);
 
     let cors = CorsLayer::new()
         .allow_methods(Any)
@@ -22,7 +34,7 @@ pub async fn create_router(env: Env) -> Router {
         .layer(cors);
 
     Router::new()
-        .get("/api/health", axum::routing::get(|| async { "ok" }))
+        .route("/api/health", get(|| async { "ok" }))
         .nest("/api", api_router)
         .with_state(app_state)
 }

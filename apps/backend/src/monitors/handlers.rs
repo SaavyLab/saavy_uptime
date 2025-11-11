@@ -8,7 +8,7 @@ use axum::{
 };
 use cuid2::create_id;
 use serde::{Deserialize, Serialize};
-use worker::{wasm_bindgen::JsValue, D1Database};
+use worker::{wasm_bindgen::JsValue, D1Database, Result as WorkerResult};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all(deserialize = "camelCase"))]
@@ -49,19 +49,20 @@ pub struct Monitor {
     pub updated_at: i64,
 }
 
-fn get_d1(state: &AppState) -> Result<D1Database> {
-    state.env.d1("DB")
+fn get_d1(state: &AppState) -> WorkerResult<D1Database> {
+    state.env().d1("DB")
 }
 
+#[worker::send]
 pub async fn get_monitor_by_id(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<Monitor>, StatusCode> {
-    let d1 = get_d1(&state)?.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let d1 = get_d1(&state).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let statement = d1.prepare("SELECT * FROM monitors WHERE id = ?1");
     let query = statement
-        .bind(&[id.into()])?
+        .bind(&[id.into()])
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     match query.first::<Monitor>(None).await {
@@ -71,28 +72,34 @@ pub async fn get_monitor_by_id(
     }
 }
 
+#[worker::send]
 pub async fn get_monitors_by_org_id(
     State(state): State<AppState>,
     Path(org_id): Path<String>,
 ) -> Result<Json<Vec<Monitor>>, StatusCode> {
-    let d1 = get_d1(&state)?.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let d1 = get_d1(&state).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let statement = d1.prepare("SELECT * FROM monitors WHERE org_id = ?1 ORDER BY created_at DESC");
     let query = statement
-        .bind(&[org_id.into()])?
+        .bind(&[org_id.into()])
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     match query.all().await {
-        Ok(result) => Ok(Json(result.results::<Monitor>()?)),
+        Ok(result) => Ok(Json(
+            result
+                .results::<Monitor>()
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+        )),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }
 
+#[worker::send]
 pub async fn create_monitor(
     State(state): State<AppState>,
     Json(monitor): Json<CreateMonitor>,
 ) -> Result<Json<Monitor>, StatusCode> {
-    let d1 = get_d1(&state)?.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let d1 = get_d1(&state).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let statement = d1.prepare("INSERT INTO monitors (id, org_id, name, kind, url, interval_s, timeout_ms, follow_redirects, verify_tls, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)");
     let id = create_id().to_string();
 
@@ -111,11 +118,11 @@ pub async fn create_monitor(
     ];
 
     let query = statement
-        .bind(&bind_values)?
+        .bind(&bind_values)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     query
         .run()
-        .await?
+        .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     match query.first::<Monitor>(None).await {

@@ -7,6 +7,6 @@ pub use handlers::{create_organization, get_organization_by_id, CreateOrganizati
 
 pub fn router() -> Router<AppState> {
     Router::new()
-        .route("/:id", get(handlers::get_organization_by_id))
+        .route("/{id}", get(handlers::get_organization_by_id))
         .route("/", post(handlers::create_organization))
 }
