@@ -1,10 +1,11 @@
-import { createRoute, Link, useNavigate } from "@tanstack/react-router";
 import type { Register, RootRoute } from "@tanstack/react-router";
-import type { RouterContext } from "@/router-context";
-import { ArrowLeft } from "lucide-react";
+import { createRoute, Link, useNavigate } from "@tanstack/react-router";
+import { ArrowLeft, ShieldCheck } from "lucide-react";
+import { useAppForm } from "@/components/form/useAppForm";
+import { Hero } from "@/components/layout/Hero";
 import { Button } from "@/components/ui/button";
 import { createMonitor } from "@/lib/monitors";
-import { useAppForm } from "@/components/form/useAppForm";
+import type { RouterContext } from "@/router-context";
 
 type MonitorFormValues = {
 	orgId: string;
@@ -46,159 +47,195 @@ function MonitorNewPage() {
 	});
 
 	return (
-		<div className="min-h-screen bg-white dark:bg-black text-black dark:text-white p-8">
-			<div className="max-w-4xl mx-auto space-y-8">
+		<main className="min-h-screen bg-[var(--surface)] px-6 py-10 text-[var(--text-primary)] lg:px-8">
+			<div className="mx-auto max-w-5xl space-y-10">
 				<Link
 					to="/monitors"
-					className="inline-flex items-center gap-2 font-bold uppercase hover:text-[#ff6633] transition-colors"
+					className="inline-flex items-center gap-2 text-sm text-[var(--text-muted)] transition hover:text-[var(--text-primary)]"
 				>
-					<ArrowLeft size={20} strokeWidth={3} />
-					Back to Monitors
+					<ArrowLeft size={16} />
+					Back to monitors
 				</Link>
 
-				<div className="border-4 border-black dark:border-white p-6 bg-[#ff6633]">
-					<h1 className="text-4xl mb-2">NEW MONITOR</h1>
-					<p className="font-mono text-sm normal-case">
-						Configure a new HTTP/HTTPS monitor
-					</p>
-				</div>
+				<Hero
+					eyebrow="New monitor"
+					title="Provision HTTP/HTTPS coverage"
+					description="Define a URL, interval, and timeout to let the Cloudflare Worker begin polling. Every field lives on one screen so you can deploy quickly during incident response."
+				/>
 
-				<form.AppForm>
-					<form
-						className="border-4 border-black dark:border-white p-8 bg-white dark:bg-black space-y-8"
-						onSubmit={(event) => {
-							event.preventDefault();
-							void form.handleSubmit();
-						}}
-					>
-						<div className="space-y-6">
-							<form.AppField
-								name="orgId"
-								validators={{
-									onBlur: ({ value }) => {
-										if (!value?.trim()) {
-											return "Organization ID is required";
-										}
-										return undefined;
-									},
+				<section className="grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.7fr)]">
+					<div className="rounded-[32px] border border-white/10 bg-white/[0.02] p-6 shadow-[var(--shadow-soft)] sm:p-8">
+						<form.AppForm>
+							<form
+								className="space-y-8"
+								onSubmit={(event) => {
+									event.preventDefault();
+									void form.handleSubmit();
 								}}
 							>
-								{(field) => (
-									<field.TextField
-										label="Organization ID"
-										placeholder="cz3exampleorgid"
-										description="Paste the ID from the Organization page"
+								<div className="grid gap-6">
+									<form.AppField
+										name="orgId"
+										validators={{
+											onBlur: ({ value }) => {
+												if (!value?.trim()) {
+													return "Organization ID is required";
+												}
+												return undefined;
+											},
+										}}
+									>
+										{(field) => (
+											<field.TextField
+												label="Organization ID"
+												placeholder="cz3exampleorgid"
+												description="Paste the ID from the Organization panel"
+											/>
+										)}
+									</form.AppField>
+
+									<form.AppField
+										name="name"
+										validators={{
+											onBlur: ({ value }) =>
+												value?.trim().length ? undefined : "Name is required",
+										}}
+									>
+										{(field) => (
+											<field.TextField
+												label="Monitor name"
+												placeholder="My API Endpoint"
+											/>
+										)}
+									</form.AppField>
+
+									<form.AppField
+										name="url"
+										validators={{
+											onBlur: ({ value }) => {
+												if (!value?.trim()) {
+													return "URL is required";
+												}
+												try {
+													new URL(value);
+													return undefined;
+												} catch {
+													return "Enter a valid URL";
+												}
+											},
+										}}
+									>
+										{(field) => (
+											<field.TextField
+												label="URL"
+												placeholder="https://api.example.com/health"
+											/>
+										)}
+									</form.AppField>
+
+									<div className="grid gap-6 md:grid-cols-2">
+										<form.AppField
+											name="interval"
+											validators={{
+												onBlur: ({ value }) =>
+													value >= 15
+														? undefined
+														: "Min interval is 15 seconds",
+											}}
+										>
+											{(field) => (
+												<field.NumberField
+													label="Check interval (seconds)"
+													placeholder="60"
+													min={15}
+												/>
+											)}
+										</form.AppField>
+										<form.AppField
+											name="timeout"
+											validators={{
+												onBlur: ({ value }) =>
+													value >= 1000 ? undefined : "Min timeout is 1000 ms",
+											}}
+										>
+											{(field) => (
+												<field.NumberField
+													label="Timeout (milliseconds)"
+													placeholder="5000"
+													min={1000}
+												/>
+											)}
+										</form.AppField>
+									</div>
+
+									<div className="rounded-3xl border border-white/15 bg-black/30 p-6">
+										<p className="text-xs font-mono uppercase tracking-[0.4em] text-[var(--text-soft)]">
+											Advanced options
+										</p>
+										<div className="mt-4 space-y-4">
+											<form.AppField name="followRedirects">
+												{(field) => (
+													<field.BooleanSwitchField label="Follow redirects" />
+												)}
+											</form.AppField>
+											<form.AppField name="verifyTls">
+												{(field) => (
+													<field.BooleanSwitchField label="Verify TLS certificate" />
+												)}
+											</form.AppField>
+										</div>
+									</div>
+								</div>
+
+								<div className="flex flex-col gap-3 sm:flex-row">
+									<form.SubmitButton
+										className="flex-1"
+										label="Create monitor"
 									/>
-								)}
-							</form.AppField>
+									<Link to="/monitors" className="flex-1">
+										<Button variant="secondary" className="w-full">
+											Cancel
+										</Button>
+									</Link>
+								</div>
+							</form>
+						</form.AppForm>
+					</div>
 
-							<form.AppField
-								name="name"
-								validators={{
-					onBlur: ({ value }) =>
-						value?.trim().length ? undefined : "Name is required",
-								}}
-							>
-								{(field) => (
-									<field.TextField
-										label="Monitor Name"
-										placeholder="My API Endpoint"
-									/>
-								)}
-							</form.AppField>
-
-							<form.AppField
-								name="url"
-								validators={{
-					onBlur: ({ value }) => {
-						if (!value?.trim()) {
-											return "URL is required";
-										}
-										try {
-											new URL(value);
-											return undefined;
-										} catch {
-											return "Enter a valid URL";
-										}
-									},
-								}}
-							>
-								{(field) => (
-									<field.TextField
-										label="URL"
-										placeholder="https://api.example.com/health"
-								/>
-								)}
-							</form.AppField>
-
-							<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-								<form.AppField
-									name="interval"
-									validators={{
-						onBlur: ({ value }) =>
-							value >= 15 ? undefined : "Min interval is 15 seconds",
-								}}
-								>
-									{(field) => (
-										<field.NumberField
-											label="Check Interval (seconds)"
-											placeholder="60"
-											min={15}
-										/>
-									)}
-								</form.AppField>
-								<form.AppField
-									name="timeout"
-									validators={{
-						onBlur: ({ value }) =>
-							value >= 1000 ? undefined : "Min timeout is 1000 ms",
-								}}
-								>
-									{(field) => (
-										<field.NumberField
-											label="Timeout (milliseconds)"
-											placeholder="5000"
-											min={1000}
-										/>
-									)}
-								</form.AppField>
-							</div>
-
-							<div className="border-4 border-black dark:border-white p-6 bg-black text-white space-y-6">
-								<h3 className="text-[#ff6633] font-mono text-sm tracking-widest">
-									// ADVANCED OPTIONS
-								</h3>
-								<form.AppField name="followRedirects">
-									{(field) => (
-										<field.BooleanSwitchField label="Follow Redirects" />
-									)}
-								</form.AppField>
-								<form.AppField name="verifyTls">
-									{(field) => (
-										<field.BooleanSwitchField label="Verify TLS certificate" />
-									)}
-								</form.AppField>
-							</div>
+					<aside className="rounded-[32px] border border-white/10 bg-white/[0.01] p-6 shadow-[var(--shadow-soft)]">
+						<div className="rounded-3xl border border-white/10 bg-black/40 p-6">
+							<p className="text-xs uppercase tracking-[0.4em] text-[var(--text-soft)]">
+								Deployment checklist
+							</p>
+							<ul className="mt-4 space-y-4 text-sm text-[var(--text-muted)]">
+								<li>1. Reference org ID from the Organization panel.</li>
+								<li>2. Use fully-qualified URLs—edge workers enforce TLS.</li>
+								<li>
+									3. Keep intervals ≥ 15s to stay within Durable Object budgets.
+								</li>
+								<li>
+									4. Advanced options keep redirect and TLS toggles in reach so
+									you can double-check behavior before saving.
+								</li>
+							</ul>
 						</div>
 
-						<div className="flex gap-4">
-							<form.SubmitButton label="Create Monitor" className="flex-1" />
-							<Link to="/monitors" className="flex-1">
-								<Button type="button" variant="outline" className="w-full">
-									Cancel
-								</Button>
-							</Link>
+						<div className="mt-6 space-y-3 rounded-3xl border border-white/10 bg-white/[0.03] p-6">
+							<ShieldCheck size={24} className="text-[var(--accent-green)]" />
+							<p className="text-base font-medium">Saavy control plane</p>
+							<p className="text-sm text-[var(--text-muted)]">
+								Each monitor streams status back into the Monitors, Incidents,
+								and Status pages automatically—no extra wiring required.
+							</p>
 						</div>
-					</form>
-				</form.AppForm>
+					</aside>
+				</section>
 			</div>
-		</div>
+		</main>
 	);
 }
 
-export default (
-	parentRoute: RootRoute<Register, undefined, RouterContext>,
-) =>
+export default (parentRoute: RootRoute<Register, undefined, RouterContext>) =>
 	createRoute({
 		path: "/monitors/new",
 		component: MonitorNewPage,

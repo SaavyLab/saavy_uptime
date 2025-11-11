@@ -1,19 +1,17 @@
-import { createRoute, Link } from "@tanstack/react-router";
-import type { Register, RootRoute } from "@tanstack/react-router";
-import type { RouterContext } from "@/router-context";
-import { Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import type { Register, RootRoute } from "@tanstack/react-router";
+import { createRoute, Link } from "@tanstack/react-router";
+import { RefreshCcw, Sparkles } from "lucide-react";
+import { Hero } from "@/components/layout/Hero";
+import { SectionCard } from "@/components/layout/SectionCard";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { StatsGrid } from "@/components/ui/StatsCard";
+import { StatusPill } from "@/components/ui/StatusPill";
 import { getMonitors, type Monitor } from "@/lib/monitors";
+import type { RouterContext } from "@/router-context";
 
 const ORG_ID = "zimr7nsz8gj0nxsgqktogm4v";
-
-const statusColorMap: Record<string, string> = {
-	up: "bg-[#00ff00] text-black",
-	down: "bg-[#ff0000] text-white",
-	degraded: "bg-[#ffff00] text-black",
-	maintenance: "bg-[#ff6633] text-black",
-	unknown: "bg-gray-400 text-black",
-};
 
 const formatTimestamp = (value?: number | null) => {
 	if (!value) {
@@ -24,12 +22,7 @@ const formatTimestamp = (value?: number | null) => {
 };
 
 function MonitorsPage() {
-	const {
-		data,
-		isLoading,
-		error,
-		refetch,
-	} = useQuery<Monitor[]>({
+	const { data, isLoading, error, refetch } = useQuery<Monitor[]>({
 		queryKey: ["monitors", ORG_ID],
 		queryFn: () => getMonitors(ORG_ID),
 	});
@@ -37,138 +30,214 @@ function MonitorsPage() {
 	const monitors = data ?? [];
 	const total = monitors.length;
 	const enabled = monitors.filter((monitor) => Boolean(monitor.enabled)).length;
-	const failing = monitors.filter((monitor) => monitor.current_status === "down").length;
+	const failing = monitors.filter(
+		(monitor) => monitor.current_status === "down",
+	).length;
+	const averageInterval = monitors.length
+		? Math.round(
+				monitors.reduce(
+					(sum, monitor) => sum + Number(monitor.interval_s ?? 0),
+					0,
+				) / monitors.length,
+			)
+		: null;
+	const mostRecentCheck = monitors.reduce(
+		(latest, monitor) => Math.max(latest, monitor.last_checked_at_ts ?? 0),
+		0,
+	);
+
+	const sortedMonitors = [...monitors].sort(
+		(a, b) => (b.last_checked_at_ts ?? 0) - (a.last_checked_at_ts ?? 0),
+	);
+
+	const overviewCards = [
+		{
+			label: "Total monitors",
+			value: isLoading ? "…" : total,
+			meta: `${enabled} enabled`,
+		},
+		{
+			label: "Down",
+			value: isLoading ? "…" : failing,
+			meta: "requires attention",
+		},
+		{
+			label: "Average interval",
+			value: averageInterval ? `${averageInterval}s` : "—",
+			meta: "fleet cadence",
+		},
+		{
+			label: "Last check",
+			value: mostRecentCheck ? formatTimestamp(mostRecentCheck) : "—",
+			meta: "latest sample",
+		},
+	];
 
 	return (
-		<div className="min-h-screen bg-white dark:bg-black text-black dark:text-white p-8">
-			<div className="max-w-7xl mx-auto space-y-8">
-				<div className="flex items-center justify-between">
-					<div className="border-4 border-black dark:border-white p-6 flex-1 mr-4 bg-[#ff6633]">
-						<h1 className="text-4xl mb-2">MONITORS</h1>
-						<p className="font-mono text-sm normal-case">
-							Configure and manage HTTP/HTTPS monitors
-						</p>
-					</div>
-					<Link
-						to="/monitors/new"
-						className="border-4 border-black dark:border-white bg-[#00ff00] text-black p-6 hover:bg-[#00cc00] transition-colors flex items-center gap-3 font-bold uppercase"
-					>
-						<Plus size={24} strokeWidth={3} />
-						New Monitor
-					</Link>
-				</div>
-
-				<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-					<div className="border-4 border-black dark:border-white p-6 bg-white dark:bg-black">
-						<p className="text-sm font-mono text-muted-foreground uppercase mb-2">
-							Total
-						</p>
-						<p className="text-4xl font-bold">{isLoading ? "…" : total}</p>
-					</div>
-					<div className="border-4 border-black dark:border-white p-6 bg-white dark:bg-black">
-						<p className="text-sm font-mono text-muted-foreground uppercase mb-2">
-							Enabled
-						</p>
-						<p className="text-4xl font-bold text-[#00ff00]">{isLoading ? "…" : enabled}</p>
-					</div>
-					<div className="border-4 border-black dark:border-white p-6 bg-white dark:bg-black">
-						<p className="text-sm font-mono text-muted-foreground uppercase mb-2">Failing</p>
-						<p className="text-4xl font-bold text-[#ff0000]">{isLoading ? "…" : failing}</p>
-					</div>
-				</div>
-
-				<div className="border-4 border-black dark:border-white bg-white dark:bg-black">
-					<div className="flex items-center justify-between border-b-4 border-black dark:border-white p-6">
-						<div>
-							<h2 className="text-2xl uppercase">All monitors</h2>
-							<p className="text-sm font-mono text-muted-foreground">
-								Showing {total} monitors for org {ORG_ID}
-							</p>
-						</div>
-						<button
-							type="button"
-							onClick={() => refetch()}
-							className="border-2 border-black dark:border-white px-4 py-2 font-bold uppercase hover:bg-black hover:text-white transition-colors"
-						>
-							Refresh
-						</button>
-					</div>
-
-					{isLoading ? (
-						<p className="p-6 font-mono text-sm text-muted-foreground">
-							Loading monitors…
-						</p>
-					) : error instanceof Error ? (
-						<div className="p-6 space-y-2">
-							<p className="text-red-500 font-mono text-sm">{error.message}</p>
-							<button
+		<main className="min-h-screen bg-[var(--surface)] px-6 py-10 text-[var(--text-primary)] lg:px-8">
+			<div className="mx-auto max-w-6xl space-y-10">
+				<Hero
+					eyebrow="Monitor Fleet"
+					title="Live monitor inventory for Saavy Uptime."
+					description="Review the checks you’ve already deployed, refresh status from the worker, and stay focused on a lean uptime MVP."
+					actions={
+						<>
+							<Link to="/monitors/new">
+								<Button>New monitor</Button>
+							</Link>
+							<Button
 								type="button"
+								variant="secondary"
 								onClick={() => refetch()}
-								className="border-2 border-black dark:border-white px-4 py-2 font-bold uppercase hover:bg-black hover:text-white transition-colors"
+								disabled={isLoading}
+								className="flex items-center gap-2"
 							>
-								Try again
-							</button>
+								<RefreshCcw size={16} />
+								Refresh
+							</Button>
+						</>
+					}
+					sideContent={
+						<div className="space-y-4">
+							<StatsGrid
+								items={overviewCards}
+								cardClassName="bg-white/5 border-white/10"
+							/>
+							<div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm">
+								<Sparkles size={18} className="text-[var(--accent)]" />
+								<span className="text-[var(--text-muted)]">
+									{enabled
+										? `${enabled} monitors currently online`
+										: "Waiting for your first monitor"}
+								</span>
+							</div>
 						</div>
-					) : monitors.length === 0 ? (
-						<div className="p-6 font-mono text-sm text-muted-foreground">
-							No monitors yet. Create one to start tracking uptime.
+					}
+				/>
+
+				<SectionCard title="Fleet summary">
+					<StatsGrid
+						items={overviewCards}
+						className="sm:grid-cols-2 lg:grid-cols-4"
+						cardClassName="bg-white/[0.03]"
+					/>
+				</SectionCard>
+
+				<SectionCard
+					title="Monitor inventory"
+					description={`Showing ${total} monitors for org ${ORG_ID}`}
+					actions={
+						<>
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								onClick={() => refetch()}
+								className="flex items-center gap-2"
+							>
+								<RefreshCcw size={14} />
+								Sync
+							</Button>
+							<Link to="/monitors/new">
+								<Button size="sm">Add</Button>
+							</Link>
+						</>
+					}
+				>
+					{isLoading ? (
+						<div className="space-y-4">
+							{["alpha", "beta", "gamma"].map((token) => (
+								<Skeleton key={`monitors-skeleton-${token}`} className="h-24" />
+							))}
+						</div>
+					) : error instanceof Error ? (
+						<div className="space-y-4">
+							<p className="font-mono text-sm text-[var(--accent-red)]">
+								{error.message}
+							</p>
+							<Button type="button" onClick={() => refetch()}>
+								Try again
+							</Button>
+						</div>
+					) : sortedMonitors.length === 0 ? (
+						<div className="space-y-4 py-12 text-center">
+							<p className="text-base text-[var(--text-muted)]">
+								No monitors yet. Create one to start tracking uptime.
+							</p>
+							<Link to="/monitors/new">
+								<Button>Launch first monitor</Button>
+							</Link>
 						</div>
 					) : (
-						<div className="divide-y-4 divide-black dark:divide-white">
-							{monitors.map((monitor) => {
-								const statusClass =
-									statusColorMap[monitor.current_status] ?? statusColorMap.unknown;
-								return (
-									<div
-										key={monitor.id}
-										className="p-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
-									>
-										<div>
-											<div className="flex items-center gap-3">
-												<h3 className="text-2xl font-bold uppercase">{monitor.name}</h3>
-												<span className={`px-3 py-1 text-xs font-bold uppercase ${statusClass}`}>
-													{monitor.current_status}
-												</span>
-											</div>
-											<p className="font-mono text-sm text-muted-foreground break-all">
-												{monitor.url}
-											</p>
-											<p className="font-mono text-xs text-muted-foreground mt-1">
-												Created {formatTimestamp(monitor.created_at)}
-											</p>
+						<div className="divide-y divide-white/5">
+							{sortedMonitors.map((monitor) => (
+								<div
+									key={monitor.id}
+									className="grid gap-6 py-6 md:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)] px-3 md:px-6"
+								>
+									<div className="space-y-3">
+										<div className="flex flex-wrap items-center gap-3">
+											<h3 className="text-xl font-semibold">{monitor.name}</h3>
+											<StatusPill status={monitor.current_status} />
 										</div>
-										<div className="grid grid-cols-2 gap-4 text-sm font-mono">
-											<div>
-												<p className="uppercase text-muted-foreground">Interval</p>
-												<p>{monitor.interval_s}s</p>
-											</div>
-											<div>
-												<p className="uppercase text-muted-foreground">Timeout</p>
-												<p>{monitor.timeout_ms}ms</p>
-											</div>
-											<div>
-												<p className="uppercase text-muted-foreground">Last Check</p>
-												<p>{formatTimestamp(monitor.last_checked_at_ts)}</p>
-											</div>
-											<div>
-												<p className="uppercase text-muted-foreground">Enabled</p>
-												<p>{monitor.enabled ? "Yes" : "No"}</p>
-											</div>
-										</div>
+										<p className="font-mono text-sm text-[var(--text-muted)] break-all">
+											{monitor.url}
+										</p>
+										<p className="font-mono text-xs text-[var(--text-soft)]">
+											Created {formatTimestamp(monitor.created_at)}
+										</p>
 									</div>
-								);
-							})}
+									<dl className="grid grid-cols-2 gap-4 text-sm font-mono text-[var(--text-muted)]">
+										<div>
+											<dt className="text-xs uppercase tracking-[0.3em] text-[var(--text-soft)]">
+												Interval
+											</dt>
+											<dd className="text-base text-[var(--text-primary)]">
+												{monitor.interval_s}s
+											</dd>
+										</div>
+										<div>
+											<dt className="text-xs uppercase tracking-[0.3em] text-[var(--text-soft)]">
+												Timeout
+											</dt>
+											<dd className="text-base text-[var(--text-primary)]">
+												{monitor.timeout_ms}ms
+											</dd>
+										</div>
+										<div>
+											<dt className="text-xs uppercase tracking-[0.3em] text-[var(--text-soft)]">
+												Last check
+											</dt>
+											<dd className="text-base text-[var(--text-primary)]">
+												{formatTimestamp(monitor.last_checked_at_ts)}
+											</dd>
+										</div>
+										<div>
+											<dt className="text-xs uppercase tracking-[0.3em] text-[var(--text-soft)]">
+												Enabled
+											</dt>
+											<dd
+												className={
+													monitor.enabled
+														? "text-[var(--accent-green)]"
+														: "text-[var(--accent-red)]"
+												}
+											>
+												{monitor.enabled ? "Yes" : "No"}
+											</dd>
+										</div>
+									</dl>
+								</div>
+							))}
 						</div>
 					)}
-				</div>
+				</SectionCard>
 			</div>
-		</div>
+		</main>
 	);
 }
 
-export default (
-	parentRoute: RootRoute<Register, undefined, RouterContext>,
-) =>
+export default (parentRoute: RootRoute<Register, undefined, RouterContext>) =>
 	createRoute({
 		path: "/monitors",
 		component: MonitorsPage,

@@ -48,7 +48,7 @@ tasks:
     cmds:
       - cargo test
 
-  fmt:
+  format:
     desc: "Format Rust code"
     cmds:
       - cargo fmt

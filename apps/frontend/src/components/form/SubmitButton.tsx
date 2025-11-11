@@ -7,7 +7,10 @@ type SubmitButtonProps = {
 	className?: string;
 };
 
-export function SubmitButton({ label = "Submit", className }: SubmitButtonProps) {
+export function SubmitButton({
+	label = "Submit",
+	className,
+}: SubmitButtonProps) {
 	const form = useFormContext();
 
 	return (

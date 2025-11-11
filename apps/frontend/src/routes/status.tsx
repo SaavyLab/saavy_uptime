@@ -1,69 +1,69 @@
-import { createRoute } from "@tanstack/react-router";
 import type { Register, RootRoute } from "@tanstack/react-router";
+import { createRoute } from "@tanstack/react-router";
+import { Activity } from "lucide-react";
+import { Hero } from "@/components/layout/Hero";
+import { SectionCard } from "@/components/layout/SectionCard";
+import { Button } from "@/components/ui/button";
+import { StatsGrid } from "@/components/ui/StatsCard";
 import type { RouterContext } from "@/router-context";
-import { Activity, CheckCircle } from "lucide-react";
 
 function StatusPage() {
+	const uptimeWindows = [
+		{ label: "24 HOURS", value: "100.00%" },
+		{ label: "7 DAYS", value: "100.00%" },
+		{ label: "30 DAYS", value: "100.00%" },
+	];
+
 	return (
-		<div className="min-h-screen bg-white dark:bg-black text-black dark:text-white p-8">
-			<div className="max-w-5xl mx-auto">
-				<div className="border-4 border-black dark:border-white p-8 mb-8 bg-[#00ff00] text-black">
-					<div className="flex items-center gap-4 mb-4">
-						<CheckCircle size={48} strokeWidth={3} />
-						<div>
-							<h1 className="text-5xl mb-1">ALL SYSTEMS OPERATIONAL</h1>
-							<p className="font-mono text-sm">Last updated: Just now</p>
-						</div>
+		<main className="min-h-screen bg-[var(--surface)] px-6 py-10 text-[var(--text-primary)] lg:px-8">
+			<div className="mx-auto max-w-6xl space-y-10">
+				<Hero
+					eyebrow="Status"
+					title="All systems operational"
+					description="Last updated: just now"
+					actions={
+						<>
+							<Button variant="secondary">Subscribe</Button>
+							<Button variant="ghost">View history</Button>
+						</>
+					}
+				/>
+
+				<SectionCard
+					title={
+						<span className="flex items-center gap-3">
+							<Activity size={20} />
+							<span>Services</span>
+						</span>
+					}
+				>
+					<div className="rounded-3xl border border-white/10 bg-black/30 p-6 text-center text-sm text-[var(--text-muted)]">
+						No services configured yet. As monitors come online they will be
+						grouped here with simple status chips and availability notes.
 					</div>
-				</div>
+				</SectionCard>
 
-				<div className="border-4 border-black dark:border-white p-8 bg-white dark:bg-black mb-8">
-					<h2 className="mb-6 flex items-center gap-3">
-						<Activity size={24} strokeWidth={3} />
-						SERVICES
-					</h2>
+				<SectionCard title="Uptime history">
+					<StatsGrid
+						items={uptimeWindows.map((window) => ({
+							label: window.label,
+							value: window.value,
+							tone: "text-[var(--accent-green)]",
+						}))}
+						className="sm:grid-cols-3"
+						cardClassName="bg-white/[0.02]"
+					/>
+				</SectionCard>
 
-					<div className="space-y-4">
-						{/* Placeholder for when monitors exist */}
-						<div className="text-center py-8 text-muted-foreground">
-							<p className="font-mono text-sm normal-case">
-								No services configured yet
-							</p>
-						</div>
-					</div>
-				</div>
-
-				<div className="border-4 border-black dark:border-white p-6 bg-black text-white">
-					<h2 className="mb-4 text-[#ff6633]">// UPTIME STATISTICS</h2>
-					<div className="grid grid-cols-3 gap-6 font-mono text-sm">
-						<div>
-							<div className="text-muted-foreground mb-1">24 HOURS</div>
-							<div className="text-2xl font-bold text-[#00ff00]">100.00%</div>
-						</div>
-						<div>
-							<div className="text-muted-foreground mb-1">7 DAYS</div>
-							<div className="text-2xl font-bold text-[#00ff00]">100.00%</div>
-						</div>
-						<div>
-							<div className="text-muted-foreground mb-1">30 DAYS</div>
-							<div className="text-2xl font-bold text-[#00ff00]">100.00%</div>
-						</div>
-					</div>
-				</div>
-
-				<div className="mt-8 text-center">
-					<p className="font-mono text-xs text-muted-foreground">
-						Powered by CF-UPTIME • Cloudflare-Native Monitoring
-					</p>
-				</div>
+				<p className="text-center text-xs text-[var(--text-muted)]">
+					Powered by Saavy Uptime — a Cloudflare-native status surface.
+				</p>
 			</div>
-		</div>
+		</main>
 	);
 }
 
-export default (
-	parentRoute: RootRoute<Register, undefined, RouterContext>,
-) =>
+export default (parentRoute: RootRoute<Register, undefined, RouterContext>) =>
 	createRoute({
 		path: "/status",
 		component: StatusPage,

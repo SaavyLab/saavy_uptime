@@ -2,8 +2,8 @@ use console_error_panic_hook::set_once as set_panic_hook;
 use worker::*;
 
 pub mod monitors;
-pub mod utils;
 pub mod organizations;
+pub mod utils;
 
 use monitors::{create_monitor, get_monitor_by_id, get_monitors_by_org_id, CreateMonitor};
 use organizations::{create_organization, get_organization_by_id, CreateOrganization};
