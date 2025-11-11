@@ -1,4 +1,5 @@
 use crate::router::AppState;
+use crate::utils::date::now_ms;
 use crate::utils::wasm_types::js_number;
 use axum::{
     extract::{Path, State},
@@ -102,7 +103,7 @@ pub async fn create_monitor(
     let d1 = get_d1(&state).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let statement = d1.prepare("INSERT INTO monitors (id, org_id, name, kind, url, interval_s, timeout_ms, follow_redirects, verify_tls, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)");
     let id = create_id().to_string();
-    let now = js_sys::Date::now() as i64 / 1000;
+    let now = now_ms();
 
     let bind_values = vec![
         JsValue::from_str(&id),

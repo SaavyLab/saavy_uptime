@@ -1,4 +1,5 @@
 use crate::router::AppState;
+use crate::utils::date::now_ms;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
@@ -57,7 +58,7 @@ pub async fn create_organization(
     let statement = d1
         .prepare("INSERT INTO organizations (id, slug, name, created_at) VALUES (?1, ?2, ?3, ?4)");
     let id = create_id().to_string();
-    let now = js_sys::Date::now() as i64 / 1000;
+    let now = now_ms();
 
     let bind_values = vec![
         JsValue::from_str(&id),
