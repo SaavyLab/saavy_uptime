@@ -36,5 +36,13 @@ We’re capturing bits that weren’t obvious while porting the backend to the A
 
 - Using `rand`/`cuid` means you can’t rely on OS randomness. That ties back to `getrandom` but also means testing outside Workers should mock ID generation to avoid differences.
 - Native TLS/verifier crates won’t work; stick to HTTP clients that support WASM (or call back through Fetch).
+- Durable Object storage is eventually consistent across restarts; don’t assume `set_alarm` survives long sleeps unless you persist state yourself.
+
+- **Durable Object tooling:** the macro/lifecycle story (`#[durable_object]`, `State`, `Env`) is solid, but authoring a DO plus Axum API in one crate lacks docs. We ended up reading `worker` crate source to understand how alarms, storage, and `Fetch::Request` interact.
+- **Fetch within DO:** sending requests from a DO back into the Worker requires manually building `RequestInit`, headers, etc. Examples for “DO calling same Worker script via internal auth” would be helpful; today you have to inspect `worker::request` internals or rely on trial/error.
+- **wasm-bindgen stack traces:** when fetch/set_alarm fail at runtime, the errors bubble up as `JsValue` strings (`Error: bad resource name`). There’s no direct mapping to Rust error types, so we wrap everything with `internal_error()` helpers to keep context. A higher-level error enum from workers-rs would be nice.
+- **Lack of DO migrations doc:** Wrangler requires `[[migrations]]` entries for new DO classes, but the recommended pattern (“append migration per change”) isn’t mentioned in workers-rs docs—you learn it from Wrangler errors.
+- **Local dev errors:** running `cargo check --target wasm32-unknown-unknown` can fail on filesystems that don’t support hardlinks (common on bind mounts). Not workers-rs’ fault, but worth calling out in docs so folks set `CARGO_TARGET_DIR` appropriately.
+- **UDP support is still aspirational:** Cloudflare announced Socket Workers in 2021 with UDP examples, but (as of Nov 2025) only outbound TCP via `connect()` has shipped. UDP remains “not available,” despite the docs snippet. Track progress via <https://community.cloudflare.com/tag/socket-workers>. For now, any UDP-heavy protocols (Minecraft query, Valve A2S) need a proxy or alternative transport.
 
 If you run into other sharp edges, add them here so we can hand actionable notes back to the Workers team (or automate them via templates/Taskfile steps).
