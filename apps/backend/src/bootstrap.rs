@@ -8,6 +8,6 @@ mod handlers;
 
 pub fn router() -> Router<AppState> {
     Router::new()
-        .route("/{id}", get(handlers::get_organization_by_id))
-        .route("/", post(handlers::create_organization))
+        .route("/status", get(handlers::status))
+        .route("/initialize", post(handlers::initialize))
 }

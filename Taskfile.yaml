@@ -60,7 +60,7 @@ tasks:
   format:
     desc: "Format all code"
     cmds:
-      - task: frontend:format
+      - task: frontend:format:fix
       - task: backend:format
 
   db:shell:

@@ -1,48 +1,60 @@
-export type CreateMonitorInput = {
-	orgId: string;
-	name: string;
-	url: string;
-	interval: number;
-	timeout: number;
-	followRedirects: boolean;
-	verifyTls: boolean;
-};
-
-export type Monitor = {
-	id: string;
-	org_id: string;
-	name: string;
-	url: string;
-	interval_s: number;
-	timeout_ms: number;
-	current_status: string;
-	last_checked_at_ts: number | null;
-	enabled: number;
-	created_at: number;
-};
+import { z } from "zod";
+import { withAccessHeader } from "./api";
 
 const apiBase = import.meta.env.VITE_API_URL;
 
+const createMonitorSchema = z.object({
+	orgId: z.string(),
+	name: z.string(),
+	url: z.string(),
+	interval: z.number(),
+	timeout: z.number(),
+	followRedirects: z.boolean(),
+	verifyTls: z.boolean(),
+});
+
+export type CreateMonitorInput = z.infer<typeof createMonitorSchema>;
+
+const monitorSchema = z.object({
+	id: z.string(),
+	orgId: z.string(),
+	name: z.string(),
+	url: z.string(),
+	intervalS: z.number(),
+	timeoutMs: z.number(),
+	currentStatus: z.string(),
+	lastCheckedAtTs: z.number().nullable(),
+	enabled: z.number(),
+	createdAt: z.number(),
+	updatedAt: z.number(),
+});
+
+export type Monitor = z.infer<typeof monitorSchema>;
+
 export const getMonitors = async (orgId: string): Promise<Monitor[]> => {
-	const response = await fetch(`${apiBase}/api/monitors/org/${orgId}`);
+	const response = await fetch(`${apiBase}/api/monitors/org/${orgId}`, {
+		headers: withAccessHeader(),
+	});
 
 	if (!response.ok) {
 		throw new Error(`Unable to load monitors (${response.status})`);
 	}
 
-	return response.json();
+	return monitorSchema.array().parse(await response.json());
 };
 
-export const createMonitor = async (monitor: CreateMonitorInput) => {
+export const createMonitor = async (
+	monitor: CreateMonitorInput,
+): Promise<Monitor> => {
 	const response = await fetch(`${apiBase}/api/monitors`, {
 		method: "POST",
-		headers: {
+		headers: withAccessHeader({
 			"Content-Type": "application/json",
-		},
+		}),
 		body: JSON.stringify(monitor),
 	});
 	if (!response.ok) {
 		throw new Error(`Unable to create monitor (${response.status})`);
 	}
-	return response.json();
+	return monitorSchema.parse(await response.json());
 };

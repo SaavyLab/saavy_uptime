@@ -1,3 +1,5 @@
+use crate::auth::current_user::CurrentUser;
+use crate::cloudflare::d1::get_d1;
 use crate::router::AppState;
 use crate::utils::date::now_ms;
 use crate::utils::wasm_types::js_number;
@@ -9,7 +11,7 @@ use axum::{
 };
 use cuid2::create_id;
 use serde::{Deserialize, Serialize};
-use worker::{wasm_bindgen::JsValue, D1Database, Result as WorkerResult};
+use worker::{console_log, wasm_bindgen::JsValue, D1Database, Result as WorkerResult};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all(deserialize = "camelCase"))]
@@ -24,6 +26,7 @@ pub struct CreateMonitor {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all(serialize = "camelCase"))]
 pub struct Monitor {
     pub id: String,
     pub org_id: String,
@@ -50,17 +53,21 @@ pub struct Monitor {
     pub updated_at: i64,
 }
 
-fn get_d1(state: &AppState) -> WorkerResult<D1Database> {
-    state.env().d1("DB")
-}
-
 #[worker::send]
 pub async fn get_monitor_by_id(
     State(state): State<AppState>,
     Path(id): Path<String>,
+    CurrentUser {
+        email,
+        subject,
+        claims,
+    }: CurrentUser,
 ) -> Result<Json<Monitor>, StatusCode> {
-    let d1 = get_d1(&state).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    console_log!("user: {:?}", email);
+    console_log!("subject: {:?}", subject);
+    console_log!("claims: {:?}", claims);
 
+    let d1 = get_d1(&state).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let statement = d1.prepare("SELECT * FROM monitors WHERE id = ?1");
     let query = statement
         .bind(&[id.into()])
@@ -77,9 +84,17 @@ pub async fn get_monitor_by_id(
 pub async fn get_monitors_by_org_id(
     State(state): State<AppState>,
     Path(org_id): Path<String>,
+    CurrentUser {
+        email,
+        subject,
+        claims,
+    }: CurrentUser,
 ) -> Result<Json<Vec<Monitor>>, StatusCode> {
-    let d1 = get_d1(&state).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    console_log!("user: {:?}", email);
+    console_log!("subject: {:?}", subject);
+    console_log!("claims: {:?}", claims);
 
+    let d1 = get_d1(&state).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let statement = d1.prepare("SELECT * FROM monitors WHERE org_id = ?1 ORDER BY created_at DESC");
     let query = statement
         .bind(&[org_id.into()])
@@ -98,8 +113,17 @@ pub async fn get_monitors_by_org_id(
 #[worker::send]
 pub async fn create_monitor(
     State(state): State<AppState>,
+    CurrentUser {
+        email,
+        subject,
+        claims,
+    }: CurrentUser,
     Json(monitor): Json<CreateMonitor>,
 ) -> Result<Json<Monitor>, StatusCode> {
+    console_log!("user: {:?}", email);
+    console_log!("subject: {:?}", subject);
+    console_log!("claims: {:?}", claims);
+
     let d1 = get_d1(&state).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let statement = d1.prepare("INSERT INTO monitors (id, org_id, name, kind, url, interval_s, timeout_ms, follow_redirects, verify_tls, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)");
     let id = create_id().to_string();
