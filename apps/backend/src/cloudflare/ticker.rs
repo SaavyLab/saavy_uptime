@@ -1,6 +1,8 @@
 use std::time::Duration;
 
+use cuid2::create_id;
 use serde::{Deserialize, Serialize};
+use serde_json::to_string;
 use wasm_bindgen::JsValue;
 use worker::*;
 
@@ -230,14 +232,102 @@ impl Ticker {
         config: &TickerConfig,
         monitor: &MonitorDispatch,
     ) -> Result<()> {
-        // Placeholder dispatch for now; future work will POST to the internal runner.
-        console_log!(
-            "{}: Dispatching monitor {} for org {} (url: {})",
-            Date::now().to_string(),
-            monitor.id,
-            config.org_id,
-            monitor.url
+        let dispatch_id = create_id().to_string();
+        self.record_dispatch(config, monitor, &dispatch_id).await?;
+        self.send_dispatch_request(&dispatch_id, monitor).await
+    }
+
+    async fn record_dispatch(
+        &self,
+        config: &TickerConfig,
+        monitor: &MonitorDispatch,
+        dispatch_id: &str,
+    ) -> Result<()> {
+        let d1 = self.env.d1("DB")?;
+        let now = now_ms();
+
+        let statement = d1.prepare(
+            "
+            INSERT INTO monitor_dispatches
+                (id, monitor_id, org_id, status, scheduled_for_ts, created_at)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+            ",
         );
+
+        statement
+            .bind(&[
+                JsValue::from_str(dispatch_id),
+                JsValue::from_str(&monitor.id),
+                JsValue::from_str(&config.org_id),
+                JsValue::from_str("pending"),
+                js_number(monitor.scheduled_for_ts),
+                js_number(now),
+            ])
+            .map_err(|err| internal_error("ticker.dispatch.bind", err))?
+            .run()
+            .await
+            .map_err(|err| internal_error("ticker.dispatch.insert", err))?;
+
+        Ok(())
+    }
+
+    async fn send_dispatch_request(
+        &self,
+        dispatch_id: &str,
+        monitor: &MonitorDispatch,
+    ) -> Result<()> {
+        let base_url = self
+            .env
+            .var("DISPATCH_BASE_URL")
+            .map_err(|_| internal_error("ticker.dispatch.base_url", "missing DISPATCH_BASE_URL"))?
+            .to_string();
+        let token = self
+            .env
+            .var("DISPATCH_TOKEN")
+            .map_err(|_| internal_error("ticker.dispatch.token", "missing DISPATCH_TOKEN"))?
+            .to_string();
+
+        let url = format!(
+            "{}/internal/dispatch/run",
+            base_url.trim_end_matches('/')
+        );
+
+        let payload = DispatchPayload {
+            dispatch_id: dispatch_id.to_string(),
+            monitor_id: monitor.id.clone(),
+            scheduled_for_ts: monitor.scheduled_for_ts,
+        };
+
+        let body =
+            to_string(&payload).map_err(|err| internal_error("ticker.dispatch.serialize", err))?;
+
+        let mut init = RequestInit::new();
+        init.with_method(Method::Post);
+        init.with_body(Some(JsValue::from_str(&body)));
+
+        let mut req = Request::new_with_init(&url, &init)?;
+        {
+            let headers = req.headers_mut()?;
+            headers
+                .set("Content-Type", "application/json")
+                .map_err(|err| internal_error("ticker.dispatch.headers", err))?;
+            headers
+                .set("X-Dispatch-Token", &token)
+                .map_err(|err| internal_error("ticker.dispatch.headers", err))?;
+        }
+
+        let response = Fetch::Request(req)
+            .send()
+            .await
+            .map_err(|err| internal_error("ticker.dispatch.fetch", err))?;
+
+        if response.status_code() >= 400 {
+            return Err(internal_error(
+                "ticker.dispatch.response",
+                format!("status {}", response.status_code()),
+            ));
+        }
+
         Ok(())
     }
 }
@@ -283,4 +373,12 @@ impl DurableObject for Ticker {
 
         Response::ok("ok")
     }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DispatchPayload {
+    dispatch_id: String,
+    monitor_id: String,
+    scheduled_for_ts: i64,
 }

@@ -6,6 +6,8 @@ workers_dev = false
 [vars]
 ACCESS_TEAM_DOMAIN = "https://saavylab.cloudflareaccess.com"
 ACCESS_AUD = "e8604f5d9df109c391b937c4293c06fa76548def743a48fec18da93e0ddddeda"
+DISPATCH_TOKEN = "local-dev-token"
+DISPATCH_BASE_URL = "http://127.0.0.1:8787/api"
 ENABLE_TICKER_ADMIN = 1
 
 [build]
