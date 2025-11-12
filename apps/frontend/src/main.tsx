@@ -13,6 +13,7 @@ import Header from "@/components/Header";
 import BootstrapGate from "@/components/BootstrapGate";
 import * as TanStackQueryProvider from "@/integrations/tanstack-query/root-provider.tsx";
 import DashboardRoute from "@/routes/dashboard.tsx";
+import DAGRoute from "@/routes/dag.tsx";
 import IncidentsRoute from "@/routes/incidents.tsx";
 import MonitorNewRoute from "@/routes/monitors/monitor-new";
 import MonitorsRoute from "@/routes/monitors/monitors";
@@ -43,6 +44,7 @@ const typedRootRoute = rootRoute as unknown as RootRoute<
 
 const routeTree = typedRootRoute.addChildren([
 	DashboardRoute(typedRootRoute),
+	DAGRoute(typedRootRoute),
 	MonitorsRoute(typedRootRoute),
 	MonitorNewRoute(typedRootRoute),
 	IncidentsRoute(typedRootRoute),

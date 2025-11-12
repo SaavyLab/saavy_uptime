@@ -3,6 +3,7 @@ import {
 	Activity,
 	AlertCircle,
 	Building2,
+	GitBranch,
 	Home,
 	Menu,
 	Monitor,
@@ -15,6 +16,7 @@ import { Button } from "@/components/ui/button";
 const NAV_ITEMS = [
 	{ to: "/", label: "Dashboard", icon: Home },
 	{ to: "/monitors", label: "Monitors", icon: Monitor },
+	{ to: "/dag", label: "DAG", icon: GitBranch },
 	{ to: "/organization", label: "Organization", icon: Building2 },
 	{ to: "/incidents", label: "Incidents", icon: AlertCircle },
 	{ to: "/status", label: "Status", icon: Activity },

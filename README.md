@@ -7,6 +7,7 @@ A Cloudflare-first uptime and incident platform: Rust Workers + Durable Objects 
 - `apps/frontend/` – Vite/React dashboard + status pages.
 - `apps/worker/` (future) – Rust worker + Durable Object scheduler.
 - `docs/` – Architectural references, including `the-plan.md` and `implementation-plan.md`.
+- `docs/highlight-features.md` – Cloudflare-native differentiators and future-facing UX ideas.
 
 ### Implementation Roadmap
 
