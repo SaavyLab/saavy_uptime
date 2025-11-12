@@ -3,6 +3,7 @@ use cuid2::create_id;
 use worker::{console_error, wasm_bindgen::JsValue};
 
 use crate::auth::membership::load_membership;
+use crate::bootstrap::ticker_bootstrap::ensure_ticker_bootstrapped;
 use crate::cloudflare::d1::get_d1;
 use crate::monitors::types::{CreateMonitor, Monitor};
 use crate::router::AppState;
@@ -48,6 +49,11 @@ pub async fn create_monitor(
         .run()
         .await
         .map_err(|err| internal_error("create_monitor.run", err))?;
+
+    if let Err(err) = ensure_ticker_bootstrapped(&state.env(), &membership.organization_id).await {
+        console_error!("create_monitor: ticker bootstrap failed: {err:?}");
+        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    }
 
     get_monitor_by_id(state, id).await
 }
