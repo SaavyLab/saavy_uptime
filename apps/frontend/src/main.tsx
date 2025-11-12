@@ -10,6 +10,7 @@ import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { StrictMode } from "react";
 import ReactDOM from "react-dom/client";
 import Header from "@/components/Header";
+import BootstrapGate from "@/components/BootstrapGate";
 import * as TanStackQueryProvider from "@/integrations/tanstack-query/root-provider.tsx";
 import DashboardRoute from "@/routes/dashboard.tsx";
 import IncidentsRoute from "@/routes/incidents.tsx";
@@ -26,15 +27,15 @@ interface RouterContext {
 
 const rootRoute = createRootRoute<RouterContext>({
 	component: () => (
-		<>
+		<BootstrapGate>
 			<Header />
 			<Outlet />
 			<TanStackRouterDevtools />
-		</>
+		</BootstrapGate>
 	),
 });
 
-const typedRootRoute = rootRoute as RootRoute<
+const typedRootRoute = rootRoute as unknown as RootRoute<
 	Register,
 	undefined,
 	RouterContext

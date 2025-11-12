@@ -1,9 +1,10 @@
-use axum::{routing::{get, post}, Router};
 use crate::router::AppState;
+use axum::{
+    routing::{get, post},
+    Router,
+};
 
 mod handlers;
-
-pub use handlers::{create_organization, get_organization_by_id, CreateOrganization, Organization};
 
 pub fn router() -> Router<AppState> {
     Router::new()

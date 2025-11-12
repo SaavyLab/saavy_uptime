@@ -1,3 +1,5 @@
+use crate::auth::current_user::CurrentUser;
+use crate::cloudflare::d1::get_d1;
 use crate::router::AppState;
 use crate::utils::date::now_ms;
 use axum::{
@@ -8,7 +10,7 @@ use axum::{
 };
 use cuid2::create_id;
 use serde::{Deserialize, Serialize};
-use worker::{wasm_bindgen::JsValue, D1Database, Result as WorkerResult};
+use worker::{console_log, wasm_bindgen::JsValue, D1Database, Result as WorkerResult};
 
 use crate::utils::wasm_types::js_number;
 
@@ -20,6 +22,7 @@ pub struct CreateOrganization {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all(serialize = "camelCase"))]
 pub struct Organization {
     pub id: String,
     pub slug: String,
@@ -27,14 +30,15 @@ pub struct Organization {
     pub created_at: i64,
 }
 
-fn get_d1(state: &AppState) -> WorkerResult<D1Database> {
-    state.env().d1("DB")
-}
-
 #[worker::send]
 pub async fn get_organization_by_id(
     State(state): State<AppState>,
     Path(id): Path<String>,
+    CurrentUser {
+        email: _,
+        subject: _,
+        claims: _,
+    }: CurrentUser,
 ) -> Result<Json<Organization>, StatusCode> {
     let d1 = get_d1(&state).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let statement = d1.prepare("SELECT * FROM organizations WHERE id = ?1");
@@ -52,6 +56,11 @@ pub async fn get_organization_by_id(
 #[worker::send]
 pub async fn create_organization(
     State(state): State<AppState>,
+    CurrentUser {
+        email: _,
+        subject: _,
+        claims: _,
+    }: CurrentUser,
     Json(payload): Json<CreateOrganization>,
 ) -> Result<Json<Organization>, StatusCode> {
     let d1 = get_d1(&state).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
