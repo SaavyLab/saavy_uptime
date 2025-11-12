@@ -15,6 +15,7 @@ const organizationSchema = z.object({
 	slug: z.string(),
 	name: z.string(),
 	createdAt: z.number(),
+	ownerId: z.string(),
 	updatedAt: z.number(),
 });
 

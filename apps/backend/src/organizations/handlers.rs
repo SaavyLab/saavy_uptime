@@ -28,6 +28,8 @@ pub struct Organization {
     pub slug: String,
     pub name: String,
     pub created_at: i64,
+    pub owner_id: String,
+    pub updated_at: i64,
 }
 
 #[worker::send]

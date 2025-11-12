@@ -1,5 +1,8 @@
 use crate::router::AppState;
-use axum::{routing::{get, post}, Router};
+use axum::{
+    routing::{get, post},
+    Router,
+};
 
 mod handlers;
 
