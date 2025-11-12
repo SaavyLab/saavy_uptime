@@ -113,14 +113,6 @@ function MonitorsPage() {
 					}
 				/>
 
-				<SectionCard title="Fleet summary">
-					<StatsGrid
-						items={overviewCards}
-						className="sm:grid-cols-2 lg:grid-cols-4"
-						cardClassName="bg-white/[0.03]"
-					/>
-				</SectionCard>
-
 				<SectionCard
 					title="Monitor inventory"
 					actions={
