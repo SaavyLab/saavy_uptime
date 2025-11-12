@@ -79,7 +79,6 @@ struct Jwks {
 struct Jwk {
     kty: String,
     kid: String,
-    alg: String,
     n: String,
     e: String,
 }
@@ -88,7 +87,6 @@ struct Jwk {
 struct JwtHeader {
     alg: String,
     kid: String,
-    typ: Option<String>,
 }
 
 #[derive(Clone)]

@@ -4,11 +4,13 @@ use axum::{
     Router,
 };
 
-mod handlers;
+pub mod handlers;
+pub mod service;
+pub mod types;
 
 pub fn router() -> Router<AppState> {
     Router::new()
-        .route("/{id}", get(handlers::get_monitor_by_id))
-        .route("/org/{org_id}", get(handlers::get_monitors_by_org_id))
-        .route("/", post(handlers::create_monitor))
+        .route("/{id}", get(handlers::get_monitor_by_id_handler))
+        .route("/", get(handlers::get_monitors_handler))
+        .route("/", post(handlers::create_monitor_handler))
 }

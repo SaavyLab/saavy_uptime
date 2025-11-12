@@ -2,16 +2,9 @@ use crate::auth::current_user::CurrentUser;
 use crate::cloudflare::d1::get_d1;
 use crate::router::AppState;
 use crate::utils::date::now_ms;
-use axum::{
-    extract::{Path, State},
-    http::StatusCode,
-    response::Result,
-    Json,
-};
+use axum::{extract::State, http::StatusCode, response::Result, Json};
 use cuid2::create_id;
-use worker::{
-    console_error, console_log, wasm_bindgen::JsValue, D1Database, Result as WorkerResult,
-};
+use worker::{console_error, wasm_bindgen::JsValue};
 
 use crate::utils::wasm_types::js_number;
 

@@ -9,7 +9,6 @@ import type { RouterContext } from "@/router-context";
 import { z } from "zod";
 
 const monitorFormValuesSchema = z.object({
-	orgId: z.string(),
 	name: z.string(),
 	url: z.string(),
 	interval: z.number(),
@@ -23,7 +22,6 @@ export type MonitorFormValues = z.infer<typeof monitorFormValuesSchema>;
 function MonitorNewPage() {
 	const navigate = useNavigate({ from: "/monitors/new" });
 	const defaultValues: MonitorFormValues = {
-		orgId: "",
 		name: "",
 		url: "",
 		interval: 60,
@@ -36,7 +34,6 @@ function MonitorNewPage() {
 		defaultValues,
 		onSubmit: async ({ value, formApi }) => {
 			await createMonitor({
-				orgId: value.orgId.trim(),
 				name: value.name,
 				url: value.url,
 				interval: value.interval,
@@ -77,26 +74,6 @@ function MonitorNewPage() {
 								}}
 							>
 								<div className="grid gap-6">
-									<form.AppField
-										name="orgId"
-										validators={{
-											onBlur: ({ value }) => {
-												if (!value?.trim()) {
-													return "Organization ID is required";
-												}
-												return undefined;
-											},
-										}}
-									>
-										{(field) => (
-											<field.TextField
-												label="Organization ID"
-												placeholder="cz3exampleorgid"
-												description="Paste the ID from the Organization panel"
-											/>
-										)}
-									</form.AppField>
-
 									<form.AppField
 										name="name"
 										validators={{
