@@ -19,6 +19,6 @@ CREATE INDEX IF NOT EXISTS idx_monitor_dispatches_monitor
   ON monitor_dispatches (monitor_id, created_at DESC);
 
 ALTER TABLE heartbeats
-  ADD COLUMN dispatch_id TEXT;
+  ADD COLUMN dispatch_id TEXT REFERENCES monitor_dispatches(id) ON DELETE SET NULL;
 
 COMMIT;
