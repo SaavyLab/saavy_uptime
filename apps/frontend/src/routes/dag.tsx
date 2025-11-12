@@ -134,7 +134,7 @@ type CheckJob = {
 
 function DAGVisualizerPage() {
 	const [nodes, setNodes, onNodesChange] = useNodesState(staticNodes);
-	const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+	const [edges, setEdges, onEdgesChange] = useEdgesState<Edge[]>([]);
 	const [isSimulating, setIsSimulating] = useState(false);
 	const [activeJobs, setActiveJobs] = useState<CheckJob[]>([]);
 	const [tickCount, setTickCount] = useState(0);
