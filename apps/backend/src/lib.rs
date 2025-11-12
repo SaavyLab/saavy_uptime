@@ -6,6 +6,7 @@ use worker::*;
 pub mod auth;
 pub mod bootstrap;
 pub mod cloudflare;
+pub mod internal;
 pub mod monitors;
 pub mod organizations;
 pub mod router;

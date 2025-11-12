@@ -1,7 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type { Register, RootRoute } from "@tanstack/react-router";
 import { createRoute, Link } from "@tanstack/react-router";
-import { RefreshCcw, Sparkles } from "lucide-react";
+import { RefreshCcw, Sparkles, Wrench } from "lucide-react";
+import { toast } from "sonner";
 import { Hero } from "@/components/layout/Hero";
 import { SectionCard } from "@/components/layout/SectionCard";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { StatsGrid } from "@/components/ui/StatsCard";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { getMonitors, type Monitor } from "@/lib/monitors";
+import { reconcileTickers } from "@/lib/ticker";
 import type { RouterContext } from "@/router-context";
 
 const formatTimestamp = (value?: number | null) => {
@@ -23,6 +25,27 @@ function MonitorsPage() {
 	const { data, isLoading, error, refetch } = useQuery<Monitor[]>({
 		queryKey: ["monitors"],
 		queryFn: () => getMonitors(),
+	});
+
+	const tickerAdminEnabled =
+		import.meta.env.DEV ||
+		["1", "true"].includes(
+			(import.meta.env.VITE_ENABLE_TICKER_ADMIN ?? "").toLowerCase(),
+		);
+
+	const reconcileMutation = useMutation({
+		mutationFn: () => reconcileTickers(),
+		onSuccess: (summary) => {
+			toast.success("Ticker bootstrap complete", {
+				description: `Bootstrapped ${summary.bootstrapped}/${summary.organizations} orgs`,
+			});
+			void refetch();
+		},
+		onError: (err: unknown) => {
+			const message =
+				err instanceof Error ? err.message : "Unable to reconcile tickers";
+			toast.error(message);
+		},
 	});
 
 	const monitors = data ?? [];
@@ -93,6 +116,18 @@ function MonitorsPage() {
 								<RefreshCcw size={16} />
 								Refresh
 							</Button>
+							{tickerAdminEnabled ? (
+								<Button
+									type="button"
+									variant="outline"
+									onClick={() => reconcileMutation.mutate()}
+									disabled={reconcileMutation.isPending}
+									className="flex items-center gap-2"
+								>
+									<Wrench size={16} />
+									{reconcileMutation.isPending ? "Bootstrapping…" : "Warm ticker"}
+								</Button>
+							) : null}
 						</>
 					}
 					sideContent={

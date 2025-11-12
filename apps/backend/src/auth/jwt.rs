@@ -236,7 +236,6 @@ async fn load_jwks(config: &AccessConfig) -> WorkerResult<Vec<Jwk>> {
     }
 
     let url = format!("{}/cdn-cgi/access/certs", config.team_domain.as_ref());
-    console_log!("fetching JWKS from: {}", url);
     let request = WorkerRequest::new(&url, Method::Get)?;
     let mut resp = Fetch::Request(request).send().await?;
     let status = resp.status_code();

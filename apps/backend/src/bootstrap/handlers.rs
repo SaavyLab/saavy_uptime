@@ -1,4 +1,5 @@
 use crate::auth::current_user::CurrentUser;
+use crate::bootstrap::ticker_bootstrap::ensure_ticker_bootstrapped;
 use crate::cloudflare::d1::get_d1;
 use crate::router::AppState;
 use crate::utils::date::now_ms;
@@ -128,6 +129,11 @@ pub async fn initialize(
 
     if let Some(err) = batch_results.iter().find_map(|result| result.error()) {
         console_error!("bootstrap.initialize: statement failed: {err}");
+        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    if let Err(err) = ensure_ticker_bootstrapped(&state.env(), &org_id).await {
+        console_error!("bootstrap.initialize: ticker bootstrap failed: {err:?}");
         return Err(StatusCode::INTERNAL_SERVER_ERROR);
     }
 

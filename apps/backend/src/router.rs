@@ -1,4 +1,4 @@
-use crate::{auth::jwt::AccessConfig, bootstrap, monitors, organizations};
+use crate::{auth::jwt::AccessConfig, bootstrap, internal, monitors, organizations};
 use axum::{routing::get, Router};
 use tower_http::cors::{Any, CorsLayer};
 use worker::{send::SendWrapper, Env};
@@ -48,6 +48,7 @@ pub fn create_router(env: Env) -> Router {
         .nest("/monitors", monitors::router())
         .nest("/organizations", organizations::router())
         .nest("/bootstrap", bootstrap::router())
+        .nest("/internal", internal::router())
         .layer(cors);
 
     Router::new()
