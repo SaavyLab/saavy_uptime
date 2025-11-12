@@ -10,7 +10,7 @@ use axum::{
 };
 use cuid2::create_id;
 use serde::{Deserialize, Serialize};
-use worker::{console_log, wasm_bindgen::JsValue, D1Database, Result as WorkerResult};
+use worker::wasm_bindgen::JsValue;
 
 use crate::utils::wasm_types::js_number;
 

@@ -11,8 +11,6 @@ import { SectionCard } from "@/components/layout/SectionCard";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatusPill } from "@/components/ui/StatusPill";
 
-const ORG_ID = "zimr7nsz8gj0nxsgqktogm4v";
-
 const formatTimestamp = (value?: number | null) => {
 	if (!value) {
 		return "—";
@@ -23,20 +21,20 @@ const formatTimestamp = (value?: number | null) => {
 
 function DashboardPage() {
 	const { data, isLoading, isFetching, error } = useQuery<Monitor[]>({
-		queryKey: ["monitors", ORG_ID],
-		queryFn: () => getMonitors(ORG_ID),
+		queryKey: ["monitors"],
+		queryFn: () => getMonitors(),
 	});
 
 	const monitors = data ?? [];
 	const total = monitors.length;
 	const upCount = monitors.filter(
-		(monitor) => monitor.current_status === "up",
+		(monitor) => monitor.currentStatus === "up",
 	).length;
 	const downCount = monitors.filter(
-		(monitor) => monitor.current_status === "down",
+		(monitor) => monitor.currentStatus === "down",
 	).length;
 	const maintenanceCount = monitors.filter(
-		(monitor) => monitor.current_status === "maintenance",
+		(monitor) => monitor.currentStatus === "maintenance",
 	).length;
 	const unknownCount = Math.max(
 		total - (upCount + downCount + maintenanceCount),
@@ -51,13 +49,13 @@ function DashboardPage() {
 	];
 
 	const recentMonitors = [...monitors]
-		.sort((a, b) => (b.last_checked_at_ts ?? 0) - (a.last_checked_at_ts ?? 0))
+		.sort((a, b) => (b.lastCheckedAtTs ?? 0) - (a.lastCheckedAtTs ?? 0))
 		.slice(0, 8);
 
 	const logEntries = recentMonitors.length
 		? recentMonitors.map((monitor) => {
-				const status = monitor.current_status ?? "unknown";
-				const timestamp = formatTimestamp(monitor.last_checked_at_ts);
+				const status = monitor.currentStatus ?? "unknown";
+				const timestamp = formatTimestamp(monitor.lastCheckedAtTs);
 				return `[${status.toUpperCase()}] ${monitor.name} @ ${timestamp}`;
 			})
 		: [
@@ -135,12 +133,12 @@ function DashboardPage() {
 										className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,0.6fr)_minmax(0,0.6fr)_minmax(0,0.8fr)] items-center gap-4 px-3 py-3 text-sm"
 									>
 										<div className="truncate font-medium">{monitor.name}</div>
-										<StatusPill status={monitor.current_status} />
+										<StatusPill status={monitor.currentStatus} />
 										<p className="font-mono text-xs text-[var(--text-muted)]">
-											{monitor.interval_s}s · {monitor.timeout_ms}ms
+											{monitor.intervalS}s · {monitor.timeoutMs}ms
 										</p>
 										<p className="font-mono text-xs text-[var(--text-muted)]">
-											{formatTimestamp(monitor.last_checked_at_ts)}
+											{formatTimestamp(monitor.lastCheckedAtTs)}
 										</p>
 									</div>
 								))}

@@ -11,8 +11,6 @@ import { StatusPill } from "@/components/ui/StatusPill";
 import { getMonitors, type Monitor } from "@/lib/monitors";
 import type { RouterContext } from "@/router-context";
 
-const ORG_ID = "zimr7nsz8gj0nxsgqktogm4v";
-
 const formatTimestamp = (value?: number | null) => {
 	if (!value) {
 		return "—";
@@ -23,31 +21,31 @@ const formatTimestamp = (value?: number | null) => {
 
 function MonitorsPage() {
 	const { data, isLoading, error, refetch } = useQuery<Monitor[]>({
-		queryKey: ["monitors", ORG_ID],
-		queryFn: () => getMonitors(ORG_ID),
+		queryKey: ["monitors"],
+		queryFn: () => getMonitors(),
 	});
 
 	const monitors = data ?? [];
 	const total = monitors.length;
 	const enabled = monitors.filter((monitor) => Boolean(monitor.enabled)).length;
 	const failing = monitors.filter(
-		(monitor) => monitor.current_status === "down",
+		(monitor) => monitor.currentStatus === "down",
 	).length;
 	const averageInterval = monitors.length
 		? Math.round(
 				monitors.reduce(
-					(sum, monitor) => sum + Number(monitor.interval_s ?? 0),
+					(sum, monitor) => sum + Number(monitor.intervalS ?? 0),
 					0,
 				) / monitors.length,
 			)
 		: null;
 	const mostRecentCheck = monitors.reduce(
-		(latest, monitor) => Math.max(latest, monitor.last_checked_at_ts ?? 0),
+		(latest, monitor) => Math.max(latest, monitor.lastCheckedAtTs ?? 0),
 		0,
 	);
 
 	const sortedMonitors = [...monitors].sort(
-		(a, b) => (b.last_checked_at_ts ?? 0) - (a.last_checked_at_ts ?? 0),
+		(a, b) => (b.lastCheckedAtTs ?? 0) - (a.lastCheckedAtTs ?? 0),
 	);
 
 	const overviewCards = [
@@ -115,17 +113,8 @@ function MonitorsPage() {
 					}
 				/>
 
-				<SectionCard title="Fleet summary">
-					<StatsGrid
-						items={overviewCards}
-						className="sm:grid-cols-2 lg:grid-cols-4"
-						cardClassName="bg-white/[0.03]"
-					/>
-				</SectionCard>
-
 				<SectionCard
 					title="Monitor inventory"
-					description={`Showing ${total} monitors for org ${ORG_ID}`}
 					actions={
 						<>
 							<Button
@@ -178,13 +167,13 @@ function MonitorsPage() {
 									<div className="space-y-3">
 										<div className="flex flex-wrap items-center gap-3">
 											<h3 className="text-xl font-semibold">{monitor.name}</h3>
-											<StatusPill status={monitor.current_status} />
+											<StatusPill status={monitor.currentStatus} />
 										</div>
 										<p className="font-mono text-sm text-[var(--text-muted)] break-all">
 											{monitor.url}
 										</p>
 										<p className="font-mono text-xs text-[var(--text-soft)]">
-											Created {formatTimestamp(monitor.created_at)}
+											Created {formatTimestamp(monitor.createdAt)}
 										</p>
 									</div>
 									<dl className="grid grid-cols-2 gap-4 text-sm font-mono text-[var(--text-muted)]">
@@ -193,7 +182,7 @@ function MonitorsPage() {
 												Interval
 											</dt>
 											<dd className="text-base text-[var(--text-primary)]">
-												{monitor.interval_s}s
+												{monitor.intervalS}s
 											</dd>
 										</div>
 										<div>
@@ -201,7 +190,7 @@ function MonitorsPage() {
 												Timeout
 											</dt>
 											<dd className="text-base text-[var(--text-primary)]">
-												{monitor.timeout_ms}ms
+												{monitor.timeoutMs}ms
 											</dd>
 										</div>
 										<div>
@@ -209,7 +198,7 @@ function MonitorsPage() {
 												Last check
 											</dt>
 											<dd className="text-base text-[var(--text-primary)]">
-												{formatTimestamp(monitor.last_checked_at_ts)}
+												{formatTimestamp(monitor.lastCheckedAtTs)}
 											</dd>
 										</div>
 										<div>

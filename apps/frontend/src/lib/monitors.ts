@@ -4,7 +4,6 @@ import { withAccessHeader } from "./api";
 const apiBase = import.meta.env.VITE_API_URL;
 
 const createMonitorSchema = z.object({
-	orgId: z.string(),
 	name: z.string(),
 	url: z.string(),
 	interval: z.number(),
@@ -17,7 +16,6 @@ export type CreateMonitorInput = z.infer<typeof createMonitorSchema>;
 
 const monitorSchema = z.object({
 	id: z.string(),
-	orgId: z.string(),
 	name: z.string(),
 	url: z.string(),
 	intervalS: z.number(),
@@ -31,8 +29,8 @@ const monitorSchema = z.object({
 
 export type Monitor = z.infer<typeof monitorSchema>;
 
-export const getMonitors = async (orgId: string): Promise<Monitor[]> => {
-	const response = await fetch(`${apiBase}/api/monitors/org/${orgId}`, {
+export const getMonitors = async (): Promise<Monitor[]> => {
+	const response = await fetch(`${apiBase}/api/monitors`, {
 		headers: withAccessHeader(),
 	});
 
