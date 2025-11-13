@@ -6,6 +6,7 @@ use axum::{
 
 mod handlers;
 pub mod ticker_bootstrap;
+pub mod types;
 
 pub fn router() -> Router<AppState> {
     Router::new()

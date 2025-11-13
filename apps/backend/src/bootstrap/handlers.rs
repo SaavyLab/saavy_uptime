@@ -35,7 +35,7 @@ pub async fn status(
 ) -> Result<Json<BootstrapStatus>, StatusCode> {
     let team_name = state.access_config().team_name();
 
-    let d1 = get_d1(&state).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let d1 = get_d1(&state.env()).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let statement = d1.prepare("SELECT COUNT(*) as count FROM organizations");
     let query = statement
         .bind(&[])
@@ -68,7 +68,7 @@ pub async fn initialize(
     }: CurrentUser,
     Json(payload): Json<InitializePayload>,
 ) -> Result<Json<BootstrapStatus>, StatusCode> {
-    let d1 = get_d1(&state).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let d1 = get_d1(&state.env()).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let org_statement = d1.prepare(
         "INSERT INTO organizations (id, slug, name, owner_id, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",

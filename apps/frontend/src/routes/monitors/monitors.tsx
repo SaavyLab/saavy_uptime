@@ -125,7 +125,9 @@ function MonitorsPage() {
 									className="flex items-center gap-2"
 								>
 									<Wrench size={16} />
-									{reconcileMutation.isPending ? "Bootstrapping…" : "Warm ticker"}
+									{reconcileMutation.isPending
+										? "Bootstrapping…"
+										: "Warm ticker"}
 								</Button>
 							) : null}
 						</>

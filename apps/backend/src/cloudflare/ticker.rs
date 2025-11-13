@@ -6,7 +6,7 @@ use serde_json::to_string;
 use wasm_bindgen::JsValue;
 use worker::*;
 
-use crate::utils::{date::now_ms, wasm_types::js_number};
+use crate::{internal::types::MonitorKind, utils::{date::now_ms, wasm_types::js_number}};
 
 const DEFAULT_TICK_INTERVAL_MS: u64 = 15_000;
 const DEFAULT_BATCH_SIZE: usize = 100;
@@ -36,15 +36,17 @@ struct MonitorRow {
     id: String,
     interval_s: i64,
     url: String,
+    kind: MonitorKind,
     timeout_ms: i64,
     follow_redirects: i64,
     verify_tls: i64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct MonitorDispatch {
     id: String,
     url: String,
+    kind: MonitorKind,
     scheduled_for_ts: i64,
     timeout_ms: i64,
     follow_redirects: bool,
@@ -56,6 +58,7 @@ impl From<(MonitorRow, i64)> for MonitorDispatch {
         Self {
             id: row.id,
             url: row.url,
+            kind: row.kind,
             scheduled_for_ts,
             timeout_ms: row.timeout_ms,
             follow_redirects: row.follow_redirects != 0,
@@ -104,9 +107,7 @@ impl Ticker {
         let payload: Payload = req.json().await?;
         let config = TickerConfig {
             org_id: payload.org_id,
-            tick_interval_ms: payload
-                .tick_interval_ms
-                .unwrap_or(DEFAULT_TICK_INTERVAL_MS),
+            tick_interval_ms: payload.tick_interval_ms.unwrap_or(DEFAULT_TICK_INTERVAL_MS),
             batch_size: payload.batch_size.unwrap_or(DEFAULT_BATCH_SIZE),
         };
 
@@ -155,16 +156,13 @@ impl Ticker {
         Ok(())
     }
 
-    async fn claim_due_monitors(
-        &self,
-        config: &TickerConfig,
-    ) -> Result<Vec<MonitorDispatch>> {
+    async fn claim_due_monitors(&self, config: &TickerConfig) -> Result<Vec<MonitorDispatch>> {
         let d1 = self.env.d1("DB")?;
         let now = now_ms();
 
         let select_statement = d1.prepare(
             "
-            SELECT id, interval_s, url, timeout_ms, follow_redirects, verify_tls
+            SELECT id, kind, interval_s, url, timeout_ms, follow_redirects, verify_tls
             FROM monitors
             WHERE org_id = ?1
               AND enabled = 1
@@ -287,15 +285,17 @@ impl Ticker {
             .map_err(|_| internal_error("ticker.dispatch.token", "missing DISPATCH_TOKEN"))?
             .to_string();
 
-        let url = format!(
-            "{}/internal/dispatch/run",
-            base_url.trim_end_matches('/')
-        );
+        let url = format!("{}/internal/dispatch/run", base_url.trim_end_matches('/'));
 
         let payload = DispatchPayload {
             dispatch_id: dispatch_id.to_string(),
             monitor_id: monitor.id.clone(),
+            monitor_url: monitor.url.clone(),
+            kind: monitor.kind.clone(),
             scheduled_for_ts: monitor.scheduled_for_ts,
+            timeout_ms: monitor.timeout_ms,
+            follow_redirects: monitor.follow_redirects,
+            verify_tls: monitor.verify_tls,
         };
 
         let body =
@@ -380,5 +380,10 @@ impl DurableObject for Ticker {
 struct DispatchPayload {
     dispatch_id: String,
     monitor_id: String,
+    monitor_url: String,
+    kind: MonitorKind,
     scheduled_for_ts: i64,
+    timeout_ms: i64,
+    follow_redirects: bool,
+    verify_tls: bool,
 }
