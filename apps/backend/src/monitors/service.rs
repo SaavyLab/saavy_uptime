@@ -15,16 +15,25 @@ pub async fn create_monitor(
     identity_id: &str,
     monitor: CreateMonitor,
 ) -> Result<Monitor, MonitorError> {
-    let membership = load_membership(&state, identity_id).await.map_err(|err| MonitorError::Membership(err))?;
+    let membership = load_membership(&state, identity_id)
+        .await
+        .map_err(MonitorError::Membership)?;
+    create_monitor_for_org(state, &membership.organization_id, monitor).await
+}
 
-    let d1 = get_d1(&state.env()).map_err(|err| MonitorError::DbInit(err))?;
+pub async fn create_monitor_for_org(
+    state: &AppState,
+    org_id: &str,
+    monitor: CreateMonitor,
+) -> Result<Monitor, MonitorError> {
+    let d1 = get_d1(&state.env()).map_err(MonitorError::DbInit)?;
     let statement = d1.prepare("INSERT INTO monitors (id, org_id, name, kind, url, interval_s, timeout_ms, follow_redirects, verify_tls, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)");
     let id = create_id().to_string();
     let now = now_ms();
 
     let bind_values = vec![
         JsValue::from_str(&id),
-        JsValue::from_str(&membership.organization_id),
+        JsValue::from_str(org_id),
         JsValue::from_str(&monitor.name),
         JsValue::from_str("http"),
         JsValue::from_str(&monitor.url),
@@ -38,14 +47,16 @@ pub async fn create_monitor(
 
     let query = statement
         .bind(&bind_values)
-        .map_err(|err| MonitorError::DbBind(err))?;
+        .map_err(MonitorError::DbBind)?;
 
     query
         .run()
         .await
-        .map_err(|err| MonitorError::DbRun(err))?;
+        .map_err(MonitorError::DbRun)?;
 
-    ensure_ticker_bootstrapped(&state.env(), &membership.organization_id).await.map_err(|err| MonitorError::Bootstrap(err))?;
+    ensure_ticker_bootstrapped(&state.env(), org_id)
+        .await
+        .map_err(MonitorError::Bootstrap)?;
 
     get_monitor_by_id(&state, id).await
 }
