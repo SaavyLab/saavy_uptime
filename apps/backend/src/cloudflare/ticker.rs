@@ -104,9 +104,7 @@ impl Ticker {
         let payload: Payload = req.json().await?;
         let config = TickerConfig {
             org_id: payload.org_id,
-            tick_interval_ms: payload
-                .tick_interval_ms
-                .unwrap_or(DEFAULT_TICK_INTERVAL_MS),
+            tick_interval_ms: payload.tick_interval_ms.unwrap_or(DEFAULT_TICK_INTERVAL_MS),
             batch_size: payload.batch_size.unwrap_or(DEFAULT_BATCH_SIZE),
         };
 
@@ -155,10 +153,7 @@ impl Ticker {
         Ok(())
     }
 
-    async fn claim_due_monitors(
-        &self,
-        config: &TickerConfig,
-    ) -> Result<Vec<MonitorDispatch>> {
+    async fn claim_due_monitors(&self, config: &TickerConfig) -> Result<Vec<MonitorDispatch>> {
         let d1 = self.env.d1("DB")?;
         let now = now_ms();
 
@@ -287,10 +282,7 @@ impl Ticker {
             .map_err(|_| internal_error("ticker.dispatch.token", "missing DISPATCH_TOKEN"))?
             .to_string();
 
-        let url = format!(
-            "{}/internal/dispatch/run",
-            base_url.trim_end_matches('/')
-        );
+        let url = format!("{}/internal/dispatch/run", base_url.trim_end_matches('/'));
 
         let payload = DispatchPayload {
             dispatch_id: dispatch_id.to_string(),

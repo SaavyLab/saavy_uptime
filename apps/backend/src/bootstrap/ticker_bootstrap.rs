@@ -1,7 +1,5 @@
 use serde::{Deserialize, Serialize};
-use worker::{
-    console_error, wasm_bindgen::JsValue, Env, Method, Request, RequestInit, Result,
-};
+use worker::{console_error, wasm_bindgen::JsValue, Env, Method, Request, RequestInit, Result};
 
 #[derive(Serialize)]
 struct BootstrapPayload<'a> {
@@ -21,8 +19,7 @@ pub async fn ensure_ticker_bootstrapped(env: &Env, org_id: &str) -> Result<()> {
     init.with_body(Some(JsValue::from_str(&body)));
 
     let mut req = Request::new_with_init("https://ticker/internal/bootstrap", &init)?;
-    req.headers_mut()?
-        .set("Content-Type", "application/json")?;
+    req.headers_mut()?.set("Content-Type", "application/json")?;
 
     stub.fetch_with_request(req).await?;
     Ok(())
@@ -57,7 +54,10 @@ pub async fn ensure_all_tickers(env: &Env) -> Result<TickerReconcileSummary> {
 
     for org in rows {
         if let Err(err) = ensure_ticker_bootstrapped(env, &org.id).await {
-            console_error!("ticker.ensure_all: bootstrap failed for {}: {err:?}", org.id);
+            console_error!(
+                "ticker.ensure_all: bootstrap failed for {}: {err:?}",
+                org.id
+            );
             summary.failed += 1;
         } else {
             summary.bootstrapped += 1;

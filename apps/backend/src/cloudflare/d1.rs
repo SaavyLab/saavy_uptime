@@ -1,6 +1,6 @@
 use crate::router::AppState;
-use worker::{D1Database, Result as WorkerResult};
+use worker::{D1Database, Result};
 
-pub fn get_d1(state: &AppState) -> WorkerResult<D1Database> {
+pub fn get_d1(state: &AppState) -> Result<D1Database> {
     state.env().d1("DB")
 }

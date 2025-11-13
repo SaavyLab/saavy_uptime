@@ -8,15 +8,11 @@ use crate::cloudflare::d1::get_d1;
 use crate::monitors::types::{CreateMonitor, Monitor};
 use crate::router::AppState;
 use crate::utils::date::now_ms;
+use crate::utils::errors::internal_error;
 use crate::utils::wasm_types::js_number;
 
-fn internal_error(context: &str, err: impl std::fmt::Debug) -> StatusCode {
-    console_error!("{context}: {err:?}");
-    StatusCode::INTERNAL_SERVER_ERROR
-}
-
 pub async fn create_monitor(
-    state: AppState,
+    state: &AppState,
     identity_id: &str,
     monitor: CreateMonitor,
 ) -> Result<Monitor, StatusCode> {
@@ -55,10 +51,10 @@ pub async fn create_monitor(
         return Err(StatusCode::INTERNAL_SERVER_ERROR);
     }
 
-    get_monitor_by_id(state, id).await
+    get_monitor_by_id(&state, id).await
 }
 
-pub async fn get_monitor_by_id(state: AppState, id: String) -> Result<Monitor, StatusCode> {
+pub async fn get_monitor_by_id(state: &AppState, id: String) -> Result<Monitor, StatusCode> {
     let d1 = get_d1(&state).map_err(|err| internal_error("get_monitor_by_id.d1", err))?;
     let statement = d1.prepare("SELECT * FROM monitors WHERE id = ?1");
     let query = statement
@@ -72,7 +68,7 @@ pub async fn get_monitor_by_id(state: AppState, id: String) -> Result<Monitor, S
     }
 }
 
-pub async fn get_monitors(state: AppState, identity_id: &str) -> Result<Vec<Monitor>, StatusCode> {
+pub async fn get_monitors(state: &AppState, identity_id: &str) -> Result<Vec<Monitor>, StatusCode> {
     let membership = load_membership(&state, identity_id).await?;
     let d1 = get_d1(&state).map_err(|err| internal_error("get_monitors_by_org_id.d1", err))?;
     let statement = d1.prepare("SELECT * FROM monitors WHERE org_id = ?1 ORDER BY created_at DESC");

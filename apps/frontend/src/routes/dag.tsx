@@ -13,7 +13,14 @@ import {
 	MarkerType,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { Activity, Database, Zap, Play, Clock, CheckCircle2, XCircle } from "lucide-react";
+import {
+	Activity,
+	Database,
+	Play,
+	Clock,
+	CheckCircle2,
+	XCircle,
+} from "lucide-react";
 import { Hero } from "@/components/layout/Hero";
 import { SectionCard } from "@/components/layout/SectionCard";
 import { Button } from "@/components/ui/button";
@@ -134,7 +141,7 @@ type CheckJob = {
 
 function DAGVisualizerPage() {
 	const [nodes, setNodes, onNodesChange] = useNodesState(staticNodes);
-	const [edges, setEdges, onEdgesChange] = useEdgesState<Edge[]>([]);
+	const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 	const [isSimulating, setIsSimulating] = useState(false);
 	const [activeJobs, setActiveJobs] = useState<CheckJob[]>([]);
 	const [tickCount, setTickCount] = useState(0);
@@ -289,7 +296,11 @@ function DAGVisualizerPage() {
 			const edges: Edge[] = [];
 
 			// Ticker → Runner (always show during dispatch and executing)
-			if (job.phase === "dispatch" || job.phase === "executing" || job.phase === "writing") {
+			if (
+				job.phase === "dispatch" ||
+				job.phase === "executing" ||
+				job.phase === "writing"
+			) {
 				edges.push({
 					id: `ticker-${job.runnerId}`,
 					source: "ticker-do",
@@ -297,9 +308,12 @@ function DAGVisualizerPage() {
 					animated: job.phase === "dispatch",
 					markerEnd: { type: MarkerType.ArrowClosed },
 					style: {
-						stroke: job.phase === "writing"
-							? (job.success ? "#22c55e" : "#ef4444")
-							: "var(--accent)",
+						stroke:
+							job.phase === "writing"
+								? job.success
+									? "#22c55e"
+									: "#ef4444"
+								: "var(--accent)",
 						strokeWidth: 2,
 						opacity: job.phase === "writing" ? 0.4 : 1,
 					},
@@ -407,12 +421,20 @@ function DAGVisualizerPage() {
 								</div>
 								<div className="space-y-2 font-mono text-sm">
 									<div className="flex justify-between">
-										<span className="text-[var(--text-muted)]">Alarm cycles:</span>
-										<span className="text-[var(--text-primary)]">{tickCount}</span>
+										<span className="text-[var(--text-muted)]">
+											Alarm cycles:
+										</span>
+										<span className="text-[var(--text-primary)]">
+											{tickCount}
+										</span>
 									</div>
 									<div className="flex justify-between">
-										<span className="text-[var(--text-muted)]">Active jobs:</span>
-										<span className="text-[var(--accent)]">{activeJobs.length}</span>
+										<span className="text-[var(--text-muted)]">
+											Active jobs:
+										</span>
+										<span className="text-[var(--accent)]">
+											{activeJobs.length}
+										</span>
 									</div>
 								</div>
 							</div>
@@ -424,7 +446,9 @@ function DAGVisualizerPage() {
 								<div className="space-y-2 font-mono text-sm">
 									<div className="flex justify-between">
 										<span className="text-[var(--text-muted)]">Total:</span>
-										<span className="text-[var(--text-primary)]">{stats.total}</span>
+										<span className="text-[var(--text-primary)]">
+											{stats.total}
+										</span>
 									</div>
 									<div className="flex justify-between">
 										<span className="text-green-500">Success:</span>
@@ -498,28 +522,33 @@ function DAGVisualizerPage() {
 							</h3>
 							<div className="space-y-3 text-sm text-[var(--text-muted)]">
 								<div>
-									<strong className="text-[var(--text-primary)]">Ticker DO alarm:</strong>{" "}
-									Fires every 2 seconds, queries D1 for monitors due, and dispatches 2-4
-									checks per cycle.
+									<strong className="text-[var(--text-primary)]">
+										Ticker DO alarm:
+									</strong>{" "}
+									Fires every 2 seconds, queries D1 for monitors due, and
+									dispatches 2-4 checks per cycle.
 								</div>
 								<div>
 									<strong className="text-[var(--text-primary)]">
 										Runner Workers (ephemeral):
 									</strong>{" "}
-									Spawn dynamically from 6 global POPs (SJC, AMS, SIN, SYD, GRU, NRT),
-									execute the check, then disappear after writing results.
+									Spawn dynamically from 6 global POPs (SJC, AMS, SIN, SYD, GRU,
+									NRT), execute the check, then disappear after writing results.
 								</div>
 								<div>
-									<strong className="text-[var(--text-primary)]">Check lifecycle:</strong>{" "}
-									Dispatch (0.5s) → Execute (1s) → Write to D1/AE (0.5s) → Complete. Green
-									edges indicate success, red edges indicate failures.
+									<strong className="text-[var(--text-primary)]">
+										Check lifecycle:
+									</strong>{" "}
+									Dispatch (0.5s) → Execute (1s) → Write to D1/AE (0.5s) →
+									Complete. Green edges indicate success, red edges indicate
+									failures.
 								</div>
 								<div>
 									<strong className="text-[var(--text-primary)]">
 										Data archival (D1→R2):
 									</strong>{" "}
-									Dashed line represents the janitor cron that moves old heartbeats from D1
-									to R2 for long-term storage.
+									Dashed line represents the janitor cron that moves old
+									heartbeats from D1 to R2 for long-term storage.
 								</div>
 							</div>
 						</div>
@@ -530,19 +559,31 @@ function DAGVisualizerPage() {
 							</h3>
 							<ul className="space-y-2 text-sm text-[var(--text-muted)]">
 								<li>
-									• <strong className="text-[var(--text-primary)]">Live SSE/WebSocket stream</strong>{" "}
+									•{" "}
+									<strong className="text-[var(--text-primary)]">
+										Live SSE/WebSocket stream
+									</strong>{" "}
 									from backend with real dispatch metadata
 								</li>
 								<li>
-									• <strong className="text-[var(--text-primary)]">Per-POP latency heatmap</strong>{" "}
+									•{" "}
+									<strong className="text-[var(--text-primary)]">
+										Per-POP latency heatmap
+									</strong>{" "}
 									showing geographic distribution of checks
 								</li>
 								<li>
-									• <strong className="text-[var(--text-primary)]">Incident correlation</strong>{" "}
+									•{" "}
+									<strong className="text-[var(--text-primary)]">
+										Incident correlation
+									</strong>{" "}
 									highlighting which checks triggered incidents
 								</li>
 								<li>
-									• <strong className="text-[var(--text-primary)]">Response payload inspection</strong>{" "}
+									•{" "}
+									<strong className="text-[var(--text-primary)]">
+										Response payload inspection
+									</strong>{" "}
 									showing HTTP status, headers, and body snippets
 								</li>
 							</ul>

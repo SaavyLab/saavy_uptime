@@ -1,7 +1,7 @@
 use axum::{body::Body as AxumBody, response::Response as AxumResponse};
 use console_error_panic_hook::set_once as set_panic_hook;
 use tower_service::Service;
-use worker::*;
+use worker::{Request as WorkerRequest, *};
 
 pub mod auth;
 pub mod bootstrap;
