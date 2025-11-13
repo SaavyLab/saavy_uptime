@@ -75,7 +75,7 @@ async fn update_dispatch(state: &AppState, dispatch_id: &str, end_ms: i64, dispa
 }
 
 async fn check_monitor(state: &AppState, payload: &DispatchRequest, start: i64) -> Result<CheckResult, DispatchError> {
-    let check = match payload.kind {
+    let check = match &payload.kind {
         MonitorKind::Http => check_http_monitor(&state, &payload, start).await,
         MonitorKind::Tcp => check_tcp_monitor(&state, &payload, start).await,
         MonitorKind::Udp => todo!("This will be handled by the container protocol adapter"),
