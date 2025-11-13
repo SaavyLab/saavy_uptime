@@ -42,6 +42,7 @@ pub struct Monitor {
     pub updated_at: i64,
 }
 
+#[derive(Debug)]
 pub enum MonitorError {
     // pub status_code: u16,
     DbInit(worker::Error),

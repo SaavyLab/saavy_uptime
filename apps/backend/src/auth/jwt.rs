@@ -20,7 +20,6 @@ use rsa::{
 };
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use sha2::Sha256;
-use worker::console_log;
 use worker::worker_sys::console_error;
 use worker::{Error, Fetch, Method, Request as WorkerRequest};
 

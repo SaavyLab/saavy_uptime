@@ -42,7 +42,7 @@ struct MonitorRow {
     verify_tls: i64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct MonitorDispatch {
     id: String,
     url: String,

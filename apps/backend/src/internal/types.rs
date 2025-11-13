@@ -30,6 +30,7 @@ pub struct DispatchRequest {
     pub verify_tls: bool,
 }
 
+#[derive(Debug)]
 pub struct CheckResult {
     pub ok: bool,
     pub status_code: Option<u16>,
@@ -41,17 +42,9 @@ pub struct CheckResult {
 }
 
 #[derive(Debug)]
-pub struct CheckError {
-    pub status_code: u16,
-    pub end_ms: Option<i64>,
-    pub error_msg: String,
-    pub colo: String,
-    pub extra: Option<serde_json::Value>,
-}
-
 pub enum DispatchError {
     Database { context: &'static str, source: worker::Error },
-    Check(CheckError),
+    CheckFailed(CheckResult),
     Heartbeat(worker::Error),
     Monitor(MonitorError),
 }
@@ -68,12 +61,6 @@ impl From<worker::Error> for DispatchError {
     }
 }
 
-impl From<CheckError> for DispatchError {
-    fn from(err: CheckError) -> Self {
-        DispatchError::Check(err)
-    }
-}
-
 impl From<DispatchError> for axum::http::StatusCode {
     fn from(err: DispatchError) -> axum::http::StatusCode {
         match err {
@@ -81,8 +68,12 @@ impl From<DispatchError> for axum::http::StatusCode {
                 console_error!("{context}: {source:?}");
                 axum::http::StatusCode::INTERNAL_SERVER_ERROR
             }
-            DispatchError::Check(err) => {
-                console_error!("dispatch.check: {err:?}");
+            DispatchError::CheckFailed(result) => {
+                console_error!(
+                    "dispatch.check.failed: status={} error={:?}",
+                    result.status_code.unwrap_or(0),
+                    result.error_msg
+                );
                 axum::http::StatusCode::INTERNAL_SERVER_ERROR
             }
             DispatchError::Heartbeat(err) => {

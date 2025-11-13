@@ -2,9 +2,7 @@ use worker::{console_error, console_log, RequestInit, Method, Request, Fetch, Re
 use std::result::Result;
 
 use crate::cloudflare::d1::get_d1;
-use crate::internal::types::{CheckError, CheckResult, DispatchError, DispatchRequest, MonitorKind};
-use crate::monitors::service::get_monitor_by_id;
-use crate::monitors::types::Monitor;
+use crate::internal::types::{CheckResult, DispatchError, DispatchRequest, MonitorKind};
 use crate::router::AppState;
 use crate::utils::date::now_ms;
 use crate::utils::wasm_types::js_number;
@@ -35,7 +33,21 @@ pub async fn handle_dispatch(state: AppState, payload: DispatchRequest) -> Resul
         .await
         .map_err(|err| DispatchError::database("dispatch.start.run", err))?;
 
-    let result = check_monitor(&state, &payload, start).await?;
+    let check = check_monitor(&state, &payload, start).await;
+
+    let (end_ms, dispatch_status) = match &check {
+        Ok(result) => (result.end_ms.unwrap_or(0), "completed"),
+        Err(DispatchError::CheckFailed(result)) => (result.end_ms.unwrap_or(0), "failed"),
+        Err(_err) => (now_ms(), "failed")
+    };
+
+    update_dispatch(&state, &payload.dispatch_id, end_ms, dispatch_status).await?;
+
+    Ok(())
+}
+
+async fn update_dispatch(state: &AppState, dispatch_id: &str, end_ms: i64, dispatch_status: &str) -> Result<(), DispatchError> {
+    let d1 = get_d1(&state.env()).map_err(|err| DispatchError::database("dispatch.update.db.init", err))?;
 
     let complete_statement = d1.prepare(
         "UPDATE monitor_dispatches
@@ -44,12 +56,10 @@ pub async fn handle_dispatch(state: AppState, payload: DispatchRequest) -> Resul
          WHERE id = ?3",
     );
 
-    let end = result.end_ms.unwrap_or(0);
-
     let complete_bind_values = vec![
-        "completed".into(),
-        js_number(end),
-        payload.dispatch_id.into(),
+        dispatch_status.into(),
+        js_number(end_ms),
+        dispatch_id.into(),
     ];
 
     let complete_query = complete_statement
@@ -64,31 +74,35 @@ pub async fn handle_dispatch(state: AppState, payload: DispatchRequest) -> Resul
     Ok(())
 }
 
-async fn check_monitor(state: &AppState, payload: &DispatchRequest, start: i64) -> Result<i64, DispatchError> {
-    let result = match payload.kind {
+async fn check_monitor(state: &AppState, payload: &DispatchRequest, start: i64) -> Result<CheckResult, DispatchError> {
+    let check = match payload.kind {
         MonitorKind::Http => check_http_monitor(&state, &payload, start).await,
-        MonitorKind::Tcp => check_tcp_monitor(&state, &payload).await,
+        MonitorKind::Tcp => check_tcp_monitor(&state, &payload, start).await,
         MonitorKind::Udp => todo!("This will be handled by the container protocol adapter"),
-        _ => return Err(DispatchError::Check(CheckError {
-            status_code: 500,
-            error_msg: "Unsupported monitor kind".to_string(),
-            end_ms: Some(now_ms()),
-            colo: String::new(), // todo(saavy): get from cf headers
-            extra: None,
-        })),
     };
 
     // write_ae_metrics(state, &monitor, ok, duration);
-    match result {
-        Ok(result) => {
-            write_heartbeat(&state, &payload.dispatch_id, &payload.monitor_id, &result).await?;
-        }
-        Err(err) => {
-            todo!("Still actually write the heartbeat for this failed check")
-        }
-    }
 
-    Ok(result?.end_ms.unwrap_or(0))
+    let result = match check {
+        Ok(res) => res,
+        Err(err) => {
+            let rtt_ms = now_ms() - start;
+            let failure = CheckResult {
+                ok: false,
+                status_code: None,
+                rtt_ms: Some(rtt_ms),
+                end_ms: Some(now_ms()),
+                error_msg: Some(format!("{err:?}")),
+                colo: String::new(),
+                extra: None,
+            };
+            write_heartbeat(&state, &payload.dispatch_id, &payload.monitor_id, &failure).await?;
+            return Err(DispatchError::CheckFailed(failure))
+        }
+    };
+
+    write_heartbeat(&state, &payload.dispatch_id, &payload.monitor_id, &result).await?;
+    Ok(result)
 }
 
 async fn write_heartbeat(
@@ -170,16 +184,20 @@ async fn check_http_monitor(_state: &AppState, payload: &DispatchRequest, start:
             300..=399 if follow_redirects => {
                 let location = match response.headers().get("Location") {
                     Ok(Some(loc)) => loc,
-                    Ok(None) => return Err(DispatchError::Check(CheckError {
-                        status_code: response.status_code(),
-                        error_msg: "Redirect location not found".to_string(),
+                    Ok(None) => return Err(DispatchError::CheckFailed(CheckResult {
+                        ok: false,
+                        status_code: Some(response.status_code()),
+                        rtt_ms: Some(end - start),
                         end_ms: Some(end),
+                        error_msg: Some("Redirect location not found".to_string()),
                         colo: String::new(), // todo(saavy): get from cf headers
                         extra: None,
                     })),
-                    Err(err) => return Err(DispatchError::Check(CheckError {
-                        status_code: response.status_code(),
-                        error_msg: format!("Redirect location not found {err:?}"),
+                    Err(err) => return Err(DispatchError::CheckFailed(CheckResult {
+                        ok: false,
+                        status_code: Some(response.status_code()),
+                        rtt_ms: Some(end - start),
+                        error_msg: Some(format!("Redirect location not found {err:?}")),
                         end_ms: Some(end),
                         colo: String::new(), // todo(saavy): get from cf headers
                         extra: None,
@@ -189,29 +207,35 @@ async fn check_http_monitor(_state: &AppState, payload: &DispatchRequest, start:
                 next_url = location;
                 continue;
             }
-            300..=399 => return Err(DispatchError::Check(CheckError {
-                status_code: response.status_code(),
-                error_msg: "Redirection not enabled".to_string(),
+            300..=399 => return Err(DispatchError::CheckFailed(CheckResult {
+                ok: false,
+                status_code: Some(response.status_code()),
+                rtt_ms: Some(end - start),
                 end_ms: Some(end),
+                error_msg: Some("Redirection not enabled".to_string()),
                 colo: String::new(), // todo(saavy): get from cf headers
                 extra: None,
             })),
             400..=499 => {
                 console_error!("HTTP check failed {} {}", payload.monitor_id, response.status_code());
-                return Err(DispatchError::Check(CheckError {
-                    status_code: response.status_code(),
-                    error_msg: "Client error".to_string(),
+                return Err(DispatchError::CheckFailed(CheckResult {
+                    ok: false,
+                    status_code: Some(response.status_code()),
+                    rtt_ms: Some(end - start),
                     end_ms: Some(end),
+                    error_msg: Some("Client error".to_string()),
                     colo: String::new(), // todo(saavy): get from cf headers
                     extra: None,
                 }));
             }
             _ => {
                 console_error!("HTTP check failed {} {}", payload.monitor_id, response.status_code());
-                return Err(DispatchError::Check(CheckError {
-                    status_code: response.status_code(),
-                    error_msg: "Server error".to_string(),
+                return Err(DispatchError::CheckFailed(CheckResult {
+                    ok: false,
+                    status_code: Some(response.status_code()),
+                    rtt_ms: Some(end - start),
                     end_ms: Some(end),
+                    error_msg: Some("Server error".to_string()),
                     colo: String::new(), // todo(saavy): get from cf headers
                     extra: None,
                 }));
@@ -220,10 +244,12 @@ async fn check_http_monitor(_state: &AppState, payload: &DispatchRequest, start:
     }
 
     console_error!("HTTP check failed after {} redirects for monitor {}", MAX_REDIRECT_DEPTH, payload.monitor_id);
-    Err(DispatchError::Check(CheckError {
-        status_code: 429,
-        error_msg: "Too many redirects".to_string(),
+    Err(DispatchError::CheckFailed(CheckResult {
+        ok: false,
+        status_code: Some(429),
+        rtt_ms: Some(now_ms() - start),
         end_ms: Some(now_ms()),
+        error_msg: Some("Too many redirects".to_string()),
         colo: String::new(), // todo(saavy): get from cf headers
         extra: None,
     }))
@@ -247,11 +273,14 @@ async fn perform_fetch(url: &str, _timeout_ms: i64, _verify_tls: bool) -> Result
     Ok(response)
 }
 
-async fn check_tcp_monitor(_state: &AppState, _payload: &DispatchRequest) -> Result<CheckResult, DispatchError> {
-    Err(DispatchError::Check(CheckError {
-        status_code: 500,
-        error_msg: "TCP check not implemented".to_string(),
-        end_ms: Some(now_ms()),
+async fn check_tcp_monitor(_state: &AppState, _payload: &DispatchRequest, start: i64) -> Result<CheckResult, DispatchError> {
+    let end = now_ms();
+    Err(DispatchError::CheckFailed(CheckResult {
+        ok: false,
+        status_code: Some(500),
+        rtt_ms: Some(end - start),
+        end_ms: Some(end),
+        error_msg: Some("TCP check not implemented".to_string()),
         colo: String::new(), // todo(saavy): get from cf headers
         extra: None,
     }))
