@@ -11,6 +11,7 @@ pub struct ReconcileResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum MonitorKind {
     Http,
     Tcp,

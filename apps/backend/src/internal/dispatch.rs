@@ -1,4 +1,4 @@
-use worker::{console_error, console_log, RequestInit, Method, Request, Fetch, Response};
+use worker::{console_error, console_log, RequestInit, Method, Request, Fetch, Response, wasm_bindgen::JsValue};
 use std::result::Result;
 
 use crate::cloudflare::d1::get_d1;
@@ -122,7 +122,7 @@ async fn write_heartbeat(
             code,
             rtt_ms,
             err,
-            region,
+            region
         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)"
     );
 
@@ -134,24 +134,35 @@ async fn write_heartbeat(
     let region = result.colo.clone();
 
     let bind_values = vec![
-        monitor_id.into(),
+        JsValue::from_str(monitor_id),
+        JsValue::from_str(dispatch_id),
         js_number(end),
-        (if ok { 1 } else { 0 }).into(),
+        JsValue::from_f64(if ok { 1.0 } else { 0.0 }),
         js_number(code as i64),
         js_number(rtt_ms),
-        err_msg.into(),
-        region.into(),
-        dispatch_id.into(),
+        match err_msg {
+            Some(msg) => JsValue::from_str(&msg),
+            None => JsValue::NULL,
+        },
+        if region.is_empty() {
+            JsValue::NULL
+        } else {
+            JsValue::from_str(&region)
+        },
     ];
 
     let query = statement
         .bind(&bind_values)
         .map_err(|err| DispatchError::database("dispatch.heartbeat.bind", err))?;
 
-    query
-        .run()
-        .await
-        .map_err(|err| DispatchError::database("dispatch.heartbeat.run", err))?;
+    if let Err(err) = query.run().await {
+        console_error!(
+            "dispatch.heartbeat.run failed (monitor_id={}, dispatch_id={}): {err:?}",
+            monitor_id,
+            dispatch_id
+        );
+        return Err(DispatchError::database("dispatch.heartbeat.run", err));
+    }
 
     Ok(())
 }
@@ -163,7 +174,22 @@ async fn check_http_monitor(_state: &AppState, payload: &DispatchRequest, start:
     let follow_redirects = payload.follow_redirects;
 
     for depth in 0..MAX_REDIRECT_DEPTH {
-        let response = perform_fetch(&next_url, payload.timeout_ms, payload.verify_tls).await?;
+        let response = match perform_fetch(&next_url, payload.timeout_ms, payload.verify_tls).await {
+            Ok(resp) => resp,
+            Err(DispatchError::Heartbeat(err)) => {
+                let end = now_ms();
+                return Err(DispatchError::CheckFailed(CheckResult {
+                    ok: false,
+                    status_code: None,
+                    rtt_ms: Some(end - start),
+                    end_ms: Some(end),
+                    error_msg: Some(format!("HTTP fetch error: {err:?}")),
+                    colo: String::new(), // todo(saavy): get from cf headers
+                    extra: None,
+                }));
+            }
+            Err(other) => return Err(other),
+        };
         let end = now_ms();
 
         match response.status_code() {
@@ -171,6 +197,7 @@ async fn check_http_monitor(_state: &AppState, payload: &DispatchRequest, start:
                 if depth > 0 { 
                     console_log!("HTTP check passed after {} redirects for monitor {}", depth, payload.monitor_id);
                 }
+                console_log!("HTTP check passed for monitor {} {} at {}", payload.monitor_id, payload.monitor_url, end);
                 return Ok(CheckResult {
                     ok: true,
                     status_code: Some(response.status_code()),
@@ -217,7 +244,7 @@ async fn check_http_monitor(_state: &AppState, payload: &DispatchRequest, start:
                 extra: None,
             })),
             400..=499 => {
-                console_error!("HTTP check failed {} {}", payload.monitor_id, response.status_code());
+                console_error!("HTTP check failed {} {} {}", payload.monitor_id, payload.monitor_url, response.status_code());
                 return Err(DispatchError::CheckFailed(CheckResult {
                     ok: false,
                     status_code: Some(response.status_code()),
@@ -229,7 +256,7 @@ async fn check_http_monitor(_state: &AppState, payload: &DispatchRequest, start:
                 }));
             }
             _ => {
-                console_error!("HTTP check failed {} {}", payload.monitor_id, response.status_code());
+                console_error!("HTTP check failed {} {} {}", payload.monitor_id, payload.monitor_url, response.status_code());
                 return Err(DispatchError::CheckFailed(CheckResult {
                     ok: false,
                     status_code: Some(response.status_code()),

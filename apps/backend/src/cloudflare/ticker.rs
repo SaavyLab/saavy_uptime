@@ -162,7 +162,7 @@ impl Ticker {
 
         let select_statement = d1.prepare(
             "
-            SELECT id, interval_s, url, timeout_ms, follow_redirects, verify_tls
+            SELECT id, kind, interval_s, url, timeout_ms, follow_redirects, verify_tls
             FROM monitors
             WHERE org_id = ?1
               AND enabled = 1
@@ -291,6 +291,7 @@ impl Ticker {
             dispatch_id: dispatch_id.to_string(),
             monitor_id: monitor.id.clone(),
             monitor_url: monitor.url.clone(),
+            kind: monitor.kind.clone(),
             scheduled_for_ts: monitor.scheduled_for_ts,
             timeout_ms: monitor.timeout_ms,
             follow_redirects: monitor.follow_redirects,
@@ -380,6 +381,7 @@ struct DispatchPayload {
     dispatch_id: String,
     monitor_id: String,
     monitor_url: String,
+    kind: MonitorKind,
     scheduled_for_ts: i64,
     timeout_ms: i64,
     follow_redirects: bool,
