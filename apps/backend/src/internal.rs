@@ -1,10 +1,11 @@
 use axum::{routing::post, Router};
 
 mod dispatch;
-mod types;
+mod handlers;
+pub mod types;
 
 use crate::{
-    internal::dispatch::{dispatch_handler, reconcile_tickers_handler},
+    internal::handlers::{dispatch_handler, reconcile_tickers_handler},
     router::AppState,
 };
 

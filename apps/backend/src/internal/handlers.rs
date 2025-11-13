@@ -1,9 +1,9 @@
 use crate::auth::current_user::CurrentUser;
-use crate::cloudflare::ticker::ensure_all_tickers;
+use crate::bootstrap::ticker_bootstrap::ensure_all_tickers;
 use crate::internal::types::{DispatchRequest, ReconcileResponse};
+use crate::internal::dispatch::handle_dispatch;
 use crate::router::AppState;
 use axum::{extract::State, http::HeaderMap, http::StatusCode, response::Result, Json};
-use worker::console_error;
 
 #[worker::send]
 pub async fn reconcile_tickers_handler(
@@ -16,10 +16,7 @@ pub async fn reconcile_tickers_handler(
             bootstrapped: summary.bootstrapped,
             failed: summary.failed,
         })),
-        Err(err) => {
-            console_error!("ticker.reconcile: failed: {err:?}");
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
-        }
+        Err(err) => Err(err.into()),
     }
 }
 

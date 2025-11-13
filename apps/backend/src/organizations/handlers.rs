@@ -42,7 +42,7 @@ pub async fn get_organization_by_id(
         claims: _,
     }: CurrentUser,
 ) -> Result<Json<Organization>, StatusCode> {
-    let d1 = get_d1(&state).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let d1 = get_d1(&state.env()).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let statement = d1.prepare("SELECT * FROM organizations WHERE id = ?1");
     let query = statement
         .bind(&[id.into()])
@@ -65,7 +65,7 @@ pub async fn create_organization(
     }: CurrentUser,
     Json(payload): Json<CreateOrganization>,
 ) -> Result<Json<Organization>, StatusCode> {
-    let d1 = get_d1(&state).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let d1 = get_d1(&state.env()).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let statement = d1
         .prepare("INSERT INTO organizations (id, slug, name, created_at) VALUES (?1, ?2, ?3, ?4)");
     let id = create_id().to_string();

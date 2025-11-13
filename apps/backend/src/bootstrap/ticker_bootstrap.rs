@@ -1,12 +1,15 @@
 use serde::{Deserialize, Serialize};
-use worker::{console_error, wasm_bindgen::JsValue, Env, Method, Request, RequestInit, Result};
+use worker::{console_error, wasm_bindgen::JsValue, Env, Method, Request, RequestInit};
+use std::result::Result;
+use crate::cloudflare::d1::get_d1;
+use crate::bootstrap::types::BootstrapError;
 
 #[derive(Serialize)]
 struct BootstrapPayload<'a> {
     org_id: &'a str,
 }
 
-pub async fn ensure_ticker_bootstrapped(env: &Env, org_id: &str) -> Result<()> {
+pub async fn ensure_ticker_bootstrapped(env: &Env, org_id: &str) -> Result<(), BootstrapError> {
     let namespace = env.durable_object("TICKER")?;
     let id = namespace.id_from_name(org_id)?;
     let stub = id.get_stub()?;
@@ -37,8 +40,8 @@ pub struct TickerReconcileSummary {
     pub failed: usize,
 }
 
-pub async fn ensure_all_tickers(env: &Env) -> Result<TickerReconcileSummary> {
-    let d1 = env.d1("DB")?;
+pub async fn ensure_all_tickers(env: &Env) -> Result<TickerReconcileSummary, BootstrapError> {
+    let d1 = get_d1(env).map_err(|err| BootstrapError::DbInit(err))?;
     let statement = d1.prepare("SELECT id FROM organizations");
     let rows = statement
         .all()

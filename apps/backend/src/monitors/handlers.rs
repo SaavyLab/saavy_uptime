@@ -17,7 +17,7 @@ pub async fn get_monitor_by_id_handler(
 ) -> Result<Json<Monitor>, StatusCode> {
     match get_monitor_by_id(&state, id).await {
         Ok(monitor) => Ok(Json(monitor)),
-        Err(error) => Err(error),
+        Err(err) => Err(err.into())
     }
 }
 
@@ -28,7 +28,7 @@ pub async fn get_monitors_handler(
 ) -> Result<Json<Vec<Monitor>>, StatusCode> {
     match get_monitors(&state, &subject).await {
         Ok(monitors) => Ok(Json(monitors)),
-        Err(error) => Err(error),
+        Err(err) => Err(err.into()),
     }
 }
 
@@ -40,6 +40,6 @@ pub async fn create_monitor_handler(
 ) -> Result<Json<Monitor>, StatusCode> {
     match create_monitor(&state, &subject, monitor).await {
         Ok(monitor) => Ok(Json(monitor)),
-        Err(error) => Err(error),
+        Err(err) => Err(err.into()),
     }
 }

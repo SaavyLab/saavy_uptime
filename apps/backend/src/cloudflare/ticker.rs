@@ -6,7 +6,7 @@ use serde_json::to_string;
 use wasm_bindgen::JsValue;
 use worker::*;
 
-use crate::utils::{date::now_ms, wasm_types::js_number};
+use crate::{internal::types::MonitorKind, utils::{date::now_ms, wasm_types::js_number}};
 
 const DEFAULT_TICK_INTERVAL_MS: u64 = 15_000;
 const DEFAULT_BATCH_SIZE: usize = 100;
@@ -36,6 +36,7 @@ struct MonitorRow {
     id: String,
     interval_s: i64,
     url: String,
+    kind: MonitorKind,
     timeout_ms: i64,
     follow_redirects: i64,
     verify_tls: i64,
@@ -45,6 +46,7 @@ struct MonitorRow {
 struct MonitorDispatch {
     id: String,
     url: String,
+    kind: MonitorKind,
     scheduled_for_ts: i64,
     timeout_ms: i64,
     follow_redirects: bool,
@@ -56,6 +58,7 @@ impl From<(MonitorRow, i64)> for MonitorDispatch {
         Self {
             id: row.id,
             url: row.url,
+            kind: row.kind,
             scheduled_for_ts,
             timeout_ms: row.timeout_ms,
             follow_redirects: row.follow_redirects != 0,
@@ -287,7 +290,11 @@ impl Ticker {
         let payload = DispatchPayload {
             dispatch_id: dispatch_id.to_string(),
             monitor_id: monitor.id.clone(),
+            monitor_url: monitor.url.clone(),
             scheduled_for_ts: monitor.scheduled_for_ts,
+            timeout_ms: monitor.timeout_ms,
+            follow_redirects: monitor.follow_redirects,
+            verify_tls: monitor.verify_tls,
         };
 
         let body =
@@ -372,5 +379,9 @@ impl DurableObject for Ticker {
 struct DispatchPayload {
     dispatch_id: String,
     monitor_id: String,
+    monitor_url: String,
     scheduled_for_ts: i64,
+    timeout_ms: i64,
+    follow_redirects: bool,
+    verify_tls: bool,
 }
