@@ -1,26 +1,22 @@
 use crate::auth::current_user::CurrentUser;
+use crate::cloudflare::d1::AppDb;
+use crate::cloudflare::ticker::AppTicker;
 use crate::monitors::service::{create_monitor, get_monitor_by_id, get_monitors};
 use crate::monitors::types::{CreateMonitor, Monitor};
-use crate::router::AppState;
-use axum::{
-    extract::{Path, State},
-    http::StatusCode,
-    response::Result,
-    Json,
-};
+use axum::{extract::Path, http::StatusCode, response::Result, Json};
 
 #[worker::send]
 #[tracing::instrument(
     name = "monitors.http.get_by_id",
-    skip(state, _current_user),
+    skip(d1, _current_user),
     fields(monitor_id = %id)
 )]
 pub async fn get_monitor_by_id_handler(
-    State(state): State<AppState>,
     Path(id): Path<String>,
+    AppDb(d1): AppDb,
     _current_user: CurrentUser,
 ) -> Result<Json<Monitor>, StatusCode> {
-    match get_monitor_by_id(&state, id).await {
+    match get_monitor_by_id(&d1, id).await {
         Ok(monitor) => Ok(Json(monitor)),
         Err(err) => Err(err.into()),
     }
@@ -29,14 +25,14 @@ pub async fn get_monitor_by_id_handler(
 #[worker::send]
 #[tracing::instrument(
     name = "monitors.http.list",
-    skip(state),
+    skip(d1),
     fields(identity_id = %subject)
 )]
 pub async fn get_monitors_handler(
-    State(state): State<AppState>,
+    AppDb(d1): AppDb,
     CurrentUser { subject, .. }: CurrentUser,
 ) -> Result<Json<Vec<Monitor>>, StatusCode> {
-    match get_monitors(&state, &subject).await {
+    match get_monitors(&d1, &subject).await {
         Ok(monitors) => Ok(Json(monitors)),
         Err(err) => Err(err.into()),
     }
@@ -45,15 +41,16 @@ pub async fn get_monitors_handler(
 #[worker::send]
 #[tracing::instrument(
     name = "monitors.http.create",
-    skip(state, monitor),
+    skip(ticker, d1, monitor),
     fields(identity_id = %subject)
 )]
 pub async fn create_monitor_handler(
-    State(state): State<AppState>,
+    AppTicker(ticker): AppTicker,
+    AppDb(d1): AppDb,
     CurrentUser { subject, .. }: CurrentUser,
     Json(monitor): Json<CreateMonitor>,
 ) -> Result<Json<Monitor>, StatusCode> {
-    match create_monitor(&state, &subject, monitor).await {
+    match create_monitor(&ticker, &d1, &subject, monitor).await {
         Ok(monitor) => Ok(Json(monitor)),
         Err(err) => Err(err.into()),
     }

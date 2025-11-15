@@ -24,15 +24,15 @@ new_classes = ["Ticker"]
 
 [observability]
 [observability.logs]
-enabled = false
+enabled = true
 head_sampling_rate = 1
 invocation_logs = true
 
 [[d1_databases]]
 binding = "DB"
-database_name = "saavy_uptime_preview"
+database_name = "saavy_uptime_dev"
 database_id = "00000000-0000-0000-0000-000000000000"
-preview_database_id = "ad9c1d30-cda5-483a-ab4a-ced2f5dcbef2"
+migrations_dir = "migrations"
 migrations_table = "d1_migrations"
 
 [[analytics_engine_datasets]]
@@ -43,36 +43,36 @@ dataset = "saavy_uptime_dev"
 binding = "ARCHIVE_BUCKET"
 bucket_name = "saavy-uptime-dev"
 
-[env.preview]
-name = "saavy-uptime-preview"
-workers_dev = true
-d1_databases = [
-  { binding = "DB", database_name = "saavy_uptime_preview", database_id = "ad9c1d30-cda5-483a-ab4a-ced2f5dcbef2", migrations_table = "d1_migrations" }
-]
-analytics_engine_datasets = [
-  { binding = "AE", dataset = "saavy_uptime_preview" }
-]
-r2_buckets = [
-  { binding = "ARCHIVE_BUCKET", bucket_name = "saavy-uptime-preview" }
-]
+# ========================================
+# PRODUCTION ENVIRONMENT
+# ========================================
+[env.production]
+name = "saavy-uptime"
+workers_dev = false
 
-
-[env.preview.vars]
+[env.production.vars]
 ACCESS_TEAM_DOMAIN = "https://saavylab.cloudflareaccess.com"
 ACCESS_AUD = "e8604f5d9df109c391b937c4293c06fa76548def743a48fec18da93e0ddddeda"
 DISPATCH_TOKEN = "local-dev-token"
-DISPATCH_BASE_URL = "http://127.0.0.1:8787/api"
+DISPATCH_BASE_URL = "https://api.uptime.saavylab.dev/api"
 ENABLE_TICKER_ADMIN = 1
 
-[env.production]
-name = "saavy-uptime-production"
-workers_dev = false
-d1_databases = [
-  { binding = "DB", database_name = "saavy_uptime", database_id = "00000000-0000-0000-0000-000000000000", migrations_table = "d1_migrations" }
-] 
-analytics_engine_datasets = [
-  { binding = "AE", dataset = "saavy_uptime" }
-]
-r2_buckets = [
-  { binding = "ARCHIVE_BUCKET", bucket_name = "saavy-uptime" }
-]
+[[env.production.durable_objects.bindings]]
+name = "TICKER"
+class_name = "Ticker"
+script_name = "saavy-uptime"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "saavy_uptime"
+database_id = "8d1a587f-92b7-419c-8eec-b6850e3d7d62"
+migrations_dir = "migrations"
+migrations_table = "d1_migrations"
+
+[[env.production.analytics_engine_datasets]]
+binding = "AE"
+dataset = "saavy_uptime"
+
+[[env.production.r2_buckets]]
+binding = "ARCHIVE_BUCKET"
+bucket_name = "saavy-uptime"

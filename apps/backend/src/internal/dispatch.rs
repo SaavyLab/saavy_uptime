@@ -252,7 +252,7 @@ async fn check_http_monitor(
                             error_msg: Some("Redirect location not found".to_string()),
                             colo: String::new(), // todo(saavy): get from cf headers
                             extra: None,
-                        }))
+                        }));
                     }
                     Err(err) => {
                         return Err(DispatchError::CheckFailed(CheckResult {
@@ -263,7 +263,7 @@ async fn check_http_monitor(
                             end_ms: Some(end),
                             colo: String::new(), // todo(saavy): get from cf headers
                             extra: None,
-                        }))
+                        }));
                     }
                 };
 
@@ -279,7 +279,7 @@ async fn check_http_monitor(
                     error_msg: Some("Redirection not enabled".to_string()),
                     colo: String::new(), // todo(saavy): get from cf headers
                     extra: None,
-                }))
+                }));
             }
             400..=499 => {
                 console_error!(

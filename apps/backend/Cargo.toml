@@ -19,7 +19,7 @@ console_error_panic_hook = "0.1.7"
 getrandom = { version = "^0.3.4", features = ["wasm_js"] }
 cuid2 = "0.1.4"
 jwt = "0.16.0"
-tower-http = { version = "0.6.6", features = ["cors", "trace"] }
+tower-http = { version = "0.6.6", features = ["cors"] }
 js-sys = "0.3.82"
 once_cell = "1.19.0"
 base64 = "0.21"

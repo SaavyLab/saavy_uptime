@@ -26,7 +26,6 @@ Set the `database_id`, AE dataset, and R2 bucket identifiers per environment ins
 1. **Workers + Durable Object namespace**
    ```bash
    wrangler deploy --dry-run            # creates DO migrations
-   wrangler do create TICKER --class Ticker
    ```
 2. **D1 databases** (dev/preview/prod):
    ```bash

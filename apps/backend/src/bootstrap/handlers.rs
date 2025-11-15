@@ -1,10 +1,11 @@
-use crate::auth::current_user::CurrentUser;
 use crate::bootstrap::ticker_bootstrap::ensure_ticker_bootstrapped;
-use crate::cloudflare::d1::get_d1;
+use crate::cloudflare::d1::{get_d1, AppDb};
 use crate::router::AppState;
 use crate::utils::date::now_ms;
+use crate::{auth::current_user::CurrentUser, cloudflare::ticker::AppTicker};
 use axum::{extract::State, http::StatusCode, response::Result, Json};
 use cuid2::create_id;
+use worker::console_log;
 use worker::{console_error, wasm_bindgen::JsValue};
 
 use crate::utils::wasm_types::js_number;
@@ -27,6 +28,7 @@ struct CountResult {
 #[worker::send]
 pub async fn status(
     State(state): State<AppState>,
+    AppDb(d1): AppDb,
     CurrentUser {
         email,
         subject: _,
@@ -35,20 +37,28 @@ pub async fn status(
 ) -> Result<Json<BootstrapStatus>, StatusCode> {
     let team_name = state.access_config().team_name();
 
-    let d1 = get_d1(&state.env()).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let statement = d1.prepare("SELECT COUNT(*) as count FROM organizations");
-    let query = statement
+    let statement = d1
+        .prepare("SELECT COUNT(*) as count FROM organizations")
         .bind(&[])
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        .map_err(|err| {
+            console_error!("bootstrap.status.bind: {err:?}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
 
-    match query.first::<CountResult>(None).await {
+    match statement.first::<CountResult>(None).await {
         Ok(Some(CountResult { count })) => Ok(Json(BootstrapStatus {
             is_bootstrapped: count > 0,
             suggested_slug: team_name,
             email,
         })),
-        Ok(None) => Err(StatusCode::INTERNAL_SERVER_ERROR),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+        Ok(None) => {
+            console_error!("bootstrap.status.empty");
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+        Err(err) => {
+            console_error!("bootstrap.status.query: {err:?}");
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
     }
 }
 
@@ -61,6 +71,7 @@ pub struct InitializePayload {
 #[worker::send]
 pub async fn initialize(
     State(state): State<AppState>,
+    AppTicker(ticker): AppTicker,
     CurrentUser {
         email,
         subject,
@@ -132,7 +143,7 @@ pub async fn initialize(
         return Err(StatusCode::INTERNAL_SERVER_ERROR);
     }
 
-    if let Err(err) = ensure_ticker_bootstrapped(&state.env(), &org_id).await {
+    if let Err(err) = ensure_ticker_bootstrapped(&ticker, &org_id).await {
         console_error!("bootstrap.initialize: ticker bootstrap failed: {err:?}");
         return Err(StatusCode::INTERNAL_SERVER_ERROR);
     }

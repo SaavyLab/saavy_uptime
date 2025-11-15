@@ -1,8 +1,6 @@
 use axum::http::StatusCode;
 use serde::Deserialize;
-use worker::console_error;
-
-use crate::{cloudflare::d1::get_d1, router::AppState};
+use worker::{console_error, D1Database};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Membership {
@@ -19,10 +17,9 @@ pub enum MembershipError {
 }
 
 pub async fn load_membership(
-    state: &AppState,
+    d1: &D1Database,
     identity_id: &str,
 ) -> Result<Membership, MembershipError> {
-    let d1 = get_d1(&state.env()).map_err(|err| MembershipError::DbInit(err))?;
     let statement = d1.prepare(
         "SELECT organization_id, role
          FROM organization_members

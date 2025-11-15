@@ -3,7 +3,7 @@ use js_sys::Date;
 use tracing::{span::Attributes, Event, Id, Metadata, Subscriber};
 use tracing_subscriber::{
     layer::{Context, Layer},
-    registry::{LookupSpan, SpanRef},
+    registry::LookupSpan,
 };
 use worker::{
     console_error, AnalyticsEngineDataPointBuilder, AnalyticsEngineDataset, Result as WorkerResult,

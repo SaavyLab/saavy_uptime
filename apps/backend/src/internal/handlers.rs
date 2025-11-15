@@ -1,5 +1,7 @@
 use crate::auth::{current_user::CurrentUser, membership::load_membership};
 use crate::bootstrap::ticker_bootstrap::ensure_all_tickers;
+use crate::cloudflare::d1::AppDb;
+use crate::cloudflare::ticker::AppTicker;
 use crate::internal::dispatch::handle_dispatch;
 use crate::internal::types::{DispatchRequest, ReconcileResponse};
 use crate::monitors::service::create_monitor_for_org;
@@ -16,10 +18,11 @@ use worker::console_error;
 
 #[worker::send]
 pub async fn reconcile_tickers_handler(
-    State(state): State<AppState>,
+    AppTicker(ticker): AppTicker,
+    AppDb(d1): AppDb,
     _user: CurrentUser,
 ) -> Result<Json<ReconcileResponse>, StatusCode> {
-    match ensure_all_tickers(&state.env()).await {
+    match ensure_all_tickers(&ticker, &d1).await {
         Ok(summary) => Ok(Json(ReconcileResponse {
             organizations: summary.organizations,
             bootstrapped: summary.bootstrapped,
@@ -70,11 +73,12 @@ pub struct SeedResponse {
 
 #[worker::send]
 pub async fn seed_monitors_handler(
-    State(state): State<AppState>,
+    AppTicker(ticker): AppTicker,
+    AppDb(d1): AppDb,
     CurrentUser { subject, .. }: CurrentUser,
     Json(_payload): Json<SeedRequest>,
 ) -> Result<Json<SeedResponse>, StatusCode> {
-    let membership = load_membership(&state, &subject)
+    let membership = load_membership(&d1, &subject)
         .await
         .map_err(|err| StatusCode::from(err))?;
     let templates = seed_definitions();
@@ -82,7 +86,7 @@ pub async fn seed_monitors_handler(
     let mut failed = 0;
 
     for template in templates {
-        match create_monitor_for_org(&state, &membership.organization_id, template).await {
+        match create_monitor_for_org(&ticker, &d1, &membership.organization_id, template).await {
             Ok(_) => created += 1,
             Err(err) => {
                 failed += 1;
