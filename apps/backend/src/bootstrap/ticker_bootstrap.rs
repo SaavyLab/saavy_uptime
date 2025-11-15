@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
-use worker::{console_error, wasm_bindgen::JsValue, Env, Method, Request, RequestInit};
-use std::result::Result;
-use crate::cloudflare::d1::get_d1;
 use crate::bootstrap::types::BootstrapError;
+use crate::cloudflare::d1::get_d1;
+use serde::{Deserialize, Serialize};
+use std::result::Result;
+use worker::{console_error, wasm_bindgen::JsValue, Env, Method, Request, RequestInit};
 
 #[derive(Serialize)]
 struct BootstrapPayload<'a> {

@@ -1,7 +1,5 @@
 PRAGMA defer_foreign_keys = true;
 
-BEGIN TRANSACTION;
-
 CREATE TABLE IF NOT EXISTS organizations (
   id TEXT PRIMARY KEY,
   slug TEXT NOT NULL UNIQUE,
@@ -95,5 +93,3 @@ CREATE TABLE IF NOT EXISTS settings (
   value TEXT NOT NULL,
   updated_at INTEGER NOT NULL
 );
-
-COMMIT;

@@ -6,7 +6,10 @@ use serde_json::to_string;
 use wasm_bindgen::JsValue;
 use worker::*;
 
-use crate::{internal::types::MonitorKind, utils::{date::now_ms, wasm_types::js_number}};
+use crate::{
+    internal::types::MonitorKind,
+    utils::{date::now_ms, wasm_types::js_number},
+};
 
 const DEFAULT_TICK_INTERVAL_MS: u64 = 15_000;
 const DEFAULT_BATCH_SIZE: usize = 100;

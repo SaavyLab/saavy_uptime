@@ -10,6 +10,11 @@ use axum::{
 };
 
 #[worker::send]
+#[tracing::instrument(
+    name = "monitors.http.get_by_id",
+    skip(state, _current_user),
+    fields(monitor_id = %id)
+)]
 pub async fn get_monitor_by_id_handler(
     State(state): State<AppState>,
     Path(id): Path<String>,
@@ -17,11 +22,16 @@ pub async fn get_monitor_by_id_handler(
 ) -> Result<Json<Monitor>, StatusCode> {
     match get_monitor_by_id(&state, id).await {
         Ok(monitor) => Ok(Json(monitor)),
-        Err(err) => Err(err.into())
+        Err(err) => Err(err.into()),
     }
 }
 
 #[worker::send]
+#[tracing::instrument(
+    name = "monitors.http.list",
+    skip(state),
+    fields(identity_id = %subject)
+)]
 pub async fn get_monitors_handler(
     State(state): State<AppState>,
     CurrentUser { subject, .. }: CurrentUser,
@@ -33,6 +43,11 @@ pub async fn get_monitors_handler(
 }
 
 #[worker::send]
+#[tracing::instrument(
+    name = "monitors.http.create",
+    skip(state, monitor),
+    fields(identity_id = %subject)
+)]
 pub async fn create_monitor_handler(
     State(state): State<AppState>,
     CurrentUser { subject, .. }: CurrentUser,

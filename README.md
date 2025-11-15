@@ -49,6 +49,8 @@ For deeper context on functional requirements and architecture see `docs/the-pla
 
 ### Deployment Steps (Phase 0)
 
+See `docs/deployment.md` for the full provisioning + deployment playbook and future Terraform mapping. The abbreviated checklist below covers the minimum manual steps.
+
 1. **Authenticate Wrangler:** `wrangler login` with the Cloudflare account that owns the target zone.
 2. **Provision data stores:**
    - D1: `wrangler d1 create saavy_uptime_dev` (repeat for preview/prod). Copy the generated `database_id` into the matching `wrangler.toml` blocks.

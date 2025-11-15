@@ -44,7 +44,10 @@ pub struct CheckResult {
 
 #[derive(Debug)]
 pub enum DispatchError {
-    Database { context: &'static str, source: worker::Error },
+    Database {
+        context: &'static str,
+        source: worker::Error,
+    },
     CheckFailed(CheckResult),
     Heartbeat(worker::Error),
     Monitor(MonitorError),
