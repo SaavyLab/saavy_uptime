@@ -1,6 +1,13 @@
 use crate::{auth::jwt::AccessConfig, bootstrap, internal, monitors, organizations};
 use axum::{routing::get, Router};
-use tower_http::cors::{Any, CorsLayer};
+use http::{Request, Response};
+use std::time::Duration;
+use tower_http::{
+    classify::ServerErrorsFailureClass,
+    cors::{Any, CorsLayer},
+    trace::TraceLayer,
+};
+use tracing::{field, Span};
 use worker::{send::SendWrapper, Env};
 
 #[derive(Clone)]
@@ -44,12 +51,44 @@ pub fn create_router(env: Env) -> Router {
         .allow_headers(Any)
         .allow_origin(Any);
 
+    let trace_layer = TraceLayer::new_for_http()
+        .make_span_with(|request: &Request<_>| {
+            let request_id = cuid2::create_id();
+            tracing::info_span!(
+                "http.request",
+                request_id = %request_id,
+                method = %request.method(),
+                path = %request.uri().path(),
+                status_code = tracing::field::Empty,
+                latency_ms = tracing::field::Empty,
+                error = tracing::field::Empty
+            )
+        })
+        .on_response(|response: &Response<_>, latency: Duration, span: &Span| {
+            let status_code = response.status().as_u16() as i64;
+            let latency_ms = latency.as_millis() as i64;
+            span.record("status_code", &status_code);
+            span.record("latency_ms", &latency_ms);
+            tracing::info!(parent: span, "response.ready");
+        })
+        .on_failure(
+            |error: ServerErrorsFailureClass, latency: Duration, span: &Span| {
+                let latency_ms = latency.as_millis() as i64;
+                span.record("latency_ms", &latency_ms);
+                let message = format!("{error:?}");
+                let display = field::display(&message);
+                span.record("error", &display);
+                tracing::error!(parent: span, "response.error");
+            },
+        );
+
     let api_router = Router::new()
         .nest("/monitors", monitors::router())
         .nest("/organizations", organizations::router())
         .nest("/bootstrap", bootstrap::router())
         .nest("/internal", internal::router())
-        .layer(cors);
+        .layer(cors)
+        .layer(trace_layer);
 
     Router::new()
         .route("/api/health", get(|| async { "ok" }))

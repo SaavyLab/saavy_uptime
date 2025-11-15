@@ -7,6 +7,22 @@ A Cloudflare-first uptime and incident platform: Rust Workers + Durable Objects 
 - `apps/frontend/` – Vite/React dashboard + status pages.
 - `apps/worker/` (future) – Rust worker + Durable Object scheduler.
 - `docs/` – Architectural references, including `the-plan.md`, `implementation-plan.md`, `architecture.md`, `observability.md`, `workers-rs-notes.md`, and `highlight-features.md`.
+
+### Seeding monitors
+
+For local load-testing you can seed a set of sample monitors via SQL:
+
+```bash
+# Edit apps/backend/seed/monitors.sql and replace {{ORG_ID}} with your organization id.
+wrangler d1 execute saavy_uptime_dev --file apps/backend/seed/monitors.sql
+
+# Alternatively, call the dev-only API endpoint to seed ~400 monitors:
+curl -X POST http://localhost:8787/api/internal/seed \
+  -H "Content-Type: application/json" \
+  -d '{"orgId":"<your-org-id>"}'
+```
+
+The file targets httpbin/httpstat.us/postman-echo/Cloudflare endpoints so you can quickly dispatch hundreds of checks without creating each monitor by hand.
 - `docs/highlight-features.md` – Cloudflare-native differentiators and future-facing UX ideas.
 
 ### Implementation Roadmap
@@ -32,6 +48,8 @@ The detailed phased roadmap, shipping timeline, and getting-started checklist li
 For deeper context on functional requirements and architecture see `docs/the-plan.md`; pair it with the roadmap doc to track progress. We’re also collecting WASM/Workers gotchas in `docs/workers-rs-notes.md`.
 
 ### Deployment Steps (Phase 0)
+
+See `docs/deployment.md` for the full provisioning + deployment playbook and future Terraform mapping. The abbreviated checklist below covers the minimum manual steps.
 
 1. **Authenticate Wrangler:** `wrangler login` with the Cloudflare account that owns the target zone.
 2. **Provision data stores:**

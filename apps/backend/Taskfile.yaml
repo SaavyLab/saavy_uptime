@@ -36,6 +36,11 @@ tasks:
     desc: "Execute a SQL command on the D1 database"
     cmds:
       - wrangler d1 execute {{.DATABASE_NAME}} --command="{{.CLI_ARGS}}"
+
+  db:file:
+    desc: "Execute a SQL file on the D1 database"
+    cmds:
+      - wrangler d1 execute {{.DATABASE_NAME}} --file="{{.CLI_ARGS}}"
       
   build:
     desc: "Build Rust worker to WASM"

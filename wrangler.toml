@@ -22,12 +22,18 @@ script_name = "saavy-uptime"
 tag = "v1"
 new_classes = ["Ticker"]
 
+[observability]
+[observability.logs]
+enabled = false
+head_sampling_rate = 1
+invocation_logs = true
+
 [[d1_databases]]
 binding = "DB"
-database_name = "saavy_uptime_dev"
+database_name = "saavy_uptime_preview"
 database_id = "00000000-0000-0000-0000-000000000000"
+preview_database_id = "ad9c1d30-cda5-483a-ab4a-ced2f5dcbef2"
 migrations_table = "d1_migrations"
-migrations_dir = "apps/backend/migrations"
 
 [[analytics_engine_datasets]]
 binding = "AE"
@@ -38,32 +44,35 @@ binding = "ARCHIVE_BUCKET"
 bucket_name = "saavy-uptime-dev"
 
 [env.preview]
+name = "saavy-uptime-preview"
 workers_dev = true
+d1_databases = [
+  { binding = "DB", database_name = "saavy_uptime_preview", database_id = "ad9c1d30-cda5-483a-ab4a-ced2f5dcbef2", migrations_table = "d1_migrations" }
+]
+analytics_engine_datasets = [
+  { binding = "AE", dataset = "saavy_uptime_preview" }
+]
+r2_buckets = [
+  { binding = "ARCHIVE_BUCKET", bucket_name = "saavy-uptime-preview" }
+]
 
-[[env.preview.d1_databases]]
-binding = "DB"
-database_name = "saavy_uptime_preview"
-database_id = "00000000-0000-0000-0000-000000000000"
 
-[[env.preview.analytics_engine_datasets]]
-binding = "AE"
-dataset = "saavy_uptime_preview"
-
-[[env.preview.r2_buckets]]
-binding = "ARCHIVE_BUCKET"
-bucket_name = "saavy-uptime-preview"
+[env.preview.vars]
+ACCESS_TEAM_DOMAIN = "https://saavylab.cloudflareaccess.com"
+ACCESS_AUD = "e8604f5d9df109c391b937c4293c06fa76548def743a48fec18da93e0ddddeda"
+DISPATCH_TOKEN = "local-dev-token"
+DISPATCH_BASE_URL = "http://127.0.0.1:8787/api"
+ENABLE_TICKER_ADMIN = 1
 
 [env.production]
-
-[[env.production.d1_databases]]
-binding = "DB"
-database_name = "saavy_uptime"
-database_id = "00000000-0000-0000-0000-000000000000"
-
-[[env.production.analytics_engine_datasets]]
-binding = "AE"
-dataset = "saavy_uptime"
-
-[[env.production.r2_buckets]]
-binding = "ARCHIVE_BUCKET"
-bucket_name = "saavy-uptime"
+name = "saavy-uptime-production"
+workers_dev = false
+d1_databases = [
+  { binding = "DB", database_name = "saavy_uptime", database_id = "00000000-0000-0000-0000-000000000000", migrations_table = "d1_migrations" }
+] 
+analytics_engine_datasets = [
+  { binding = "AE", dataset = "saavy_uptime" }
+]
+r2_buckets = [
+  { binding = "ARCHIVE_BUCKET", bucket_name = "saavy-uptime" }
+]

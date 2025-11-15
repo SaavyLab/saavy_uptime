@@ -179,7 +179,7 @@ function OrganizationPage() {
 											Created
 										</p>
 										<p className="font-mono text-sm text-[var(--text-muted)]">
-											{formatTimestamp(organization.created_at)}
+											{formatTimestamp(organization.createdAt)}
 										</p>
 									</div>
 								</div>

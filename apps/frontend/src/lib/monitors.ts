@@ -29,6 +29,13 @@ const monitorSchema = z.object({
 
 export type Monitor = z.infer<typeof monitorSchema>;
 
+const seedResponseSchema = z.object({
+	created: z.number(),
+	failed: z.number(),
+});
+
+export type SeedResponse = z.infer<typeof seedResponseSchema>;
+
 export const getMonitors = async (): Promise<Monitor[]> => {
 	const response = await fetch(`${apiBase}/api/monitors`, {
 		headers: withAccessHeader(),
@@ -55,4 +62,20 @@ export const createMonitor = async (
 		throw new Error(`Unable to create monitor (${response.status})`);
 	}
 	return monitorSchema.parse(await response.json());
+};
+
+export const seedMonitors = async (): Promise<SeedResponse> => {
+	const response = await fetch(`${apiBase}/api/internal/seed`, {
+		method: "POST",
+		headers: withAccessHeader({
+			"Content-Type": "application/json",
+		}),
+		body: JSON.stringify({}),
+	});
+
+	if (!response.ok) {
+		throw new Error(`Unable to seed monitors (${response.status})`);
+	}
+
+	return seedResponseSchema.parse(await response.json());
 };

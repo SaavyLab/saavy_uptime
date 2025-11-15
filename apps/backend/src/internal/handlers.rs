@@ -1,9 +1,18 @@
-use crate::auth::current_user::CurrentUser;
+use crate::auth::{current_user::CurrentUser, membership::load_membership};
 use crate::bootstrap::ticker_bootstrap::ensure_all_tickers;
-use crate::internal::types::{DispatchRequest, ReconcileResponse};
 use crate::internal::dispatch::handle_dispatch;
+use crate::internal::types::{DispatchRequest, ReconcileResponse};
+use crate::monitors::service::create_monitor_for_org;
+use crate::monitors::types::CreateMonitor;
 use crate::router::AppState;
-use axum::{extract::State, http::HeaderMap, http::StatusCode, response::Result, Json};
+use axum::{
+    extract::State,
+    http::{HeaderMap, StatusCode},
+    response::Result,
+    Json,
+};
+use serde::{Deserialize, Serialize};
+use worker::console_error;
 
 #[worker::send]
 pub async fn reconcile_tickers_handler(
@@ -46,4 +55,99 @@ fn validate_dispatch_token(state: &AppState, headers: &HeaderMap) -> Result<(), 
         Some(actual) if actual == expected => Ok(()),
         _ => Err(StatusCode::UNAUTHORIZED),
     }
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct SeedRequest {}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SeedResponse {
+    pub created: usize,
+    pub failed: usize,
+}
+
+#[worker::send]
+pub async fn seed_monitors_handler(
+    State(state): State<AppState>,
+    CurrentUser { subject, .. }: CurrentUser,
+    Json(_payload): Json<SeedRequest>,
+) -> Result<Json<SeedResponse>, StatusCode> {
+    let membership = load_membership(&state, &subject)
+        .await
+        .map_err(|err| StatusCode::from(err))?;
+    let templates = seed_definitions();
+    let mut created = 0;
+    let mut failed = 0;
+
+    for template in templates {
+        match create_monitor_for_org(&state, &membership.organization_id, template).await {
+            Ok(_) => created += 1,
+            Err(err) => {
+                failed += 1;
+                console_error!("seed.monitor: {err:?}");
+            }
+        }
+    }
+
+    Ok(Json(SeedResponse { created, failed }))
+}
+
+fn seed_definitions() -> Vec<CreateMonitor> {
+    let mut monitors = Vec::new();
+
+    fn push_many(
+        list: &mut Vec<CreateMonitor>,
+        prefix: &str,
+        urls: &[&str],
+        count: usize,
+        follow_redirects: bool,
+    ) {
+        for (idx, url) in urls.iter().cycle().take(count).enumerate() {
+            list.push(CreateMonitor {
+                name: format!("{prefix} #{:03}", idx + 1),
+                url: url.to_string(),
+                interval: 60,
+                timeout: 7000,
+                verify_tls: true,
+                follow_redirects,
+            });
+        }
+    }
+
+    let httpbin = [
+        "https://httpbin.org/status/200",
+        "https://httpbin.org/status/404",
+        "https://httpbin.org/status/500",
+        "https://httpbin.org/delay/2",
+        "https://httpbin.org/redirect/3",
+    ];
+    push_many(&mut monitors, "httpbin", &httpbin, 100, true);
+
+    let httpstat = [
+        "https://httpstat.us/200",
+        "https://httpstat.us/404",
+        "https://httpstat.us/503",
+        "https://httpstat.us/200?sleep=2000",
+    ];
+    push_many(&mut monitors, "httpstat", &httpstat, 100, true);
+
+    let postman = [
+        "https://postman-echo.com/status/200",
+        "https://postman-echo.com/status/500",
+        "https://postman-echo.com/delay/1",
+    ];
+    push_many(&mut monitors, "postman", &postman, 100, true);
+
+    let real = [
+        "https://www.cloudflare.com",
+        "https://example.com",
+        "https://github.com",
+        "https://workers.cloudflare.com",
+        "https://www.iana.org/domains/reserved",
+    ];
+    push_many(&mut monitors, "real", &real, 100, true);
+
+    monitors
 }

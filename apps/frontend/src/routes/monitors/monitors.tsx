@@ -1,7 +1,7 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Register, RootRoute } from "@tanstack/react-router";
 import { createRoute, Link } from "@tanstack/react-router";
-import { RefreshCcw, Sparkles, Wrench } from "lucide-react";
+import { Database, RefreshCcw, Sparkles, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import { Hero } from "@/components/layout/Hero";
 import { SectionCard } from "@/components/layout/SectionCard";
@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatsGrid } from "@/components/ui/StatsCard";
 import { StatusPill } from "@/components/ui/StatusPill";
-import { getMonitors, type Monitor } from "@/lib/monitors";
+import { getMonitors, seedMonitors, type Monitor } from "@/lib/monitors";
 import { reconcileTickers } from "@/lib/ticker";
 import type { RouterContext } from "@/router-context";
 
@@ -94,6 +94,24 @@ function MonitorsPage() {
 		},
 	];
 
+	const queryClient = useQueryClient();
+	const seedMutation = useMutation({
+		mutationFn: () => seedMonitors(),
+		onSuccess: ({ created, failed }) => {
+			const description =
+				failed > 0
+					? `Created ${created} monitors (${failed} failed)`
+					: `Created ${created} monitors`;
+			toast.success("Seed complete", { description });
+			queryClient.invalidateQueries({ queryKey: ["monitors"] });
+		},
+		onError: (err: unknown) => {
+			const message =
+				err instanceof Error ? err.message : "Unable to seed monitors";
+			toast.error(message);
+		},
+	});
+
 	return (
 		<main className="min-h-screen bg-[var(--surface)] px-6 py-10 text-[var(--text-primary)] lg:px-8">
 			<div className="mx-auto max-w-6xl space-y-10">
@@ -117,18 +135,30 @@ function MonitorsPage() {
 								Refresh
 							</Button>
 							{tickerAdminEnabled ? (
-								<Button
-									type="button"
-									variant="outline"
-									onClick={() => reconcileMutation.mutate()}
-									disabled={reconcileMutation.isPending}
-									className="flex items-center gap-2"
-								>
-									<Wrench size={16} />
-									{reconcileMutation.isPending
-										? "Bootstrapping…"
-										: "Warm ticker"}
-								</Button>
+								<>
+									<Button
+										type="button"
+										variant="outline"
+										onClick={() => reconcileMutation.mutate()}
+										disabled={reconcileMutation.isPending}
+										className="flex items-center gap-2"
+									>
+										<Wrench size={16} />
+										{reconcileMutation.isPending
+											? "Bootstrapping…"
+											: "Warm ticker"}
+									</Button>
+									<Button
+										type="button"
+										variant="outline"
+										onClick={() => seedMutation.mutate()}
+										disabled={seedMutation.isPending}
+										className="flex items-center gap-2"
+									>
+										<Database size={16} />
+										{seedMutation.isPending ? "Seeding…" : "Seed monitors"}
+									</Button>
+								</>
 							) : null}
 						</>
 					}
