@@ -149,9 +149,7 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 											name="name"
 											validators={{
 												onBlur: ({ value }) =>
-													value?.trim().length
-														? undefined
-														: "Name is required",
+													value?.trim().length ? undefined : "Name is required",
 											}}
 										>
 											{(field) => (

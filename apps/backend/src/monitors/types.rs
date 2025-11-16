@@ -1,7 +1,10 @@
 use serde::{Deserialize, Serialize};
 use worker::console_error;
 
-use crate::{auth::membership::MembershipError, bootstrap::types::BootstrapError, internal::types::MonitorKind};
+use crate::{
+    auth::membership::MembershipError, bootstrap::types::BootstrapError,
+    internal::types::MonitorKind,
+};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all(deserialize = "camelCase"))]

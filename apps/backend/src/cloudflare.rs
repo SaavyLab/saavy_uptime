@@ -1,2 +1,3 @@
 pub mod d1;
-pub mod ticker;
+pub mod durable_objects;
+pub mod queues;

@@ -51,6 +51,15 @@ Whenever the user lowers the sample rate, we:
 ## Next steps
 
 1. Design the AE table schema (likely one dataset per environment with columns above).
-2. Add a writer in the dispatch path that batches AE writes (respecting rate).
-3. Build the first AE query (uptime last 24 h) and wire it into the dashboard.
-4. Add UI copy/docs explaining the cost vs. fidelity trade-off when adjusting AE settings.
+2. Add a queue producer in the dispatch path that enqueues heartbeat summaries (respecting rate).
+3. Implement a `heartbeat-summaries` queue consumer Worker that batches messages and writes to AE (one dataset per environment).
+4. Build the first AE query (uptime last 24 h) and wire it into the dashboard.
+5. Add UI copy/docs explaining the cost vs. fidelity trade-off when adjusting AE settings.
+
+## Queue-based ingestion
+
+- **Producer:** The dispatch runner (internal Worker route) publishes each heartbeat summary to the `HEARTBEAT_SUMMARIES` queue. Messages include `sample_rate` metadata so AE queries can correct for sampling.
+- **Consumer:** A separate queue consumer Worker (defined under `apps/backend/src/external/queues/heartbeat_summaries.rs`) receives batches (e.g., 100 messages), groups them by dataset, and writes to AE via the Analytics Engine API. Any AE write failure can be retried because the queue only `ack`s after a successful flush.
+- **Config:** Wrangler config (`wrangler.toml`) declares the queue producer/consumer bindings with conservative `max_batch_size`/`max_batch_timeout`. Inside the consumer Worker, we honor org-specific batch limits via env vars if needed.
+
+This approach keeps the dispatch path lean (fire-and-forget queue publish) while giving us durable batching/retries for AE writes.

@@ -2,7 +2,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, useId } from "react";
 import type { Register, RootRoute } from "@tanstack/react-router";
 import { createRoute, Link } from "@tanstack/react-router";
-import { Database, RefreshCcw, Sparkles, Wrench, ArrowUpRight } from "lucide-react";
+import {
+	Database,
+	RefreshCcw,
+	Sparkles,
+	Wrench,
+	ArrowUpRight,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Hero } from "@/components/layout/Hero";
 import { SectionCard } from "@/components/layout/SectionCard";
@@ -99,7 +105,7 @@ function MonitorsPage() {
 			const matchesSearch = normalizedSearch
 				? [monitor.name, monitor.url].some((value) =>
 						value.toLowerCase().includes(normalizedSearch),
-				  )
+					)
 				: true;
 			return matchesKind && matchesSearch;
 		});

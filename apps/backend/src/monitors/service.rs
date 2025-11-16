@@ -1,7 +1,7 @@
 use cuid2::create_id;
 use std::result::Result;
 use worker::wasm_bindgen::JsValue;
-use worker::{D1Database, ObjectNamespace, console_log};
+use worker::{console_log, D1Database, ObjectNamespace};
 
 use crate::bootstrap::ticker_bootstrap::ensure_ticker_bootstrapped;
 use crate::monitors::types::{CreateMonitor, Monitor, MonitorError, UpdateMonitor};
@@ -49,7 +49,11 @@ pub async fn create_monitor_for_org(
 }
 
 #[tracing::instrument(name = "monitors.get_by_id", skip(d1), fields(monitor_id = %id))]
-pub async fn get_monitor_by_id(d1: &D1Database, org_id: &str, id: String) -> Result<Monitor, MonitorError> {
+pub async fn get_monitor_by_id(
+    d1: &D1Database,
+    org_id: &str,
+    id: String,
+) -> Result<Monitor, MonitorError> {
     let statement = d1.prepare("SELECT * FROM monitors WHERE id = ?1 AND org_id = ?2");
     let query = statement
         .bind(&[id.into(), org_id.into()])
@@ -67,10 +71,7 @@ pub async fn get_monitor_by_id(d1: &D1Database, org_id: &str, id: String) -> Res
     skip(d1),
     fields(org_id = %org_id)
 )]
-pub async fn get_monitors(
-    d1: &D1Database,
-    org_id: &str,
-) -> Result<Vec<Monitor>, MonitorError> {
+pub async fn get_monitors(d1: &D1Database, org_id: &str) -> Result<Vec<Monitor>, MonitorError> {
     let statement = d1.prepare("SELECT * FROM monitors WHERE org_id = ?1 ORDER BY created_at DESC");
     let query = statement
         .bind(&[org_id.into()])
@@ -107,7 +108,7 @@ pub async fn update_monitor_for_org(
         fields.push("kind = ?".to_string());
         values.push(JsValue::from_str(&kind.to_string()));
     }
-    
+
     if let Some(url) = monitor.url {
         fields.push("url = ?".to_string());
         values.push(JsValue::from_str(&url));
@@ -173,9 +174,15 @@ pub async fn update_monitor_for_org(
     values.push(JsValue::from_str(monitor_id));
     values.push(JsValue::from_str(org_id));
 
-    let sql = format!("UPDATE monitors SET {} WHERE id = ? AND org_id = ?", fields.join(", "));
+    let sql = format!(
+        "UPDATE monitors SET {} WHERE id = ? AND org_id = ?",
+        fields.join(", ")
+    );
 
-    let query = d1.prepare(&sql).bind(&values).map_err(MonitorError::DbBind)?;
+    let query = d1
+        .prepare(&sql)
+        .bind(&values)
+        .map_err(MonitorError::DbBind)?;
 
     query.run().await.map_err(MonitorError::DbRun)?;
 
@@ -195,7 +202,9 @@ pub async fn delete_monitor_for_org(
     monitor_id: &str,
 ) -> Result<(), MonitorError> {
     let statement = d1.prepare("DELETE FROM monitors WHERE id = ?1");
-    let query = statement.bind(&[monitor_id.into()]).map_err(MonitorError::DbBind)?;
+    let query = statement
+        .bind(&[monitor_id.into()])
+        .map_err(MonitorError::DbBind)?;
     query.run().await.map_err(MonitorError::DbRun)?;
     Ok(())
 }

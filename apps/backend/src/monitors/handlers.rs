@@ -1,8 +1,11 @@
 use crate::auth::current_user::CurrentUser;
 use crate::auth::membership::load_membership;
 use crate::cloudflare::d1::AppDb;
-use crate::cloudflare::ticker::AppTicker;
-use crate::monitors::service::{create_monitor_for_org, delete_monitor_for_org, get_monitor_by_id, get_monitors, update_monitor_for_org};
+use crate::cloudflare::durable_objects::ticker::AppTicker;
+use crate::monitors::service::{
+    create_monitor_for_org, delete_monitor_for_org, get_monitor_by_id, get_monitors,
+    update_monitor_for_org,
+};
 use crate::monitors::types::{CreateMonitor, Monitor, UpdateMonitor};
 use axum::{extract::Path, http::StatusCode, response::Result, Json};
 

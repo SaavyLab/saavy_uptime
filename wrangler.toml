@@ -44,11 +44,11 @@ binding = "ARCHIVE_BUCKET"
 bucket_name = "saavy-uptime-dev"
 
 [[queues.producers]]
-queue = "heartbeat-summaries"
+queue = "heartbeat_summaries"
 binding = "HEARTBEAT_SUMMARIES"
 
 [[queues.consumers]]
-queue = "heartbeat-summaries"
+queue = "heartbeat_summaries"
 max_batch_size = 100
 max_batch_timeout = 5
 

@@ -1,8 +1,13 @@
-use crate::{auth::current_user::CurrentUser, heartbeats::service::get_heartbeats_by_monitor_id};
 use crate::auth::membership::load_membership;
 use crate::cloudflare::d1::AppDb;
 use crate::heartbeats::types::{GetHeartbeatsParams, Heartbeat};
-use axum::{extract::{Path, Query}, http::StatusCode, response::Result, Json};
+use crate::{auth::current_user::CurrentUser, heartbeats::service::get_heartbeats_by_monitor_id};
+use axum::{
+    extract::{Path, Query},
+    http::StatusCode,
+    response::Result,
+    Json,
+};
 
 #[worker::send]
 #[tracing::instrument(
@@ -21,4 +26,4 @@ pub async fn get_heartbeats_by_monitor_id_handler(
         Ok(heartbeats) => Ok(Json(heartbeats)),
         Err(err) => Err(err.into()),
     }
-  }
+}

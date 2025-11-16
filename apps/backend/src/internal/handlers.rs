@@ -1,7 +1,7 @@
 use crate::auth::{current_user::CurrentUser, membership::load_membership};
 use crate::bootstrap::ticker_bootstrap::ensure_all_tickers;
 use crate::cloudflare::d1::AppDb;
-use crate::cloudflare::ticker::AppTicker;
+use crate::cloudflare::durable_objects::ticker::AppTicker;
 use crate::internal::dispatch::handle_dispatch;
 use crate::internal::types::{DispatchRequest, ReconcileResponse};
 use crate::monitors::service::create_monitor_for_org;

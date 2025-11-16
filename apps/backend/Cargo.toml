@@ -9,7 +9,7 @@ description = "Saavy Uptime is a Cloudflare-first uptime and incident platform."
 crate-type = ["cdylib"]
 
 [dependencies]
-worker = { version = "0.6", features = ['http', 'axum', 'd1'] }
+worker = { version = "0.6", features = ['http', 'axum', 'd1', 'queue'] }
 worker-macros = { version = "0.6", features = ['http'] }
 axum = { version = "0.8", default-features = false, features = ["json", "query"] }
 tower-service = "0.3.3"

@@ -11,9 +11,22 @@ This document tracks the major components, data flows, and runtime responsibilit
 | **Ticker Durable Object** | Statefully schedules monitors via `alarm()`; resolves membership and claims due monitors. | Stores per-org cadence, error counters, and writes `monitor_dispatches` rows. |
 | **Dispatch Runner (internal Axum route)** | Executes individual monitor checks. Receives DO fan-out requests via `POST /api/internal/dispatch/run`. | Today stubbed; later performs HTTP/TCP checks, writes heartbeats, updates incidents. |
 | **D1 (SQLite)** | Hot relational store for orgs, monitors, dispatch metadata, incidents, heartbeats (rolling 30 d). | Accessed via workers-rs D1 bindings. |
-| **Analytics Engine (AE)** | High-volume metrics store (uptime %, latency percentiles, player counts). | TBD once heartbeats flow is live. |
+| **Analytics Engine (AE)** | High-volume metrics store (uptime %, latency percentiles, player counts). | Populated via queue consumer Worker that batches heartbeat summaries. |
+| **Workers Queues** | Reliable pipeline between dispatch runner and AE consumer. | Queue producer lives in the Worker; consumer Worker flushes to AE with retries. |
 | **R2** | Cold storage for archived heartbeats and replay payloads. | Phase 2+ once archival cron ships. |
 | **Frontend (Vite/React)** | Dashboard + bootstrap flow. Uses TanStack Router/Query + shadcn UI. | Dev-only controls (e.g., “Warm ticker”) hit internal APIs. |
+
+## Repo layout (backend)
+
+| Path | Purpose |
+| --- | --- |
+| `apps/backend/src/` | Axum Worker (main entry point) plus feature modules (`monitors`, `heartbeats`, etc.). |
+| `apps/backend/src/cloudflare/` | Shared bindings/helpers for Cloudflare services (D1 helpers, Durable Object bindings, queue producers). These modules are compiled into the Worker crate so rust-analyzer can index them. |
+| `apps/backend/src/external/` | Actual implementations of “external” entry points—Durable Objects and queue consumers. Each file gets its own `#[event(fetch/queue)]` macro at build time, but we keep them in Cargo so tooling works. |
+| `apps/backend/src/cloudflare/durable_objects/` | Types shared between the Worker and DO (e.g., `TickerConfig`, error enums). |
+| `apps/backend/src/cloudflare/queues/` | Queue message types + helper functions to publish messages. |
+
+This split lets us keep feature logic grouped by domain (monitors, heartbeats, incidents) while still isolating Cloudflare-specific runtime components. When browsing the repo: look in `cloudflare/` for shared bindings/types, and in `external/` for the actual DO/queue consumer code that compiles into separate entry points.
 
 ## Health Check Flow
 
@@ -63,6 +76,12 @@ flowchart LR
 - Heartbeats with `cf.colo` metadata power the geo map and incident replay.
 - `monitor_dispatches` table is the bridge between control plane (DO) and runner instrumentation—keep it append-only for reliable auditing.
 - Containers can complement Workers for protocols beyond HTTP/TCP; see “Protocol Adapter Container” below.
+- Analytics Engine writes flow through Workers Queues:
+  1. **Dispatch runner** publishes a `HeartbeatSummary` message to the `heartbeat-summaries` queue after each check (or according to the org’s sample rate).
+  2. A **queue consumer Worker** (see `apps/backend/src/external/queues/heartbeat_summaries.rs`) receives batches of messages, attaches metadata (`sample_rate`, dataset name), and writes them to AE via the REST API.
+  3. If AE writes fail, the queue retries; we only `ack` after a successful flush so no heartbeats are lost.
+  4. Future analytics datasets (incident context, cost telemetry) can either share this queue (with a `type` field) or use dedicated queues if we need different batching.
+- D1 → R2 archival will likely use a scheduled Worker or Durable Object cron (not a queue for now).
 
 ## Protocol Adapter Container (UDP/ICMP/Game checks)
 
