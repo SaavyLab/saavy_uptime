@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use serde::{Deserialize, Serialize};
 use worker::console_error;
 
@@ -16,6 +18,16 @@ pub enum MonitorKind {
     Http,
     Tcp,
     Udp,
+}
+
+impl Display for MonitorKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MonitorKind::Http => write!(f, "http"),
+            MonitorKind::Tcp => write!(f, "tcp"),
+            MonitorKind::Udp => write!(f, "udp"),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]

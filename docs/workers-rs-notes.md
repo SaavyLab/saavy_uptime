@@ -46,4 +46,17 @@ We’re capturing bits that weren’t obvious while porting the backend to the A
 - **UDP support is still aspirational:** Cloudflare announced Socket Workers in 2021 with UDP examples, but (as of Nov 2025) only outbound TCP via `connect()` has shipped. UDP remains “not available,” despite the docs snippet. Track progress via <https://community.cloudflare.com/tag/socket-workers>. For now, any UDP-heavy protocols (Minecraft query, Valve A2S) need a proxy or alternative transport.
 - **Analytics Engine bindings missing:** There’s no first-class AE binding in workers-rs; both reads and writes require manual `fetch` calls to `client/v4/accounts/{ACCOUNT_ID}/analytics_engine/sql` with API tokens. We’re considering upstreaming a binding layer—until then every project has to roll its own AE client.
 
+### D1 ergonomics (parameter binding)
+
+- Writing raw SQL against D1 is fine until you mix positional (`?1`) and anonymous (`?`) placeholders. The compiler can’t help you—if you bind values in the wrong order you get silent “0 rows updated” or `Wrong number of parameter bindings` at runtime. A few ideas that would improve DX:
+  - **Linter/static check:** anything that inspects the SQL string + `bind(&[...])` call and warns when the parameter counts don’t line up (or when you use positional markers but pass anonymous binds).
+  - **Query builder helper:** even a lightweight macro like `d1::update("monitors").set(("name", value)).where(("id", monitor_id))` would eliminate the manual string formatting and keep bindings aligned.
+- **Better error surface:** today you get `DbBind`/`DbRun` with the raw Workers error, which often just says “Wrong number of parameter bindings.” Including the SQL string and placeholder count in the error would make debugging faster.
+- **Testing utility:** an in-memory D1 adapter we can unit-test against (with asserts on bindings) would catch these mistakes before deploying to Workers.
+ Until we have tooling, we’re triple-checking bind order manually and leaving comments near each `prepare` call. Anything workers-rs can do (even doc guidance) would save folks from hard-to-spot bugs.
+
+### Queues batch config
+
+- Queue consumers require `max_batch_size` / `max_batch_timeout` in `wrangler.toml`. That’s fine for static deployments, but we’d like a runtime knob so users can tune AE batch sizes without redeploying. Example: hobby orgs might want smaller batches to reduce latency, while larger tenants want 500+ messages per batch for cost efficiency. Right now the workaround is to set Wrangler’s limits high and enforce our own cap inside the consumer (via env vars), but a per-queue API or dynamic configuration would make operator UX nicer.
+
 If you run into other sharp edges, add them here so we can hand actionable notes back to the Workers team (or automate them via templates/Taskfile steps).
