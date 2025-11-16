@@ -1,20 +1,22 @@
 const getAccessToken = () => {
-	const cookies = document.cookie.split(';')
-	const cfCookie = cookies.find(cookie => cookie.trim().startsWith('CF_Authorization='))
+	const cookies = document.cookie.split(";");
+	const cfCookie = cookies.find((cookie) =>
+		cookie.trim().startsWith("CF_Authorization="),
+	);
 	if (!cfCookie) {
-		return import.meta.env.VITE_CF_ACCESS_TOKEN
+		return import.meta.env.VITE_CF_ACCESS_TOKEN;
 	}
-	return cfCookie.split('=')[1]
-}
+	return cfCookie.split("=")[1];
+};
 
 export const withAccessHeader = (headers: Record<string, string> = {}) => {
-	const accessToken = getAccessToken()
+	const accessToken = getAccessToken();
 	if (!accessToken) {
 		return headers;
 	}
 
 	return {
 		...headers,
-		'Cf-Access-Jwt-Assertion': accessToken,
+		"Cf-Access-Jwt-Assertion": accessToken,
 	};
 };

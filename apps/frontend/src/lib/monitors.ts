@@ -152,9 +152,7 @@ export const getMonitorHeartbeats = async (
 	);
 
 	if (!response.ok) {
-		throw new Error(
-			`Unable to load monitor heartbeats (${response.status})`,
-		);
+		throw new Error(`Unable to load monitor heartbeats (${response.status})`);
 	}
 
 	return heartbeatSchema.array().parse(await response.json());

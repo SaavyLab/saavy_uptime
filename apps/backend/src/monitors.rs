@@ -1,6 +1,7 @@
 use crate::{heartbeats, router::AppState};
 use axum::{
-    Router, routing::{delete, get, patch, post}
+    routing::{delete, get, patch, post},
+    Router,
 };
 
 pub mod handlers;

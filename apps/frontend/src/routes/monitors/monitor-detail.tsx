@@ -141,10 +141,7 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 								description={monitor.url}
 								actions={
 									<div className="flex flex-wrap gap-3">
-										<Link
-											to="/monitors/$monitorId/edit"
-											params={{ monitorId }}
-										>
+										<Link to="/monitors/$monitorId/edit" params={{ monitorId }}>
 											<Button>Edit monitor</Button>
 										</Link>
 										<Button
@@ -161,7 +158,7 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 								}
 								sideContent={
 									<div className="rounded-2xl border border-white/10 bg-black/30 p-4">
-                                        <div className="space-y-2">
+										<div className="space-y-2">
 											<p className="text-xs uppercase tracking-[0.3em] text-[var(--text-soft)]">
 												Status
 											</p>
@@ -242,7 +239,10 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 									) : (
 										<div className="space-y-3">
 											{heartbeats.map((heartbeat) => (
-												<HeartbeatRow key={`${heartbeat.monitorId}-${heartbeat.ts}`} heartbeat={heartbeat} />
+												<HeartbeatRow
+													key={`${heartbeat.monitorId}-${heartbeat.ts}`}
+													heartbeat={heartbeat}
+												/>
 											))}
 										</div>
 									)}
@@ -287,9 +287,7 @@ function HeartbeatRow({ heartbeat }: { heartbeat: Heartbeat }) {
 					<p className="uppercase tracking-[0.3em] text-[var(--text-soft)]">
 						Status
 					</p>
-					<p className="text-[var(--text-primary)]">
-						{heartbeat.code ?? "—"}
-					</p>
+					<p className="text-[var(--text-primary)]">{heartbeat.code ?? "—"}</p>
 				</div>
 				<div>
 					<p className="uppercase tracking-[0.3em] text-[var(--text-soft)]">

@@ -2,10 +2,9 @@ use crate::bootstrap::ticker_bootstrap::ensure_ticker_bootstrapped;
 use crate::cloudflare::d1::{get_d1, AppDb};
 use crate::router::AppState;
 use crate::utils::date::now_ms;
-use crate::{auth::current_user::CurrentUser, cloudflare::ticker::AppTicker};
+use crate::{auth::current_user::CurrentUser, cloudflare::durable_objects::ticker::AppTicker};
 use axum::{extract::State, http::StatusCode, response::Result, Json};
 use cuid2::create_id;
-use worker::console_log;
 use worker::{console_error, wasm_bindgen::JsValue};
 
 use crate::utils::wasm_types::js_number;

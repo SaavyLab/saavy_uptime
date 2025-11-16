@@ -1,79 +1,19 @@
 use std::time::Duration;
 
-use axum::{
-    extract::FromRequestParts,
-    http::{request::Parts, StatusCode},
-};
 use cuid2::create_id;
 use js_sys::wasm_bindgen::JsValue;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::to_string;
 use worker::*;
 
 use crate::{
-    internal::types::MonitorKind,
-    router::AppState,
-    utils::{date::now_ms, wasm_types::js_number},
+    cloudflare::durable_objects::ticker_types::{MonitorDispatch, DispatchPayload, MonitorRow, TickerConfig, TickerError, TickerState}, utils::{date::now_ms, wasm_types::js_number}
 };
 
 const DEFAULT_TICK_INTERVAL_MS: u64 = 15_000;
 const DEFAULT_BATCH_SIZE: usize = 100;
 const MIN_REARM_DELAY_MS: u64 = 1_000;
 const MAX_BACKOFF_MS: u64 = 60_000;
-
-fn internal_error(context: &str, err: impl std::fmt::Debug) -> worker::Error {
-    worker::Error::RustError(format!("{context}: {err:?}"))
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct TickerConfig {
-    org_id: String,
-    tick_interval_ms: u64,
-    batch_size: usize,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-struct TickerState {
-    config: Option<TickerConfig>,
-    last_tick_ts: i64,
-    consecutive_errors: u32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct MonitorRow {
-    id: String,
-    interval_s: i64,
-    url: String,
-    kind: MonitorKind,
-    timeout_ms: i64,
-    follow_redirects: i64,
-    verify_tls: i64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct MonitorDispatch {
-    id: String,
-    url: String,
-    kind: MonitorKind,
-    scheduled_for_ts: i64,
-    timeout_ms: i64,
-    follow_redirects: bool,
-    verify_tls: bool,
-}
-
-impl From<(MonitorRow, i64)> for MonitorDispatch {
-    fn from((row, scheduled_for_ts): (MonitorRow, i64)) -> Self {
-        Self {
-            id: row.id,
-            url: row.url,
-            kind: row.kind,
-            scheduled_for_ts,
-            timeout_ms: row.timeout_ms,
-            follow_redirects: row.follow_redirects != 0,
-            verify_tls: row.verify_tls != 0,
-        }
-    }
-}
 
 #[durable_object]
 pub struct Ticker {
@@ -95,16 +35,16 @@ impl Ticker {
         self.state.storage().put("state", state).await
     }
 
-    async fn arm_alarm(&self, delay_ms: u64) -> Result<()> {
+    async fn arm_alarm(&self, delay_ms: u64) -> std::result::Result<(), TickerError> {
         let clamped = delay_ms.max(MIN_REARM_DELAY_MS);
         self.state
             .storage()
             .set_alarm(Duration::from_millis(clamped))
             .await
-            .map_err(|err| internal_error("ticker.arm_alarm", err))
+            .map_err(|err| TickerError::arm_alarm("ticker.arm_alarm", err))
     }
 
-    async fn bootstrap(&self, mut state: TickerState, req: &mut Request) -> Result<Response> {
+    async fn bootstrap(&self, mut state: TickerState, req: &mut Request) -> std::result::Result<(), TickerError> {
         #[derive(Deserialize)]
         struct Payload {
             org_id: String,
@@ -123,22 +63,18 @@ impl Ticker {
         state.config = Some(config);
         state.last_tick_ts = now_ms();
         state.consecutive_errors = 0;
-        self.save_state(&state).await?;
+        self.save_state(&state).await.map_err(|err| TickerError::save_state("ticker.bootstrap", err))?;
         self.arm_alarm(delay).await?;
 
-        Response::ok("bootstrapped")
+        Ok(())
     }
 
-    async fn poke(&self) -> Result<Response> {
+    async fn poke(&self) -> std::result::Result<(), TickerError> {
         self.run_tick(true).await?;
-        Response::ok("poked")
+        Ok(())
     }
 
-    async fn status(&self, state: TickerState) -> Result<Response> {
-        Response::from_json(&state)
-    }
-
-    async fn run_tick(&self, _manual: bool) -> Result<()> {
+    async fn run_tick(&self, _manual: bool) -> std::result::Result<(), TickerError> {
         let mut state = self.load_state().await?;
         let config = match state.config.as_ref() {
             Some(cfg) => cfg.clone(),
@@ -164,7 +100,7 @@ impl Ticker {
         Ok(())
     }
 
-    async fn claim_due_monitors(&self, config: &TickerConfig) -> Result<Vec<MonitorDispatch>> {
+    async fn claim_due_monitors(&self, config: &TickerConfig) -> std::result::Result<Vec<MonitorDispatch>, TickerError> {
         let d1 = self.env.d1("DB")?;
         let now = now_ms();
 
@@ -186,14 +122,14 @@ impl Ticker {
                 js_number(now),
                 js_number(config.batch_size as i64),
             ])
-            .map_err(|err| internal_error("ticker.claim.bind", err))?;
+            .map_err(|err| TickerError::database("ticker.claim.bind", err))?;
 
         let rows = select_query
             .all()
             .await
-            .map_err(|err| internal_error("ticker.claim.select", err))?
+            .map_err(|err| TickerError::database("ticker.claim.select", err))?
             .results::<MonitorRow>()
-            .map_err(|err| internal_error("ticker.claim.results", err))?;
+            .map_err(|err| TickerError::database("ticker.claim.results", err))?;
 
         if rows.is_empty() {
             return Ok(Vec::new());
@@ -220,7 +156,7 @@ impl Ticker {
                     js_number(next_run_at),
                     JsValue::from_str(&row.id),
                 ])
-                .map_err(|err| internal_error("ticker.claim.update_bind", err))?;
+                .map_err(|err| TickerError::database("ticker.claim.update_bind", err))?;
 
             statements.push(update_query);
             claimed.push(MonitorDispatch::from((row, next_run_at)));
@@ -228,7 +164,7 @@ impl Ticker {
 
         d1.batch(statements)
             .await
-            .map_err(|err| internal_error("ticker.claim.batch", err))?;
+            .map_err(|err| TickerError::database("ticker.claim.batch", err))?;
 
         Ok(claimed)
     }
@@ -237,7 +173,7 @@ impl Ticker {
         &self,
         config: &TickerConfig,
         monitor: &MonitorDispatch,
-    ) -> Result<()> {
+    ) -> std::result::Result<(), TickerError> {
         let dispatch_id = create_id().to_string();
         self.record_dispatch(config, monitor, &dispatch_id).await?;
         self.send_dispatch_request(&dispatch_id, monitor).await
@@ -248,7 +184,7 @@ impl Ticker {
         config: &TickerConfig,
         monitor: &MonitorDispatch,
         dispatch_id: &str,
-    ) -> Result<()> {
+    ) -> std::result::Result<(), TickerError> {
         let d1 = self.env.d1("DB")?;
         let now = now_ms();
 
@@ -269,10 +205,10 @@ impl Ticker {
                 js_number(monitor.scheduled_for_ts),
                 js_number(now),
             ])
-            .map_err(|err| internal_error("ticker.dispatch.bind", err))?
+            .map_err(|err| TickerError::database("ticker.dispatch.bind", err))?
             .run()
             .await
-            .map_err(|err| internal_error("ticker.dispatch.insert", err))?;
+            .map_err(|err| TickerError::database("ticker.dispatch.insert", err))?;
 
         Ok(())
     }
@@ -281,16 +217,16 @@ impl Ticker {
         &self,
         dispatch_id: &str,
         monitor: &MonitorDispatch,
-    ) -> Result<()> {
+    ) -> std::result::Result<(), TickerError> {
         let base_url = self
             .env
             .var("DISPATCH_BASE_URL")
-            .map_err(|_| internal_error("ticker.dispatch.base_url", "missing DISPATCH_BASE_URL"))?
+            .map_err(|_| TickerError::missing_var("ticker.dispatch.base_url", "DISPATCH_BASE_URL"))?
             .to_string();
         let token = self
             .env
             .var("DISPATCH_TOKEN")
-            .map_err(|_| internal_error("ticker.dispatch.token", "missing DISPATCH_TOKEN"))?
+            .map_err(|_| TickerError::missing_var("ticker.dispatch.token", "DISPATCH_TOKEN"))?
             .to_string();
 
         let url = format!("{}/internal/dispatch/run", base_url.trim_end_matches('/'));
@@ -307,7 +243,7 @@ impl Ticker {
         };
 
         let body =
-            to_string(&payload).map_err(|err| internal_error("ticker.dispatch.serialize", err))?;
+            to_string(&payload).map_err(|err| TickerError::request("ticker.dispatch.serialize", worker::Error::SerdeJsonError(err)))?;
 
         let mut init = RequestInit::new();
         init.with_method(Method::Post);
@@ -318,21 +254,21 @@ impl Ticker {
             let headers = req.headers_mut()?;
             headers
                 .set("Content-Type", "application/json")
-                .map_err(|err| internal_error("ticker.dispatch.headers", err))?;
+                .map_err(|err| TickerError::request("ticker.dispatch.headers", err))?;
             headers
                 .set("X-Dispatch-Token", &token)
-                .map_err(|err| internal_error("ticker.dispatch.headers", err))?;
+                .map_err(|err| TickerError::request("ticker.dispatch.headers", err))?;
         }
 
         let response = Fetch::Request(req)
             .send()
             .await
-            .map_err(|err| internal_error("ticker.dispatch.fetch", err))?;
+            .map_err(|err| TickerError::request("ticker.dispatch.fetch", err))?;
 
         if response.status_code() >= 400 {
-            return Err(internal_error(
+            return Err(TickerError::response_status(
                 "ticker.dispatch.response",
-                format!("status {}", response.status_code()),
+                response.status_code(),
             ));
         }
 
@@ -351,12 +287,18 @@ impl DurableObject for Ticker {
         match (method, path.as_str()) {
             (Method::Post, "/internal/bootstrap") => {
                 let state = self.load_state().await?;
-                self.bootstrap(state, &mut req).await
+                match self.bootstrap(state, &mut req).await {
+                    Ok(()) => Response::ok("ok"),
+                    Err(err) => Err(err.into()),
+                }
             }
-            (Method::Post, "/internal/poke") => self.poke().await,
+            (Method::Post, "/internal/poke") => match self.poke().await {
+                Ok(()) => Response::ok("ok"),
+                Err(err) => Err(err.into()),
+            },
             (Method::Get, "/internal/status") => {
                 let state = self.load_state().await?;
-                self.status(state).await
+                Response::from_json(&state)
             }
             _ => Response::error("Not found", 404),
         }
@@ -380,40 +322,5 @@ impl DurableObject for Ticker {
         }
 
         Response::ok("ok")
-    }
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct DispatchPayload {
-    dispatch_id: String,
-    monitor_id: String,
-    monitor_url: String,
-    kind: MonitorKind,
-    scheduled_for_ts: i64,
-    timeout_ms: i64,
-    follow_redirects: bool,
-    verify_tls: bool,
-}
-
-pub fn get_ticker_do(env: &Env) -> std::result::Result<ObjectNamespace, worker::Error> {
-    env.durable_object("TICKER")
-}
-
-#[derive(Debug)]
-pub struct AppTicker(pub ObjectNamespace);
-
-impl FromRequestParts<AppState> for AppTicker {
-    type Rejection = StatusCode;
-
-    async fn from_request_parts(
-        _parts: &mut Parts,
-        state: &AppState,
-    ) -> std::result::Result<Self, Self::Rejection> {
-        let namespace = get_ticker_do(&state.env()).map_err(|_| {
-            console_error!("ticker.do.init: failed to get ticker durable object");
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
-        Ok(AppTicker(namespace))
     }
 }
