@@ -1,4 +1,4 @@
-use crate::{auth::jwt::AccessConfig, bootstrap, internal, monitors, organizations};
+use crate::{auth::jwt::AccessConfig, bootstrap, heartbeats, internal, monitors, organizations};
 use axum::{
     body::Body,
     http::Request,
@@ -53,6 +53,7 @@ pub fn create_router(env: Env) -> Router {
         .allow_origin(Any);
 
     let api_router = Router::new()
+        .nest("/heartbeats", heartbeats::router())
         .nest("/monitors", monitors::router())
         .nest("/organizations", organizations::router())
         .nest("/bootstrap", bootstrap::router())

@@ -1,78 +1,121 @@
-## CF-Native Uptime Monitor (Saavy Uptime)
+# Saavy Uptime
 
-A Cloudflare-first uptime and incident platform: Rust Workers + Durable Objects for sub-minute scheduling, D1 for hot configuration/heartbeats, Analytics Engine for aggregates, R2 for archival, and Cloudflare Access-secured frontend hosted on Pages.
+Cloudflare-native uptime and incident monitoring: Rust Workers + Durable Objects for sub‑minute scheduling, D1 for hot configuration/heartbeats, Analytics Engine for aggregates, R2 for archival, and a Vite/React dashboard served via Cloudflare Pages. Everything in this repo is open source and deploys into your own Cloudflare account so you control the knobs *and* the bill. Running entirely on Cloudflare’s global edge means no servers, no cron VMs, no regional outages, and sub-50ms cold starts for every check.
 
-### Repository Layout
+> **Status:** Actively in development. Phase 1/2 of the implementation plan (monitor CRUD + scheduler + HTTP checks) is underway—expect APIs and UI to evolve quickly.
 
-- `apps/frontend/` – Vite/React dashboard + status pages.
-- `apps/worker/` (future) – Rust worker + Durable Object scheduler.
-- `docs/` – Architectural references, including `the-plan.md`, `implementation-plan.md`, `architecture.md`, `observability.md`, `workers-rs-notes.md`, and `highlight-features.md`.
+---
 
-### Seeding monitors
+## Why Saavy Uptime?
 
-For local load-testing you can seed a set of sample monitors via SQL:
+Saavy Uptime is for builders who already trust Cloudflare:
+
+- **Hobbyists & small/medium teams** using Workers/Pages who want matching uptime coverage without renting new servers or paying heavyweight SaaS plans.
+- **Hybrid Cloudflare users** who rely on Cloudflare for DNS/CDN but host workloads on ECS/Kubernetes and don’t want to run a parallel monitoring fleet.
+- **Game/server admins** looking for high-frequency, low-cost checks with full control over intervals, retention, and analytics.
+- **Cloudflare-first teams who want monitoring that runs on the same global edge as their workloads.
+
+Instead of buying uptime from someone else, you deploy this Worker + Durable Object stack into your Cloudflare account. Run 30 monitors at 60 s for pennies, dial up to hundreds at 15 s for roughly $100–$200/month, or park everything somewhere in between—the only invoice you see is from Cloudflare.
+
+---
+
+## Highlights
+
+- **Sub-minute scheduling** – Durable Object alarms claim due monitors in batches and dispatch immediately, no cron drift or VM orchestration.
+- **Cloudflare-first architecture** – Axum Worker secured by Access, DO ticker for stateful scheduling, D1 for config + heartbeats, Analytics Engine for aggregates, R2 for cold storage.
+- **Bring-your-own cost model** – tweak intervals, retention, and aggregation to match your budget; you pay Cloudflare directly.
+- **One-click deploy** – Wrangler + Pages handle everything; no extra infrastructure to babysit.
+- **Stretch goals** – real-time execution DAG, geographic POP map, predictive cost dashboard, R2 time-travel incident replay, collaborative incident timelines (`docs/highlight-features.md`).
+
+---
+
+## Repository Layout
+
+- `apps/backend/` – Rust Worker (Axum) plus Durable Object integrations.
+   This is the control plane, scheduling layer, and dispatch runner
+- `apps/frontend/` – Vite/React dashboard, status shell, routing.
+   All internal dashboard + public status page UI.
+- `docs/` – Implementation plan, design notes, Cloudflare differentiator ideas.
+   These explain how DO alarms, AE, D1, and R2 fit together
+
+---
+
+## Getting Started (local dev)
+
+Prerequisites:
+
+- Rust stable + `wasm32-unknown-unknown`
+- `cargo install worker-build`
+- Wrangler v3
+- Node 20+, PNPM
+- `cloudflared` (for Access-authenticated local requests)
+- Task (`go install github.com/go-task/task/v3/cmd/task@latest`)
+
+### Install & run
 
 ```bash
-# Edit apps/backend/seed/monitors.sql and replace {{ORG_ID}} with your organization id.
-wrangler d1 execute saavy_uptime_dev --file apps/backend/seed/monitors.sql
-
-# Alternatively, call the dev-only API endpoint to seed ~400 monitors:
-curl -X POST http://localhost:8787/api/internal/seed \
-  -H "Content-Type: application/json" \
-  -d '{"orgId":"<your-org-id>"}'
+task backend:install
+task frontend:install
 ```
 
-The file targets httpbin/httpstat.us/postman-echo/Cloudflare endpoints so you can quickly dispatch hundreds of checks without creating each monitor by hand.
-- `docs/highlight-features.md` – Cloudflare-native differentiators and future-facing UX ideas.
+1. **Configure Access/D1 bindings** – set `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, and D1 IDs in `wrangler.toml`. For the frontend, export `VITE_CF_ACCESS_TOKEN` (via `cloudflared access login https://<your-app>`).
+2. **Apply migrations**
+   ```bash
+   wrangler d1 migrations apply <db-name>
+   ```
+3. **Start dev servers**
+   ```bash
+   task backend:dev    # wrangler dev
+   task frontend:dev   # pnpm dev
+   ```
 
-### Implementation Roadmap
+Need demo data? During development you can seed ~400 monitors hitting httpbin/httpstat/postman endpoints:
 
-The detailed phased roadmap, shipping timeline, and getting-started checklist live in `docs/implementation-plan.md`. Highlights:
+```bash
+curl -X POST http://localhost:8787/api/internal/seed \
+  -H "Content-Type: application/json" \
+  -H "Cf-Access-Jwt-Assertion: $VITE_CF_ACCESS_TOKEN"
+```
 
-1. **Foundations:** Wrangler config, Access policies, D1 schema, CI.
-2. **Monitor CRUD + Scheduler:** API/UI + Durable Object ticker that claims jobs.
-3. **HTTP Checks & Storage:** Real checks, D1 heartbeats (24 h retention), AE metrics, incidents.
-4. **Dashboard & Status Pages:** Internal dashboard + public `/status/<slug>`.
-5. **Notifications:** Webhook/email alerts with retries and delivery logs.
-6. **Data Lifecycle & Polish:** R2 archival cron, import/export, observability, automation tokens.
+---
 
-### Getting Started
+## Roadmap Snapshot
 
-1. Install Wrangler, Rust, Node, PNPM (or npm), **Task** (`go install github.com/go-task/task/v3/cmd/task@latest`), and `cloudflared` locally.
-2. Configure Cloudflare account/environment variables for D1, AE, R2, and Access. Set `ACCESS_TEAM_DOMAIN` (e.g., `your-team.cloudflareaccess.com`) and the Access application audience string `ACCESS_AUD` in `wrangler.toml` (and per-environment overrides if needed).
-3. Run initial D1 migrations and seed scripts (`wrangler d1 migrations apply <db>`).
-4. Start the worker/dev server (`wrangler dev`) and frontend (`pnpm dev`) to iterate.
+1. **Foundations** – Wrangler config, Access, D1 schema, CI (done).
+2. **Monitor CRUD + ticker** – API/UI + Durable Object scheduler (in progress).
+3. **HTTP execution & storage** – Real checks, D1 heartbeats, AE metrics, incident skeleton.
+4. **Dashboard & status pages** – AE-backed aggregates, public `/status/<slug>`.
+5. **Notifications** – Webhook/email policies, retries, delivery logs.
+6. **Lifecycle & polish** – R2 archival cron, import/export, service tokens, “wow” visualizations.
 
-`cloudflared` lets you run Access-authenticated dev traffic.  Use `cloudflared access login <https://your-app>` followed by `export VITE_CF_ACCESS_TOKEN=$(cloudflared access token --app https://your-app)` (or set it in `.env.local`) before `pnpm dev`. That injects the `CF_Authorization` header into Vite-powered requests until we have a first-class proxy.
+Full phase details live in `docs/implementation-plan.md`.
 
-For deeper context on functional requirements and architecture see `docs/the-plan.md`; pair it with the roadmap doc to track progress. We’re also collecting WASM/Workers gotchas in `docs/workers-rs-notes.md`.
+---
 
-### Deployment Steps (Phase 0)
+## Inspiration
 
-See `docs/deployment.md` for the full provisioning + deployment playbook and future Terraform mapping. The abbreviated checklist below covers the minimum manual steps.
+- [Uptime Kuma](https://github.com/louislam/uptime-kuma) for its approachable UX and DIY ethos.
+- Cloudflare’s platform itself—Workers, Durable Objects, Access, D1, Analytics Engine, R2—showing what a zero-server monitoring stack can look like.
+- Indie SaaS teams, hobby projects, and game communities that want the power of Cloudflare’s edge without the cost or complexity of running separate monitoring infrastructure.
 
-1. **Authenticate Wrangler:** `wrangler login` with the Cloudflare account that owns the target zone.
-2. **Provision data stores:**
-   - D1: `wrangler d1 create saavy_uptime_dev` (repeat for preview/prod). Copy the generated `database_id` into the matching `wrangler.toml` blocks.
-   - Analytics Engine: `wrangler analytics-engine create saavy_uptime_dev` (and preview/prod variants).
-   - R2: `wrangler r2 bucket create saavy-uptime-dev` (and preview/prod variants).
-3. **Durable Object namespace:** `wrangler deploy --dry-run` (or `wrangler do create TICKER --class Ticker`) to ensure the `TICKER` Durable Object namespace exists before real deploys.
-4. **Backend build + deploy:** use Taskfile helpers.
-   - `task backend:check`
-   - `task backend:build`
-   - `wrangler deploy --env preview` (use `--env production` once resources are wired to prod IDs).
-5. **Frontend build + Pages deploy:**
-   - `task frontend:build`
-   - `wrangler pages deploy dist --project-name=saavy-uptime`
-   - Configure the custom domain via the Cloudflare Pages dashboard or `wrangler pages project domain add`.
-6. **Secrets & Access:** No Wrangler secrets are required yet; when APIs introduce sensitive configuration, set them with `wrangler secret put <NAME>` per environment and document them here.
+---
 
-### Infrastructure as Code
+## Contributing
 
-We are standardizing on Cloudflare's Terraform provider to provision Worker routes, D1/AE/R2 resources, DNS records, and Access applications/policies. The current deploy steps still assume manual setup, but future iterations will ship Terraform modules (plus helper scripts) so a new team can `terraform apply` and immediately have Workers, Access, DNS, and onboarding-ready infrastructure. Contributions to the Terraform scaffolding are welcome; track progress in `docs/implementation-plan.md`.
+100 % open source from day one. If you are experimenting with Workers/Durable Objects, chasing Cloudflare-native observability, or just want to help, contributions are welcome:
 
-**Manual steps to codify**
+- File issues/ideas, especially around scheduler design, heartbeats, AE queries, or UX polish.
+- Share your own cost presets or deployment guides so other teams can replicate cheap setups.
+- Help with documentation, Terraform automation, or the differentiator features listed above.
 
-- DNS records for the custom domains (e.g., CNAME/AAAA for Workers + Pages).
-- Cloudflare Zero Trust self-hosted application for the Worker/Pages hostname.
-- Access policy that allows the right emails/domains/groups (may stay partially manual if per-team policies differ).
+---
+
+## Stay in the loop
+
+- Watch the repo for release notes as the MVP stabilizes.
+- Check the `docs/` folder for implementation updates and Cloudflare-specific lessons.
+- Cloudflare folks: reach out via Issues/Discussions if you want to collaborate—we’d love feedback on pushing the platform’s limits.
+
+---
+
+Built with ❤️ for the Cloudflare community. Let’s make uptime monitoring as effortless as deploying a Worker.

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use worker::console_error;
 
-use crate::{auth::membership::MembershipError, bootstrap::types::BootstrapError};
+use crate::{auth::membership::MembershipError, bootstrap::types::BootstrapError, internal::types::MonitorKind};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all(deserialize = "camelCase"))]
@@ -52,6 +52,7 @@ pub enum MonitorError {
     Forbidden,
     Bootstrap(BootstrapError),
     Membership(MembershipError),
+    NoFieldsToUpdate,
     // pub colo: String,
     // pub extra: Option<serde_json::Value>,
 }
@@ -93,6 +94,28 @@ impl From<MonitorError> for axum::http::StatusCode {
                 console_error!("monitors.membership: {err:?}");
                 axum::http::StatusCode::INTERNAL_SERVER_ERROR
             }
+            MonitorError::NoFieldsToUpdate => {
+                console_error!("monitors.no.fields.to.update");
+                axum::http::StatusCode::BAD_REQUEST
+            }
         }
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all(deserialize = "camelCase", serialize = "camelCase"))]
+pub struct UpdateMonitor {
+    pub name: Option<String>,
+    pub kind: Option<MonitorKind>,
+    pub url: Option<String>,
+    pub interval: Option<i64>,
+    pub timeout: Option<i64>,
+    pub follow_redirects: Option<bool>,
+    pub verify_tls: Option<bool>,
+    pub expect_status_low: Option<i64>,
+    pub expect_status_high: Option<i64>,
+    pub expect_substring: Option<String>,
+    pub headers_json: Option<String>,
+    pub tags_json: Option<String>,
+    pub enabled: Option<bool>,
 }

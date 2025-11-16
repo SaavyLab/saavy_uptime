@@ -15,6 +15,8 @@ import * as TanStackQueryProvider from "@/integrations/tanstack-query/root-provi
 import DashboardRoute from "@/routes/dashboard.tsx";
 import DAGRoute from "@/routes/dag.tsx";
 import IncidentsRoute from "@/routes/incidents.tsx";
+import MonitorDetailRoute from "@/routes/monitors/monitor-detail";
+import MonitorEditRoute from "@/routes/monitors/monitor-edit";
 import MonitorNewRoute from "@/routes/monitors/monitor-new";
 import MonitorsRoute from "@/routes/monitors/monitors";
 import OrganizationRoute from "@/routes/organization/organization";
@@ -46,6 +48,8 @@ const routeTree = typedRootRoute.addChildren([
 	DashboardRoute(typedRootRoute),
 	DAGRoute(typedRootRoute),
 	MonitorsRoute(typedRootRoute),
+	MonitorDetailRoute(typedRootRoute),
+	MonitorEditRoute(typedRootRoute),
 	MonitorNewRoute(typedRootRoute),
 	IncidentsRoute(typedRootRoute),
 	StatusRoute(typedRootRoute),

@@ -6,28 +6,15 @@ import { Hero } from "@/components/layout/Hero";
 import { Button } from "@/components/ui/button";
 import { createMonitor } from "@/lib/monitors";
 import type { RouterContext } from "@/router-context";
-import { z } from "zod";
-
-const monitorFormValuesSchema = z.object({
-	name: z.string(),
-	url: z.string(),
-	interval: z.number(),
-	timeout: z.number(),
-	followRedirects: z.boolean(),
-	verifyTls: z.boolean(),
-});
-
-export type MonitorFormValues = z.infer<typeof monitorFormValuesSchema>;
+import {
+	defaultMonitorFormValues,
+	type MonitorFormValues,
+} from "./monitor-form";
 
 function MonitorNewPage() {
 	const navigate = useNavigate({ from: "/monitors/new" });
 	const defaultValues: MonitorFormValues = {
-		name: "",
-		url: "",
-		interval: 60,
-		timeout: 5000,
-		followRedirects: true,
-		verifyTls: true,
+		...defaultMonitorFormValues,
 	};
 
 	const form = useAppForm({
