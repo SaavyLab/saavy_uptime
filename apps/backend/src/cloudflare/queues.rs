@@ -1,2 +1,2 @@
-pub mod hearbeat_summary_types;
 pub mod heartbeat_summaries;
+pub mod heartbeat_summary_types;

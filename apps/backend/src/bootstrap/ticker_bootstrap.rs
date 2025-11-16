@@ -2,8 +2,7 @@ use crate::bootstrap::types::BootstrapError;
 use serde::{Deserialize, Serialize};
 use std::result::Result;
 use worker::{
-    console_error, wasm_bindgen::JsValue, D1Database, Method, ObjectNamespace, Request,
-    RequestInit,
+    console_error, wasm_bindgen::JsValue, D1Database, Method, ObjectNamespace, Request, RequestInit,
 };
 
 #[derive(Serialize)]

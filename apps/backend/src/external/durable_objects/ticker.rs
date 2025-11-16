@@ -7,7 +7,10 @@ use serde_json::to_string;
 use worker::*;
 
 use crate::{
-    cloudflare::durable_objects::ticker_types::{MonitorDispatch, DispatchPayload, MonitorRow, TickerConfig, TickerError, TickerState}, utils::{date::now_ms, wasm_types::js_number}
+    cloudflare::durable_objects::ticker_types::{
+        DispatchPayload, MonitorDispatch, MonitorRow, TickerConfig, TickerError, TickerState,
+    },
+    utils::{date::now_ms, wasm_types::js_number},
 };
 
 const DEFAULT_TICK_INTERVAL_MS: u64 = 15_000;
@@ -44,7 +47,11 @@ impl Ticker {
             .map_err(|err| TickerError::arm_alarm("ticker.arm_alarm", err))
     }
 
-    async fn bootstrap(&self, mut state: TickerState, req: &mut Request) -> std::result::Result<(), TickerError> {
+    async fn bootstrap(
+        &self,
+        mut state: TickerState,
+        req: &mut Request,
+    ) -> std::result::Result<(), TickerError> {
         #[derive(Deserialize)]
         struct Payload {
             org_id: String,
@@ -63,7 +70,9 @@ impl Ticker {
         state.config = Some(config);
         state.last_tick_ts = now_ms();
         state.consecutive_errors = 0;
-        self.save_state(&state).await.map_err(|err| TickerError::save_state("ticker.bootstrap", err))?;
+        self.save_state(&state)
+            .await
+            .map_err(|err| TickerError::save_state("ticker.bootstrap", err))?;
         self.arm_alarm(delay).await?;
 
         Ok(())
@@ -100,7 +109,10 @@ impl Ticker {
         Ok(())
     }
 
-    async fn claim_due_monitors(&self, config: &TickerConfig) -> std::result::Result<Vec<MonitorDispatch>, TickerError> {
+    async fn claim_due_monitors(
+        &self,
+        config: &TickerConfig,
+    ) -> std::result::Result<Vec<MonitorDispatch>, TickerError> {
         let d1 = self.env.d1("DB")?;
         let now = now_ms();
 
@@ -242,8 +254,12 @@ impl Ticker {
             verify_tls: monitor.verify_tls,
         };
 
-        let body =
-            to_string(&payload).map_err(|err| TickerError::request("ticker.dispatch.serialize", worker::Error::SerdeJsonError(err)))?;
+        let body = to_string(&payload).map_err(|err| {
+            TickerError::request(
+                "ticker.dispatch.serialize",
+                worker::Error::SerdeJsonError(err),
+            )
+        })?;
 
         let mut init = RequestInit::new();
         init.with_method(Method::Post);
