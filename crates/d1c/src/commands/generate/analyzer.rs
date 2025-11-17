@@ -1,6 +1,6 @@
 use anyhow::Result;
 use rusqlite::Connection;
-use crate::commands::generate::types::{QueryInfo, ColumnInfo};
+use crate::commands::generate::types::{ColumnInfo, Query};
 
 pub fn strip_comments(query: &str) -> String {
     let mut result = Vec::new();
@@ -29,8 +29,8 @@ pub fn strip_comments(query: &str) -> String {
     result.join("\n")
 }
 
-pub fn analyze_query(conn: &Connection, query: &str) -> Result<QueryInfo> {
-    let cleaned = strip_comments(query);
+pub fn analyze_query(conn: &Connection, query: &mut Query) -> Result<()> {
+    let cleaned = strip_comments(&query.sql_text());
     let stmt = conn.prepare(&cleaned)?;
     let column_count = stmt.column_count();
 
@@ -45,14 +45,8 @@ pub fn analyze_query(conn: &Connection, query: &str) -> Result<QueryInfo> {
         });
     }
 
-    let mut params = Vec::new();
-    for i in 1..stmt.parameter_count() {
-        if let Some(param_name) = stmt.parameter_name(i) {
-            params.push(param_name.trim_start_matches([':', '@', '?', '$']).to_string());
-        }
-    }
-
-    Ok(QueryInfo { columns, params })
+    query.columns = columns;
+    Ok(())
 }
 
 fn sqlite_type_to_rust(decl_type: &str) -> Result<&str> {

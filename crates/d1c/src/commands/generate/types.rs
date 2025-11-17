@@ -7,25 +7,31 @@ pub enum Cardinality {
 }
 
 #[derive(Debug)]
-pub struct ParsedQuery {
+pub struct Query {
+    // Parsed metadata
     pub name: String,
     pub cardinality: Cardinality,
     pub sql: Vec<String>,
-    pub params: Option<Vec<ParsedParamInfo>>,
+    pub params: Option<Vec<ParamSpec>>,
     pub returns: Option<Vec<String>>,
+
+    // Analyzer-populated metadata
+    pub columns: Vec<ColumnInfo>,
+}
+
+impl Query {
+    pub fn sql_text(&self) -> String {
+        self.sql.join("\n")
+    }
 }
 
 #[derive(Debug)]
-pub struct ParsedParamInfo {
+pub struct ParamSpec {
     pub name: String,
     pub rust_type: String,
 }
 
-pub struct QueryInfo {
-    pub columns: Vec<ColumnInfo>,
-    pub params: Vec<String>,
-}
-
+#[derive(Debug)]
 pub struct ColumnInfo {
     pub name: String,
     pub decl: String,

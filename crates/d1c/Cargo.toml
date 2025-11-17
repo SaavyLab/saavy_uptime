@@ -9,7 +9,11 @@ anyhow = "1.0.100"
 clap = { version = "4.5", features = ["derive"] }
 heck = "0.5.0"
 inquire = "0.9.1"
+prettyplease = "0.2.37"
+proc-macro2 = "1.0.103"
+quote = "1.0.42"
 rusqlite = { version = "0.31", features = ["bundled", "column_decltype"] }
 serde = { version = "1.0", features = ["derive"] }
+syn = "2.0.110"
 toml = "0.9.8"
 walkdir = "2.5.0"

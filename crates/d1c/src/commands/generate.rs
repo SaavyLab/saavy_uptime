@@ -1,8 +1,8 @@
-use std::{fs::File, io::Write, path::{Path, PathBuf}};
+use std::{fs::{self, File}, io::Write, path::{Path, PathBuf}};
 
 use anyhow::Result;
 use rusqlite::Connection;
-use crate::{D1CConfig, commands::generate::{analyzer::analyze_query, parser::process_query_file, renderer::{generate_queries_file, generate_query_function}}, utils::sql::collect_sql_files};
+use crate::{D1CConfig, commands::generate::{analyzer::analyze_query, parser::process_query_file, renderer::render_module}, utils::sql::collect_sql_files};
 
 mod analyzer;
 mod parser;
@@ -11,22 +11,19 @@ mod types;
 
 pub fn run(conn: &Connection, config: &D1CConfig) -> Result<()> {
     let query_files = collect_sql_files(PathBuf::from(&config.queries_dir))?;
-    let mut functions = Vec::new();
+    let mut queries = Vec::new();
     for query_file in query_files {
-        let queries = process_query_file(&query_file)?;
-
-        for query in queries {
-            let query_info = analyze_query(&conn, &query.sql.join("\n"))?;
-            let function = generate_query_function(&query, &query_info)?;
-            functions.push(function);
-        }
+        let parsed_queries = process_query_file(&query_file)?;
+        queries.extend(parsed_queries);
     }
 
-    let out_file_contents = generate_queries_file(&functions)?;
+    for mut query in &mut queries {
+        analyze_query(conn, &mut query)?;
+    }
 
-    let mut out_file = File::create(Path::new(&config.out_dir).join("queries.rs"))?;
-    Write::write_all(&mut out_file, out_file_contents.as_bytes())?;
-
+    let module_tokens = render_module(&queries);
+    let ast = syn::parse2(module_tokens)?;
+    let formatted = prettyplease::unparse(&ast);
+    fs::write(Path::new(&config.out_dir).join("queries.rs"), formatted)?;
     Ok(())
 }
-
