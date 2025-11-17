@@ -1,0 +1,6 @@
+[workspace]
+members = [
+  "apps/backend",
+  "crates/d1c",
+  "crates/cf-tracing"
+]
