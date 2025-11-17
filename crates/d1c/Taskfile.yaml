@@ -1,0 +1,31 @@
+version: '3'
+
+vars:
+  CARGO_CMD: cargo
+  MIGRATIONS_DIR: ../../migrations
+
+tasks:
+  default:
+    desc: "List d1c tasks"
+    cmds:
+      - task --list
+
+  format:
+    desc: "Format d1c sources"
+    cmds:
+      - cargo fmt
+
+  check:
+    desc: "cargo check d1c"
+    cmds:
+      - cargo check
+
+  build:
+    desc: "cargo build d1c"
+    cmds:
+      - cargo build
+
+  gen:
+    desc: "Run d1c gen using example migrations"
+    cmds:
+      - cargo run -- gen --migrations {{.MIGRATIONS_DIR}}
