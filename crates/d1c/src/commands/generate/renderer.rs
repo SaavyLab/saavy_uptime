@@ -85,7 +85,23 @@ fn render_function(query: &Query, instrument: bool) -> TokenStream {
                     quote! { skip(#skip_d1) }
                 }
             } else {
-                let skip_idents = skips.iter().map(|s| format_ident!("{}", s.to_snake_case()));
+                // Validate that skipped fields exist in params
+                let valid_params: std::collections::HashSet<_> = query.params.as_ref()
+                    .map(|p| p.iter().map(|param| param.name.as_str()).collect())
+                    .unwrap_or_default();
+
+                let skip_idents: Vec<_> = skips.iter()
+                    .filter(|s| {
+                        if valid_params.contains(s.as_str()) {
+                            true
+                        } else {
+                            // Fail hard if skip list contains invalid parameter
+                            panic!("Query '{}' skips parameter '{}' which is not defined.", query.name, s);
+                        }
+                    })
+                    .map(|s| format_ident!("{}", s.to_snake_case()))
+                    .collect();
+                
                 quote! { skip(#skip_d1, #(#skip_idents),*) }
             }
         } else {

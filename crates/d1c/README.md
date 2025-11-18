@@ -105,7 +105,7 @@ This will:
 
 Then just:
 ```bash
-d1c gen
+d1c generate
 ```
 
 and you're ready to write type-safe queries.
@@ -140,7 +140,7 @@ WHERE id = :id;
 ### Generate code
 
 ```bash
-d1c gen
+d1c generate
 ```
 
 This creates `src/db/queries.rs`:
@@ -328,17 +328,16 @@ d1c keeps the good parts (typed queries from SQL) while respecting Workers' cons
 
 ## Commands
 
-### `d1c gen`
+### `d1c generate`
 
 Generate Rust code from your queries.
 
 ```bash
-d1c gen
+d1c generate
 ```
 
 Options:
-- `--config <path>` – Use a different config file (default: `d1c.toml`)
-- `--check` – Verify queries are valid without writing files
+- `gen` – Alias for `generate`
 
 ### `d1c watch`
 
@@ -452,7 +451,7 @@ d1c will use the types you specify exactly as written. Note that you are respons
 
 4. **Generate code**:
    ```bash
-   d1c gen
+   d1c generate
    ```
 
 5. **Use in your Worker**:
@@ -517,7 +516,7 @@ We're especially interested in feedback from people using D1 in production Worke
 
 ## License
 
-MIT or Apache 2.0 (your choice)
+MIT
 
 ---
 
