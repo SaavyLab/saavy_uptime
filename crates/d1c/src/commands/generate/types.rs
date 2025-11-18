@@ -17,6 +17,8 @@ pub struct Query {
 
     // Analyzer-populated metadata
     pub columns: Vec<ColumnInfo>,
+
+    pub transformed_sql: String,
 }
 
 impl Query {
@@ -25,7 +27,7 @@ impl Query {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ParamSpec {
     pub name: String,
     pub rust_type: String,

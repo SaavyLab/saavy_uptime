@@ -1,3 +1,4 @@
+// generate/renderer.rs
 use heck::{ToPascalCase, ToSnakeCase};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
@@ -21,9 +22,13 @@ fn render_query_block(query: &Query) -> TokenStream {
     let function = render_function(query, params_arg);
 
     quote! {
+
         #row_struct
+
         #params_struct
+
         #function
+
     }
 }
 
@@ -32,15 +37,17 @@ fn render_row_struct(query: &Query) -> TokenStream {
         return TokenStream::new();
     }
 
-    let struct_name = format_ident!("{}QueryResult", &query.name.to_pascal_case());
+    let struct_name = format_ident!("{}Row", &query.name.to_pascal_case());
     let fields = query.columns.iter().map(|col| {
         let ident = format_ident!("{}", &col.name.to_snake_case());
         let ty = format_ident!("{}", &col.rust_type);
+        // D1 columns might be null, so we wrap in Option unless we know better
+        // For now, let's assume standard types, but in prod you might want Option<T>
         quote! { pub #ident: #ty }
     });
 
     quote! {
-        #[derive(Debug, Clone)]
+        #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
         pub struct #struct_name {
             #(#fields,)*
         }
@@ -49,32 +56,64 @@ fn render_row_struct(query: &Query) -> TokenStream {
 
 fn render_function(query: &Query, params_arg: TokenStream) -> TokenStream {
     let fn_name = format_ident!("{}", &query.name.to_snake_case());
-    let row_type = format_ident!("{}QueryResult", &query.name.to_pascal_case());
+    let row_type = format_ident!("{}Row", &query.name.to_pascal_case());
+    let sql = &query.transformed_sql; // Use the SQL with ? placeholders
 
-    let sql = query.sql_text();
-    let body = quote! {
-        let stmt = d1.prepare(#sql)?;
-        let rows = stmt.all()?.unwrap();
-        Ok(rows)
+    // Generate the bind list: &[&params.id.into(), &params.name.into()]
+    let bind_logic = if let Some(params) = &query.params {
+        let param_fields = params.iter().map(|p| {
+            let name = format_ident!("{}", p.name.to_snake_case());
+            quote! { &params.#name.into() }
+        });
+        quote! {
+            let stmt = stmt.bind(&[#(#param_fields),*])?;
+        }
+    } else {
+        quote! {}
+    };
+
+    let exec_logic = match query.cardinality {
+        Cardinality::One => quote! {
+            let result = stmt.first::<#row_type>(None).await?;
+            Ok(result)
+        },
+        Cardinality::Many => quote! {
+            let result = stmt.all().await?;
+            let rows = result.results::<#row_type>()?;
+            Ok(rows)
+        },
+        Cardinality::Exec => quote! {
+            stmt.run().await?;
+            Ok(())
+        },
+        Cardinality::Scalar => quote! {
+            // Scalar is tricky in D1, usually involves getting the first column of first row
+            // For MVP, treating as :one usually works if struct has 1 field
+            let result = stmt.first::<#row_type>(None).await?;
+            Ok(result.map(|r| r.val)) // Assuming the column is named 'val' or we unwrap the struct
+        },
     };
 
     let result_type = match query.cardinality {
         Cardinality::One => quote! { Result<Option<#row_type>> },
         Cardinality::Many => quote! { Result<Vec<#row_type>> },
         Cardinality::Exec => quote! { Result<()> },
-        Cardinality::Scalar => quote! { Result<Option<T>> },
+        // Simplification for now:
+        Cardinality::Scalar => quote! { Result<Option<#row_type>> }, 
     };
 
     quote! {
         pub async fn #fn_name(d1: &D1Database #params_arg) -> #result_type {
-            #body
+            let stmt = d1.prepare(#sql);
+            #bind_logic
+            #exec_logic
         }
     }
 }
 
 fn render_params_struct(query: &Query) -> (TokenStream, TokenStream) {
     if let Some(params) = &query.params {
-        let struct_name = format_ident!("{}QueryParams", &query.name.to_pascal_case());
+        let struct_name = format_ident!("{}Params", &query.name.to_pascal_case());
         let fields = params.iter().map(|param| {
             let ident = format_ident!("{}", param.name.to_snake_case());
             let ty_ident = format_ident!("{}", param.rust_type);
