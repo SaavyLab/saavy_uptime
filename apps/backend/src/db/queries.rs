@@ -1,7 +1,18 @@
 use worker::D1Database;
 use worker::Result;
-#[derive(Debug, Clone)]
-pub struct TestTwoQueryResult {
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct ListExampleRow {
+    pub id: String,
+    pub message: String,
+}
+pub async fn list_example(d1: &D1Database) -> Result<Vec<ListExampleRow>> {
+    let stmt = d1.prepare("SELECT 1 as id, 'hello' as message;");
+    let result = stmt.all().await?;
+    let rows = result.results::<ListExampleRow>()?;
+    Ok(rows)
+}
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct TestTwoRow {
     pub id: String,
     pub org_id: String,
     pub name: String,
@@ -27,19 +38,21 @@ pub struct TestTwoQueryResult {
     pub updated_at: i64,
 }
 #[derive(Debug, Clone)]
-pub struct TestTwoQueryParams {
+pub struct TestTwoParams {
     pub monitor_id: String,
 }
 pub async fn test_two(
     d1: &D1Database,
-    params: &TestTwoQueryParams,
-) -> Result<Vec<TestTwoQueryResult>> {
-    let stmt = d1.prepare("SELECT * \nFROM monitors \nWHERE id = :monitor_id;")?;
-    let rows = stmt.all()?.unwrap();
+    params: &TestTwoParams,
+) -> Result<Vec<TestTwoRow>> {
+    let stmt = d1.prepare("SELECT *\nFROM monitors\nWHERE id = ?1;");
+    let stmt = stmt.bind(&[&params.monitor_id.into()])?;
+    let result = stmt.all().await?;
+    let rows = result.results::<TestTwoRow>()?;
     Ok(rows)
 }
-#[derive(Debug, Clone)]
-pub struct MultilineWithWhiteSpaceQueryResult {
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct MultilineWithWhiteSpaceRow {
     pub id: String,
     pub org_id: String,
     pub name: String,
@@ -64,8 +77,10 @@ pub struct MultilineWithWhiteSpaceQueryResult {
     pub created_at: i64,
     pub updated_at: i64,
 }
-pub async fn multiline_with_white_space(d1: &D1Database) -> Result<Option<T>> {
-    let stmt = d1.prepare("SELECT *\nFROM monitors\nWHERE name = 'test';")?;
-    let rows = stmt.all()?.unwrap();
-    Ok(rows)
+pub async fn multiline_with_white_space(
+    d1: &D1Database,
+) -> Result<Option<MultilineWithWhiteSpaceRow>> {
+    let stmt = d1.prepare("SELECT *\nFROM monitors\nWHERE name = 'test';");
+    let result = stmt.first::<MultilineWithWhiteSpaceRow>(None).await?;
+    Ok(result.map(|r| r.val))
 }
