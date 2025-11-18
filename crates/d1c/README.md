@@ -381,7 +381,7 @@ migrations_dir = "db/migrations"
 queries_dir = "db/queries"
 
 # Required: where to write generated Rust code
-codegen_dir = "src/db"
+codegen_dir = "src/d1c"
 
 # Optional: module name for generated code (default: "d1c")
 module_name = "d1c"
@@ -469,7 +469,7 @@ d1c will use the types you specify exactly as written. Note that you are respons
 
 6. **Commit generated code**:
    ```bash
-   git add src/db/queries.rs
+   git add src/d1c/d1c.rs
    git commit -m "Update queries"
    ```
 

@@ -148,7 +148,7 @@ pub fn run(conn: &Connection, args: &InitArgs) -> Result<(), Error> {
         .prompt()?;
 
     let out_dir = inquire::Text::new("Where do you want to write the generated code?")
-        .with_default("src/db")
+        .with_default("src/d1c")
         .prompt()?;
 
     let module_name = inquire::Text::new("What is the name of the module for the generated code?")
@@ -202,11 +202,24 @@ pub fn run(conn: &Connection, args: &InitArgs) -> Result<(), Error> {
             schema_file.write_all(schema_string.as_bytes())?;
         }
 
-        // Create a sample query file if the directory is empty
+        // Create a sample query file if the directory is empty and user confirms
         let example_path = Path::new(&config.queries_dir).join("example.sql");
         if !example_path.exists() {
-            let mut example_file = File::create(&example_path)?;
-            example_file.write_all(b"-- name: ListExample :many\nSELECT 1 as id, 'hello' as message;")?;
+            // Check if dir is empty (except potentially schema.sql)
+            let is_empty = fs::read_dir(&config.queries_dir)?
+                .filter_map(|e| e.ok())
+                .all(|e| e.file_name() == "schema.sql");
+
+            if is_empty {
+                let create_example = inquire::Confirm::new("Do you want to create an example query file?")
+                    .with_default(true)
+                    .prompt()?;
+                
+                if create_example {
+                    let mut example_file = File::create(&example_path)?;
+                    example_file.write_all(b"-- name: ListExample :many\nSELECT 1 as id, 'hello' as message;")?;
+                }
+            }
         }
 
         term.write_line("")?;
@@ -227,8 +240,8 @@ pub fn run(conn: &Connection, args: &InitArgs) -> Result<(), Error> {
         term.write_line(&format!("  - Run {} to generate typed Rust bindings", style("d1c generate").yellow()))?;
         term.write_line("  - Import them in your Worker:")?;
         term.write_line("")?;
-        term.write_line(&format!("{}", style("      mod db; // in lib.rs or main.rs").dim()))?;
-        term.write_line(&format!("{}", style(format!("      use crate::db::{}::*;", &config.module_name)).dim()))?;
+        term.write_line(&format!("{}", style("      mod d1c; // in lib.rs or main.rs").dim()))?;
+        term.write_line(&format!("{}", style(format!("      use crate::d1c::{}::*;", &config.module_name)).dim()))?;
         term.write_line("")?;
         term.write_line(&format!("{} Happy querying!", style("🚀").green()))?;
     } else {
