@@ -1,5 +1,6 @@
 use crate::bootstrap::ticker_bootstrap::ensure_ticker_bootstrapped;
 use crate::cloudflare::d1::{get_d1, AppDb};
+use crate::d1c::queries::check_if_bootstrapped;
 use crate::router::AppState;
 use crate::utils::date::now_ms;
 use crate::{auth::current_user::CurrentUser, cloudflare::durable_objects::ticker::AppTicker};
@@ -36,24 +37,12 @@ pub async fn status(
 ) -> Result<Json<BootstrapStatus>, StatusCode> {
     let team_name = state.access_config().team_name();
 
-    let statement = d1
-        .prepare("SELECT COUNT(*) as count FROM organizations")
-        .bind(&[])
-        .map_err(|err| {
-            console_error!("bootstrap.status.bind: {err:?}");
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
-
-    match statement.first::<CountResult>(None).await {
-        Ok(Some(CountResult { count })) => Ok(Json(BootstrapStatus {
-            is_bootstrapped: count > 0,
+    match check_if_bootstrapped(&d1).await {
+        Ok(count) => Ok(Json(BootstrapStatus {
+            is_bootstrapped: count.unwrap_or(0) > 0,
             suggested_slug: team_name,
             email,
         })),
-        Ok(None) => {
-            console_error!("bootstrap.status.empty");
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
-        }
         Err(err) => {
             console_error!("bootstrap.status.query: {err:?}");
             Err(StatusCode::INTERNAL_SERVER_ERROR)

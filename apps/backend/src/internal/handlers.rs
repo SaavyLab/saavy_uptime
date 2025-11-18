@@ -35,11 +35,12 @@ pub async fn reconcile_tickers_handler(
 #[worker::send]
 pub async fn dispatch_handler(
     State(state): State<AppState>,
+    AppDb(d1): AppDb,
     headers: HeaderMap,
     Json(payload): Json<DispatchRequest>,
 ) -> Result<StatusCode, StatusCode> {
     validate_dispatch_token(&state, &headers)?;
-    handle_dispatch(state, payload).await?;
+    handle_dispatch(d1, payload).await?;
 
     Ok(StatusCode::ACCEPTED)
 }

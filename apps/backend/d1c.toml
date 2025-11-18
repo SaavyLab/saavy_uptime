@@ -1,5 +1,6 @@
 migrations_dir = "db/migrations"
 queries_dir = "db/queries"
-out_dir = "src/db"
+out_dir = "src/d1c"
 module_name = "queries"
 emit_schema = true
+instrument_by_default = true

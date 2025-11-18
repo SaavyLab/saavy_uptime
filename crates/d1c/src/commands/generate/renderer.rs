@@ -43,11 +43,11 @@ fn render_row_struct(query: &Query) -> TokenStream {
     let fields = query.columns.iter().map(|col| {
         let ident = format_ident!("{}", &col.name.to_snake_case());
         let base_ty = format_ident!("{}", &col.rust_type);
-        
+
         if col.not_null {
-             quote! { pub #ident: #base_ty }
+            quote! { pub #ident: #base_ty }
         } else {
-             quote! { pub #ident: Option<#base_ty> }
+            quote! { pub #ident: Option<#base_ty> }
         }
     });
 
@@ -67,7 +67,7 @@ fn render_function(query: &Query, instrument: bool) -> TokenStream {
     let instrument_attr = if instrument {
         let skip_d1 = quote! { d1 };
         let span_name = format!("d1c.{}", query.name.to_snake_case());
-        
+
         let skip_list = if let Some(skips) = &query.instrument_skip {
             // If user put "*" or "skip_all", we skip all args?
             // For now, let's just handle explicit skips
@@ -79,29 +79,37 @@ fn render_function(query: &Query, instrument: bool) -> TokenStream {
                 //
                 // Actually, if "*" is present, we can iterate over all params and add them.
                 if let Some(params) = &query.params {
-                    let all_params = params.iter().map(|p| format_ident!("{}", p.name.to_snake_case()));
+                    let all_params = params
+                        .iter()
+                        .map(|p| format_ident!("{}", p.name.to_snake_case()));
                     quote! { skip(#skip_d1, #(#all_params),*) }
                 } else {
                     quote! { skip(#skip_d1) }
                 }
             } else {
                 // Validate that skipped fields exist in params
-                let valid_params: std::collections::HashSet<_> = query.params.as_ref()
+                let valid_params: std::collections::HashSet<_> = query
+                    .params
+                    .as_ref()
                     .map(|p| p.iter().map(|param| param.name.as_str()).collect())
                     .unwrap_or_default();
 
-                let skip_idents: Vec<_> = skips.iter()
+                let skip_idents: Vec<_> = skips
+                    .iter()
                     .filter(|s| {
                         if valid_params.contains(s.as_str()) {
                             true
                         } else {
                             // Fail hard if skip list contains invalid parameter
-                            panic!("Query '{}' skips parameter '{}' which is not defined.", query.name, s);
+                            panic!(
+                                "Query '{}' skips parameter '{}' which is not defined.",
+                                query.name, s
+                            );
                         }
                     })
                     .map(|s| format_ident!("{}", s.to_snake_case()))
                     .collect();
-                
+
                 quote! { skip(#skip_d1, #(#skip_idents),*) }
             }
         } else {
@@ -136,7 +144,7 @@ fn render_function(query: &Query, instrument: bool) -> TokenStream {
         for param in params {
             let param_name = format_ident!("{}", param.name.to_snake_case());
             let rust_type_str = param.rust_type.as_str();
-            
+
             // Smart argument types:
             // - If it's "String", take "&str"
             // - If it's "Vec<u8>", take "&[u8]"
@@ -186,19 +194,23 @@ fn render_function(query: &Query, instrument: bool) -> TokenStream {
             //
             // However, `stmt.first::<i64>(None)` works if the result is a single column row.
             // Let's rely on worker-rs's ability to deserialize a single value if it matches.
-            // If not, we might need a wrapper struct. 
-            // 
-            // Re-reading worker-rs docs: `query.first::<T>(col)` 
+            // If not, we might need a wrapper struct.
+            //
+            // Re-reading worker-rs docs: `query.first::<T>(col)`
             // If T is a struct, it maps fields.
-            // If T is a primitive, it expects the first column? 
+            // If T is a primitive, it expects the first column?
             //
             // Actually, in most D1 drivers, you get a JSON object `{ "count(*)": 5 }`.
             // Deserializing that into `i64` fails. You need a struct or a HashMap.
             //
             // HACK: We define a private, temporary struct inside the function to handle the deserialization,
             // then map it to the scalar.
-            
-            let col_name = query.columns.first().map(|c| c.name.as_str()).unwrap_or("val");
+
+            let col_name = query
+                .columns
+                .first()
+                .map(|c| c.name.as_str())
+                .unwrap_or("val");
             // If the column name is dynamic (like count(*)), we might have trouble.
             // But we can just use `serde_json::Value` or `HashMap`.
             //
@@ -208,20 +220,20 @@ fn render_function(query: &Query, instrument: bool) -> TokenStream {
             // Solution: `stmt.raw::<Vec<T>>()` exists? No.
             //
             // Let's assume for now that `stmt.first::<T>(Some("col_name"))` works if we know the column name.
-            
+
             quote! {
                  // We need to fetch the value by column name because the JSON key is the column name
                  let result = stmt.first::<#row_type_ident>(Some(#col_name)).await?;
                  Ok(result)
             }
-        },
+        }
     };
 
     let result_type = match query.cardinality {
         Cardinality::One => quote! { Result<Option<#row_type_ident>> },
         Cardinality::Many => quote! { Result<Vec<#row_type_ident>> },
         Cardinality::Exec => quote! { Result<()> },
-        Cardinality::Scalar => quote! { Result<Option<#row_type_ident>> }, 
+        Cardinality::Scalar => quote! { Result<Option<#row_type_ident>> },
     };
 
     quote! {

@@ -4,7 +4,7 @@ use rusqlite::Connection;
 pub fn run(conn: &Connection) -> Result<()> {
     println!("Dumping schema...");
     let rows = dump_schema(conn)?;
-    
+
     for row in rows {
         println!("-- Table: {}", row.name);
         println!("{};\n", row.sql);

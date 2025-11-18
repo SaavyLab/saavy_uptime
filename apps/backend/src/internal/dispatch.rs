@@ -1,46 +1,23 @@
 use std::result::Result;
+use worker::D1Database;
 use worker::{
-    console_error, console_log, wasm_bindgen::JsValue, Fetch, Method, Request, RequestInit,
+    console_error, console_log, Fetch, Method, Request, RequestInit,
     Response,
 };
 
-use crate::cloudflare::d1::get_d1;
+use crate::d1c::queries::{complete_dispatch, dispatch_monitor, write_heartbeat};
 use crate::internal::types::{CheckResult, DispatchError, DispatchRequest, MonitorKind};
-use crate::router::AppState;
 use crate::utils::date::now_ms;
-use crate::utils::wasm_types::js_number;
 
 pub async fn handle_dispatch(
-    state: AppState,
+    d1: D1Database,
     payload: DispatchRequest,
 ) -> Result<(), DispatchError> {
-    let d1 = get_d1(&state.env())
-        .map_err(|err| DispatchError::database("dispatch.start.db.init", err))?;
     let start = now_ms();
 
-    let start_statement = d1.prepare(
-        "UPDATE monitor_dispatches
-         SET status = ?1,
-             dispatched_at_ts = ?2
-         WHERE id = ?3",
-    );
+    dispatch_monitor(&d1, "running", start, &payload.dispatch_id).await?;
 
-    let start_bind_values = vec![
-        "running".into(),
-        js_number(start),
-        payload.dispatch_id.clone().into(),
-    ];
-
-    let start_query = start_statement
-        .bind(&start_bind_values)
-        .map_err(|err| DispatchError::database("dispatch.start.bind", err))?;
-
-    start_query
-        .run()
-        .await
-        .map_err(|err| DispatchError::database("dispatch.start.run", err))?;
-
-    let check = check_monitor(&state, &payload, start).await;
+    let check = check_monitor(&d1, &payload, start).await;
 
     let (end_ms, dispatch_status) = match &check {
         Ok(result) => (result.end_ms.unwrap_or(0), "completed"),
@@ -48,53 +25,19 @@ pub async fn handle_dispatch(
         Err(_err) => (now_ms(), "failed"),
     };
 
-    update_dispatch(&state, &payload.dispatch_id, end_ms, dispatch_status).await?;
-
-    Ok(())
-}
-
-async fn update_dispatch(
-    state: &AppState,
-    dispatch_id: &str,
-    end_ms: i64,
-    dispatch_status: &str,
-) -> Result<(), DispatchError> {
-    let d1 = get_d1(&state.env())
-        .map_err(|err| DispatchError::database("dispatch.update.db.init", err))?;
-
-    let complete_statement = d1.prepare(
-        "UPDATE monitor_dispatches
-         SET status = ?1,
-             completed_at_ts = ?2
-         WHERE id = ?3",
-    );
-
-    let complete_bind_values = vec![
-        dispatch_status.into(),
-        js_number(end_ms),
-        dispatch_id.into(),
-    ];
-
-    let complete_query = complete_statement
-        .bind(&complete_bind_values)
-        .map_err(|err| DispatchError::database("dispatch.complete.bind", err))?;
-
-    complete_query
-        .run()
-        .await
-        .map_err(|err| DispatchError::database("dispatch.complete.run", err))?;
+    complete_dispatch(&d1, dispatch_status, end_ms, &payload.dispatch_id).await?;
 
     Ok(())
 }
 
 async fn check_monitor(
-    state: &AppState,
+    d1: &D1Database,
     payload: &DispatchRequest,
     start: i64,
 ) -> Result<CheckResult, DispatchError> {
     let check = match &payload.kind {
-        MonitorKind::Http => check_http_monitor(&state, &payload, start).await,
-        MonitorKind::Tcp => check_tcp_monitor(&state, &payload, start).await,
+        MonitorKind::Http => check_http_monitor(&payload, start).await,
+        MonitorKind::Tcp => check_tcp_monitor(&payload, start).await,
         MonitorKind::Udp => todo!("This will be handled by the container protocol adapter"),
     };
 
@@ -113,74 +56,32 @@ async fn check_monitor(
                 colo: String::new(),
                 extra: None,
             };
-            write_heartbeat(&state, &payload.dispatch_id, &payload.monitor_id, &failure).await?;
+            write_heartbeat_handler(&d1, &payload.dispatch_id, &payload.monitor_id, &failure).await?;
             return Err(DispatchError::CheckFailed(failure));
         }
     };
 
-    write_heartbeat(&state, &payload.dispatch_id, &payload.monitor_id, &result).await?;
+    write_heartbeat_handler(&d1, &payload.dispatch_id, &payload.monitor_id, &result).await?;
     Ok(result)
 }
 
-async fn write_heartbeat(
-    state: &AppState,
+async fn write_heartbeat_handler(
+    d1: &D1Database,
     dispatch_id: &str,
     monitor_id: &str,
     result: &CheckResult,
 ) -> Result<(), DispatchError> {
-    let d1 = get_d1(&state.env())
-        .map_err(|err| DispatchError::database("dispatch.heartbeat.db.init", err))?;
-
-    let statement = d1.prepare(
-        "INSERT INTO heartbeats (
-            monitor_id, 
-            dispatch_id,
-            ts,
-            ok,
-            code,
-            rtt_ms,
-            err,
-            region
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-    );
-
-    let end = result.end_ms.unwrap_or(0);
-    let ok = result.ok;
-    let code = result.status_code.unwrap_or(0);
-    let rtt_ms = result.rtt_ms.unwrap_or(0);
-    let err_msg = result.error_msg.clone();
-    let region = result.colo.clone();
-
-    let bind_values = vec![
-        JsValue::from_str(monitor_id),
-        JsValue::from_str(dispatch_id),
-        js_number(end),
-        JsValue::from_f64(if ok { 1.0 } else { 0.0 }),
-        js_number(code as i64),
-        js_number(rtt_ms),
-        match err_msg {
-            Some(msg) => JsValue::from_str(&msg),
-            None => JsValue::NULL,
-        },
-        if region.is_empty() {
-            JsValue::NULL
-        } else {
-            JsValue::from_str(&region)
-        },
-    ];
-
-    let query = statement
-        .bind(&bind_values)
-        .map_err(|err| DispatchError::database("dispatch.heartbeat.bind", err))?;
-
-    if let Err(err) = query.run().await {
-        console_error!(
-            "dispatch.heartbeat.run failed (monitor_id={}, dispatch_id={}): {err:?}",
-            monitor_id,
-            dispatch_id
-        );
-        return Err(DispatchError::database("dispatch.heartbeat.run", err));
-    }
+    write_heartbeat(
+        d1,
+        monitor_id,
+        dispatch_id,
+        now_ms(),
+        result.ok as i64,
+        result.status_code.unwrap_or(0) as i64,
+        result.rtt_ms.unwrap_or(0) as i64,
+        result.error_msg.clone().unwrap_or_default().as_str(),
+        result.colo.clone().as_str(),
+    ).await?;
 
     Ok(())
 }
@@ -188,7 +89,6 @@ async fn write_heartbeat(
 const MAX_REDIRECT_DEPTH: u8 = 10;
 
 async fn check_http_monitor(
-    _state: &AppState,
     payload: &DispatchRequest,
     start: i64,
 ) -> Result<CheckResult, DispatchError> {
@@ -362,7 +262,6 @@ async fn perform_fetch(
 }
 
 async fn check_tcp_monitor(
-    _state: &AppState,
     _payload: &DispatchRequest,
     start: i64,
 ) -> Result<CheckResult, DispatchError> {

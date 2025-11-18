@@ -16,8 +16,9 @@ pub struct Query {
     pub params: Option<Vec<ParamSpec>>,
     #[allow(dead_code)]
     pub returns: Option<Vec<String>>,
-    
+
     pub instrument_skip: Option<Vec<String>>, // New field for skip list
+    pub scalar_type_hint: Option<String>,
 
     // Analyzer-populated metadata
     pub columns: Vec<ColumnInfo>,

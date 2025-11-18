@@ -1,6 +1,6 @@
+use crate::commands::generate::types::{Cardinality, ColumnInfo, Query};
 use anyhow::Result;
 use rusqlite::Connection;
-use crate::commands::generate::types::{Cardinality, ColumnInfo, Query};
 
 pub fn analyze_query(conn: &Connection, query: &mut Query) -> Result<()> {
     // 1. Use the transformed SQL from the parser (which handles parameter replacement robustly)
@@ -9,11 +9,11 @@ pub fn analyze_query(conn: &Connection, query: &mut Query) -> Result<()> {
 
     // 2. Prepare against local SQLite to get return types
     let stmt = conn.prepare(final_sql);
-    
+
     match stmt {
         Ok(stmt) => {
             let column_count = stmt.column_count();
-            
+
             // Strict validation for Scalar queries
             if matches!(query.cardinality, Cardinality::Scalar) {
                 if column_count != 1 {
@@ -27,7 +27,16 @@ pub fn analyze_query(conn: &Connection, query: &mut Query) -> Result<()> {
 
             let mut columns = Vec::with_capacity(column_count);
             for column in stmt.columns() {
-                let decl_type = column.decl_type().unwrap_or("TEXT");
+                let decl_type = column.decl_type();
+                let rust_type = if let Some(decl_type) = decl_type {
+                    sqlite_type_to_rust(decl_type)
+                        .unwrap_or("String")
+                        .to_string()
+                } else if let Some(hint) = &query.scalar_type_hint {
+                    hint.clone()
+                } else {
+                    "String".to_string()
+                };
                 // SQLite's prepare/stmt.columns() doesn't expose "NOT NULL" constraints directly
                 // via the stable public API easily in older rusqlite versions, OR it requires
                 // inspecting the table schema if it's a simple select.
@@ -42,16 +51,16 @@ pub fn analyze_query(conn: &Connection, query: &mut Query) -> Result<()> {
                 // Actually, rusqlite 0.31 `Column` doesn't expose `not_null`.
                 // We have to infer it or default to Option.
                 //
-                // STRATEGY: 
+                // STRATEGY:
                 // 1. If we can identify the source table and column, check that table's schema.
                 // 2. If it's an expression (count(*)), assume NOT NULL for specific aggregates?
-                // 
+                //
                 // Let's try to check origin.
                 // Note: origin_name() might be None for expressions.
-                
+
                 // TODO: Enable SQLITE_ENABLE_COLUMN_METADATA to use table_name()/origin_name()
                 // For now, defaulting to NOT NULL (false) to preserve existing behavior until build is fixed.
-                let is_nullable = false; 
+                let is_nullable = false;
                 /*
                 let is_nullable = if let Some(table) = column.table_name() {
                      if let Some(col_name) = column.origin_name() {
@@ -64,22 +73,22 @@ pub fn analyze_query(conn: &Connection, query: &mut Query) -> Result<()> {
                 };
                 */
 
-                let rust_type = sqlite_type_to_rust(decl_type)
-                    .unwrap_or_else(|_| "String"); 
-                
                 columns.push(ColumnInfo {
                     name: column.name().to_string(),
-                    decl: decl_type.to_string(),
-                    rust_type: rust_type.to_string(),
+                    decl: decl_type.unwrap_or("TEXT").to_string(),
+                    rust_type,
                     not_null: !is_nullable,
                 });
             }
             query.columns = columns;
         }
         Err(e) => {
-            // It's common for prepare to fail if the query relies on a table 
+            // It's common for prepare to fail if the query relies on a table
             // that doesn't exist in the local schema yet (if migrations failed).
-            eprintln!("⚠️  Warning: Could not analyze query '{}': {}", query.name, e);
+            eprintln!(
+                "⚠️  Warning: Could not analyze query '{}': {}",
+                query.name, e
+            );
         }
     }
 
@@ -99,15 +108,15 @@ fn sqlite_type_to_rust(decl_type: &str) -> Result<&str> {
     } else if upper.contains("REAL") || upper.contains("FLOA") || upper.contains("DOUB") {
         Ok("f64")
     } else if upper.contains("BOOL") {
-        Ok("bool") 
+        Ok("bool")
     } else if upper == "DATE" || upper == "DATETIME" {
-        // D1/SQLite usually stores these as Strings or Numbers. 
+        // D1/SQLite usually stores these as Strings or Numbers.
         // String is the safer default without more context.
-        Ok("String") 
+        Ok("String")
     } else if upper == "NUMERIC" {
         Ok("f64")
     } else {
-        // If we really can't match, fallback is handled by caller, 
+        // If we really can't match, fallback is handled by caller,
         // but we can return a generic error here if we want to be strict.
         // For this helper, let's default to String if it looks like text, or error.
         // But given the fallback in caller, we can just error or return String.
@@ -120,7 +129,7 @@ fn is_column_nullable(conn: &Connection, table: &str, col_name: &str) -> Result<
     // PRAGMA table_info(table_name) returns:
     // cid | name | type | notnull | dflt_value | pk
     let mut stmt = conn.prepare(&format!("PRAGMA table_info({})", table))?;
-    
+
     let rows = stmt.query_map([], |row| {
         let name: String = row.get(1)?;
         let notnull: i64 = row.get(3)?;

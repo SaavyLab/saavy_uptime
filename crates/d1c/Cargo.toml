@@ -3,6 +3,12 @@ name = "d1c"
 version = "0.1.0"
 edition = "2021"
 description = "Type-safe SQL generator for Cloudflare D1 + Rust"
+authors = ["SaavyLab LLC <jayson@saavylab.com>"]
+license = "MIT"
+homepage = "https://github.com/saavylab/d1c"
+repository = "https://github.com/saavylab/d1c"
+documentation = "https://github.com/saavylab/d1c"
+readme = "README.md"
 
 [dependencies]
 anyhow = "1.0.100"

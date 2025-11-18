@@ -46,29 +46,35 @@ pub fn run(conn: &Connection, args: &InitArgs) -> Result<(), Error> {
         style("init").dim(),
     ))?;
 
-
     // 1. Detect Context (Wrangler & Cargo)
     let wrangler_info = find_file_upwards("wrangler.toml")?;
     let cargo_info = find_file_upwards("Cargo.toml")?;
 
     // 2. Analyze Monorepo/Workspace status
     if let Some((cargo_path, cargo_content)) = &cargo_info {
-        let cargo_toml = cargo_content.parse::<Table>().context("Failed to parse Cargo.toml")?;
-        
+        let cargo_toml = cargo_content
+            .parse::<Table>()
+            .context("Failed to parse Cargo.toml")?;
+
         if cargo_toml.get("workspace").is_some() && cargo_toml.get("package").is_none() {
             term.write_line(&format!(
                 "{} Detected Cargo Workspace root at {:?}",
                 style("⚠️").yellow(),
                 cargo_path.parent().unwrap(),
             ))?;
-            term.write_line("   d1c works best when run inside the specific Worker crate directory.")?;
+            term.write_line(
+                "   d1c works best when run inside the specific Worker crate directory.",
+            )?;
 
             let proceed = inquire::Confirm::new("Are you sure you want to initialize here?")
                 .with_default(false)
                 .prompt()?;
-            
+
             if !proceed {
-                term.write_line(&format!("{}", style("Aborting. Please cd into your worker crate.").red()))?;
+                term.write_line(&format!(
+                    "{}",
+                    style("Aborting. Please cd into your worker crate.").red()
+                ))?;
                 return Ok(());
             }
         }
@@ -85,11 +91,17 @@ pub fn run(conn: &Connection, args: &InitArgs) -> Result<(), Error> {
 
         match found_dbs.len() {
             0 => {
-                term.write_line(&format!("{} Found wrangler.toml but no 'd1_databases' configured", style("⚠️").yellow()))?;
+                term.write_line(&format!(
+                    "{} Found wrangler.toml but no 'd1_databases' configured",
+                    style("⚠️").yellow()
+                ))?;
             }
             1 => {
                 let db = &found_dbs[0];
-                term.write_line(&format!("   Detected D1 database: {}", style(&db.name).bold()))?;
+                term.write_line(&format!(
+                    "   Detected D1 database: {}",
+                    style(&db.name).bold()
+                ))?;
 
                 use_detected_migrations_dir =
                     inquire::Confirm::new(&format!("Use '{}' for migrations?", db.migrations_dir))
@@ -102,15 +114,19 @@ pub fn run(conn: &Connection, args: &InitArgs) -> Result<(), Error> {
             }
             _ => {
                 term.write_line("   Found multiple D1 databases.")?;
-                let selection = inquire::Select::new("Which database do you want to use?", found_dbs)
-                    .prompt()?;
-                
+                let selection =
+                    inquire::Select::new("Which database do you want to use?", found_dbs)
+                        .prompt()?;
+
                 migrations_dir = Some(selection.migrations_dir);
                 use_detected_migrations_dir = true;
             }
         }
     } else {
-        term.write_line(&format!("{} No wrangler.toml found - using manual configuration", style("💡").yellow()))?;
+        term.write_line(&format!(
+            "{} No wrangler.toml found - using manual configuration",
+            style("💡").yellow()
+        ))?;
     }
 
     // 4. Interactive Configuration
@@ -121,7 +137,10 @@ pub fn run(conn: &Connection, args: &InitArgs) -> Result<(), Error> {
             term.write_line(&format!("{}", style("   [[d1_databases]]").dim()))?;
             term.write_line(&format!("{}", style("   binding = \"DB\"").dim()))?;
             term.write_line(&format!("{}", style("   database_name = \"my-db\"").dim()))?;
-            term.write_line(&format!("{}", style("   migrations_dir = \"db/migrations\"").dim()))?;
+            term.write_line(&format!(
+                "{}",
+                style("   migrations_dir = \"db/migrations\"").dim()
+            ))?;
             term.write_line("")?;
         }
 
@@ -135,9 +154,9 @@ pub fn run(conn: &Connection, args: &InitArgs) -> Result<(), Error> {
     let queries_default = if use_detected_migrations_dir {
         let mig_dir = migrations_dir.as_ref().unwrap();
         if mig_dir.contains("migrations") {
-             mig_dir.replace("migrations", "queries")
+            mig_dir.replace("migrations", "queries")
         } else {
-             format!("{}/../queries", mig_dir)
+            format!("{}/../queries", mig_dir)
         }
     } else {
         "db/queries".to_string()
@@ -152,7 +171,7 @@ pub fn run(conn: &Connection, args: &InitArgs) -> Result<(), Error> {
         .prompt()?;
 
     let module_name = inquire::Text::new("What is the name of the module for the generated code?")
-        .with_default("d1c")
+        .with_default("queries")
         .prompt()?;
 
     let emit_schema = inquire::Confirm::new("Do you want to emit the schema.sql file?")
@@ -163,14 +182,16 @@ pub fn run(conn: &Connection, args: &InitArgs) -> Result<(), Error> {
         .with_default(true)
         .prompt()?;
 
-    let instrument_by_default = inquire::Confirm::new("Do you want to auto-instrument queries with tracing?")
-        .with_help_message(
-            "Adds #[tracing::instrument] to generated functions. Requires `tracing` crate dependency. \
+    let instrument_by_default = inquire::Confirm::new(
+        "Do you want to auto-instrument queries with tracing?",
+    )
+    .with_help_message(
+        "Adds #[tracing::instrument] to generated functions. Requires `tracing` crate dependency. \
              Intended for use with saavylab/cf-tracing to send query spans to \
-             Workers Queues -> Analytics Enginer -> Grafana"
-        )
-        .with_default(false)
-        .prompt()?;
+             Workers Queues -> Analytics Enginer -> Grafana",
+    )
+    .with_default(false)
+    .prompt()?;
 
     let config = D1CConfig {
         migrations_dir: migrations_dir.unwrap(),
@@ -211,43 +232,77 @@ pub fn run(conn: &Connection, args: &InitArgs) -> Result<(), Error> {
                 .all(|e| e.file_name() == "schema.sql");
 
             if is_empty {
-                let create_example = inquire::Confirm::new("Do you want to create an example query file?")
-                    .with_default(true)
-                    .prompt()?;
-                
+                let create_example =
+                    inquire::Confirm::new("Do you want to create an example query file?")
+                        .with_default(true)
+                        .prompt()?;
+
                 if create_example {
                     let mut example_file = File::create(&example_path)?;
-                    example_file.write_all(b"-- name: ListExample :many\nSELECT 1 as id, 'hello' as message;")?;
+                    example_file.write_all(
+                        b"-- name: ListExample :many\nSELECT 1 as id, 'hello' as message;",
+                    )?;
                 }
             }
         }
 
         term.write_line("")?;
-        term.write_line(&format!("{} Created {}/", style("✅").green(), config.queries_dir))?;
+        term.write_line(&format!(
+            "{} Created {}/",
+            style("✅").green(),
+            config.queries_dir
+        ))?;
         term.write_line("")?;
-        term.write_line(&format!("{} Created {}/", style("✅").green(), config.out_dir))?;
+        term.write_line(&format!(
+            "{} Created {}/",
+            style("✅").green(),
+            config.out_dir
+        ))?;
         term.write_line("")?;
         if config.emit_schema {
-             term.write_line(&format!("{} Created {}/schema.sql", style("✅").green(), config.queries_dir))?;
-             term.write_line("")?;
+            term.write_line(&format!(
+                "{} Created {}/schema.sql",
+                style("✅").green(),
+                config.queries_dir
+            ))?;
+            term.write_line("")?;
         }
         term.write_line(&format!("{} Created d1c.toml", style("✅").green()))?;
         term.write_line("")?;
         term.write_line(&format!("{}", style("Next steps:").bold()))?;
-        term.write_line(
-            &format!("  - Create your first query in {}/example.sql", &config.queries_dir),
-        )?;
-        term.write_line(&format!("  - Run {} to generate typed Rust bindings", style("d1c generate").yellow()))?;
+        term.write_line(&format!(
+            "  - Create your first query in {}/example.sql",
+            &config.queries_dir
+        ))?;
+        term.write_line(&format!(
+            "  - Run {} to generate typed Rust bindings",
+            style("d1c generate").yellow()
+        ))?;
         term.write_line("  - Import them in your Worker:")?;
         term.write_line("")?;
-        term.write_line(&format!("{}", style("      mod d1c; // in lib.rs or main.rs").dim()))?;
-        term.write_line(&format!("{}", style(format!("      use crate::d1c::{}::*;", &config.module_name)).dim()))?;
+        term.write_line(&format!(
+            "{}",
+            style("      mod d1c; // in lib.rs or main.rs").dim()
+        ))?;
+        term.write_line(&format!(
+            "{}",
+            style(format!("      use crate::d1c::{}::*;", &config.module_name)).dim()
+        ))?;
         term.write_line("")?;
         term.write_line(&format!("{} Happy querying!", style("🚀").green()))?;
     } else {
-        term.write_line(&format!("{}", style("================================================").dim()))?;
-        term.write_line(&format!("{} DRY RUN: Would have created d1c.toml with the following contents:", style("⚠️").yellow()))?;
-        term.write_line(&format!("{}", style("================================================").dim()))?;
+        term.write_line(&format!(
+            "{}",
+            style("================================================").dim()
+        ))?;
+        term.write_line(&format!(
+            "{} DRY RUN: Would have created d1c.toml with the following contents:",
+            style("⚠️").yellow()
+        ))?;
+        term.write_line(&format!(
+            "{}",
+            style("================================================").dim()
+        ))?;
         term.write_line(&format!("{}", config_string))?;
     }
 
@@ -278,7 +333,9 @@ fn find_file_upwards(filename: &str) -> Result<Option<(PathBuf, String)>> {
 }
 
 fn parse_d1_databases(wrangler_toml: &str) -> Result<Vec<FoundDb>> {
-    let parsed = wrangler_toml.parse::<Table>().context("Failed to parse wrangler.toml")?;
+    let parsed = wrangler_toml
+        .parse::<Table>()
+        .context("Failed to parse wrangler.toml")?;
     let mut results = Vec::new();
 
     if let Some(toml::Value::Array(dbs)) = parsed.get("d1_databases") {

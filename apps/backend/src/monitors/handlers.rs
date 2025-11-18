@@ -2,8 +2,9 @@ use crate::auth::current_user::CurrentUser;
 use crate::auth::membership::load_membership;
 use crate::cloudflare::d1::AppDb;
 use crate::cloudflare::durable_objects::ticker::AppTicker;
+use crate::d1c::queries::{delete_monitor, get_monitor_by_id, get_monitors_by_org_id};
 use crate::monitors::service::{
-    create_monitor_for_org, delete_monitor_for_org, get_monitor_by_id, get_monitors,
+    create_monitor_for_org,
     update_monitor_for_org,
 };
 use crate::monitors::types::{CreateMonitor, Monitor, UpdateMonitor};
@@ -22,9 +23,10 @@ pub async fn get_monitor_by_id_handler(
 ) -> Result<Json<Monitor>, StatusCode> {
     let org_id = load_membership(&d1, &subject).await?.organization_id;
 
-    match get_monitor_by_id(&d1, &org_id, id).await {
-        Ok(monitor) => Ok(Json(monitor)),
-        Err(err) => Err(err.into()),
+    match get_monitor_by_id(&d1, &org_id, &id).await {
+        Ok(Some(monitor)) => Ok(Json(monitor.into())),
+        Ok(None) => Err(StatusCode::NOT_FOUND),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }
 
@@ -39,9 +41,9 @@ pub async fn get_monitors_handler(
     CurrentUser { subject, .. }: CurrentUser,
 ) -> Result<Json<Vec<Monitor>>, StatusCode> {
     let org_id = load_membership(&d1, &subject).await?.organization_id;
-    match get_monitors(&d1, &org_id).await {
-        Ok(monitors) => Ok(Json(monitors)),
-        Err(err) => Err(err.into()),
+    match get_monitors_by_org_id(&d1, &org_id).await {
+        Ok(monitors) => Ok(Json(monitors.into_iter().map(|monitor| monitor.into()).collect())),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }
 
@@ -95,8 +97,8 @@ pub async fn delete_monitor_handler(
     Path(id): Path<String>,
 ) -> Result<StatusCode, StatusCode> {
     let org_id = load_membership(&d1, &subject).await?.organization_id;
-    match delete_monitor_for_org(&d1, &org_id, &id).await {
+    match delete_monitor(&d1, &id, &org_id).await {
         Ok(_) => Ok(StatusCode::OK),
-        Err(err) => Err(err.into()),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }

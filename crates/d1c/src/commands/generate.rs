@@ -1,8 +1,18 @@
-use std::{fs, path::{Path, PathBuf}};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
+use crate::{
+    commands::{
+        dump_schema::dump_schema,
+        generate::{analyzer::analyze_query, parser::process_query_file, renderer::render_module},
+    },
+    utils::sql::collect_sql_files,
+    D1CConfig,
+};
 use anyhow::Result;
 use rusqlite::Connection;
-use crate::{D1CConfig, commands::{dump_schema::dump_schema, generate::{analyzer::analyze_query, parser::process_query_file, renderer::render_module}}, utils::sql::collect_sql_files};
 
 mod analyzer;
 mod parser;
@@ -24,13 +34,13 @@ pub fn run(conn: &Connection, config: &D1CConfig) -> Result<()> {
     let module_tokens = render_module(&queries, config.instrument_by_default);
     let ast = syn::parse2(module_tokens)?;
     let formatted = prettyplease::unparse(&ast);
-    
+
     let output_file = if config.module_name.ends_with(".rs") {
         config.module_name.clone()
     } else {
         format!("{}.rs", config.module_name)
     };
-    
+
     fs::write(Path::new(&config.out_dir).join(output_file), formatted)?;
 
     // Emit schema.sql if configured
@@ -47,8 +57,11 @@ pub fn run(conn: &Connection, config: &D1CConfig) -> Result<()> {
         } else {
             format!("{}\n", schema_string)
         };
-        
-        fs::write(Path::new(&config.queries_dir).join("schema.sql"), final_schema)?;
+
+        fs::write(
+            Path::new(&config.queries_dir).join("schema.sql"),
+            final_schema,
+        )?;
     }
 
     Ok(())

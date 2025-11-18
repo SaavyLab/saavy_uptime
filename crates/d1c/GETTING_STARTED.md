@@ -52,11 +52,6 @@ CREATE TABLE users (
 );
 ```
 
-**Important**: Ensure you apply them locally so d1c can introspect them:
-```bash
-wrangler d1 migrations apply DB --local
-```
-
 ### Step 3b: Write Queries
 Create `.sql` files in your queries directory (e.g., `db/queries/users.sql`). Use the `-- name:` header to define the function name and return type.
 
@@ -81,7 +76,7 @@ Run the generator:
 d1c generate
 ```
 
-This creates a Rust file (default: `src/d1c/d1c.rs`) containing type-safe functions for your queries.
+This creates a Rust file (default: `src/d1c/queries.rs`) containing type-safe functions for your queries.
 
 > **Pro Tip**: Run `d1c watch` in a separate terminal to automatically regenerate code whenever you save a `.sql` file.
 
@@ -94,7 +89,7 @@ Import the module in your Worker and use the functions. They are `async` and tak
 ```rust
 // src/lib.rs or src/main.rs
 mod d1c; // matching the directory you generated into
-use crate::d1c::d1c::*; // import generated functions
+use crate::d1c::queries::*; // import generated functions
 
 #[worker::event(fetch)]
 async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
@@ -116,26 +111,19 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
 
 ---
 
-## Advanced Usage
+## Next Steps
 
-### Tracing / Observability
-If you use `tracing`, you can auto-instrument all database queries.
-1.  Set `instrument_by_default = true` in `d1c.toml`.
-2.  Generated functions will have `#[tracing::instrument(name = "d1c.query_name")]`.
+Now that you have d1c set up, check out:
 
-To skip sensitive fields (like passwords) from logs:
-```sql
--- name: Login :one
--- instrument: skip(password)
-SELECT * FROM users WHERE email = :email AND password = :password;
-```
+- **[QUERY_FORMAT.md](QUERY_FORMAT.md)** – Complete reference for query syntax, cardinalities, and headers
+- **[README.md#observability-with-cf-tracing](README.md#observability-with-cf-tracing)** – Enable automatic tracing for database queries
+- **`d1c watch`** – Run in a separate terminal to auto-regenerate on file changes
 
-### Explicit Parameter Types
-If type inference fails or you want to use a custom type (like a NewType wrapper), use the `-- params:` header:
+### Tips for Success
 
-```sql
--- name: GetUserBalance :one
--- params: user_id UserId
-SELECT balance FROM accounts WHERE user_id = :user_id;
-```
-*Note: You must ensure `UserId` is in scope in your Rust code.*
+1. **Commit generated code** – Treat `src/d1c/queries.rs` like any other source file
+2. **Use `d1c watch`** – Faster workflow during development
+3. **Name queries clearly** – `get_user_by_email` beats `user_query_1`
+4. **Review the QUERY_FORMAT** – Learn about `:one`, `:many`, `:exec`, `:scalar` and when to use each
+
+Happy querying! 🚀

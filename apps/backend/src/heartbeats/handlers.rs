@@ -1,7 +1,8 @@
 use crate::auth::membership::load_membership;
 use crate::cloudflare::d1::AppDb;
 use crate::heartbeats::types::{GetHeartbeatsParams, Heartbeat};
-use crate::{auth::current_user::CurrentUser, heartbeats::service::get_heartbeats_by_monitor_id};
+use crate::utils::date::now_ms;
+use crate::{auth::current_user::CurrentUser, d1c::queries::get_heartbeats_by_monitor_id};
 use axum::{
     extract::{Path, Query},
     http::StatusCode,
@@ -22,8 +23,11 @@ pub async fn get_heartbeats_by_monitor_id_handler(
     CurrentUser { subject, .. }: CurrentUser,
 ) -> Result<Json<Vec<Heartbeat>>, StatusCode> {
     let org_id = load_membership(&d1, &subject).await?.organization_id;
-    match get_heartbeats_by_monitor_id(&d1, &org_id, &monitor_id, params).await {
-        Ok(heartbeats) => Ok(Json(heartbeats)),
-        Err(err) => Err(err.into()),
+    let before = params.before.unwrap_or(now_ms());
+    let limit = params.limit.unwrap_or(50);
+
+    match get_heartbeats_by_monitor_id(&d1, &org_id, &monitor_id, before, limit).await {
+        Ok(heartbeats) => Ok(Json(heartbeats.into_iter().map(|heartbeat| heartbeat.into()).collect())),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }

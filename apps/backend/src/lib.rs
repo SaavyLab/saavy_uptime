@@ -7,7 +7,7 @@ use worker_macros::event;
 pub mod auth;
 pub mod bootstrap;
 pub mod cloudflare;
-pub mod db;
+pub mod d1c;
 pub mod external;
 pub mod heartbeats;
 pub mod internal;

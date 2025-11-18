@@ -45,6 +45,66 @@ pub struct Monitor {
     pub updated_at: i64,
 }
 
+impl From<crate::d1c::queries::GetMonitorByIdRow> for Monitor {
+    fn from(row: crate::d1c::queries::GetMonitorByIdRow) -> Self {
+        Monitor {
+            id: row.id,
+            org_id: row.org_id,
+            name: row.name,
+            kind: row.kind,
+            url: row.url,
+            interval_s: row.interval_s,
+            timeout_ms: row.timeout_ms,
+            follow_redirects: row.follow_redirects,
+            verify_tls: row.verify_tls,
+            expect_status_low: Some(row.expect_status_low),
+            expect_status_high: Some(row.expect_status_high),
+            expect_substring: Some(row.expect_substring),
+            headers_json: Some(row.headers_json),
+            tags_json: Some(row.tags_json),
+            enabled: row.enabled,
+            last_checked_at_ts: Some(row.last_checked_at_ts),
+            next_run_at_ts: Some(row.next_run_at_ts),
+            current_status: row.current_status,
+            last_ok: row.last_ok,
+            consecutive_failures: row.consecutive_failures,
+            current_incident_id: Some(row.current_incident_id),
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+        }
+    }
+}
+
+impl From<crate::d1c::queries::GetMonitorsByOrgIdRow> for Monitor {
+    fn from(row: crate::d1c::queries::GetMonitorsByOrgIdRow) -> Self {
+        Monitor {
+            id: row.id,
+            org_id: row.org_id,
+            name: row.name,
+            kind: row.kind,
+            url: row.url,
+            interval_s: row.interval_s,
+            timeout_ms: row.timeout_ms,
+            follow_redirects: row.follow_redirects,
+            verify_tls: row.verify_tls,
+            expect_status_low: Some(row.expect_status_low),
+            expect_status_high: Some(row.expect_status_high),
+            expect_substring: Some(row.expect_substring),
+            headers_json: Some(row.headers_json),
+            tags_json: Some(row.tags_json),
+            enabled: row.enabled,
+            last_checked_at_ts: Some(row.last_checked_at_ts),
+            next_run_at_ts: Some(row.next_run_at_ts),
+            current_status: row.current_status,
+            last_ok: row.last_ok,
+            consecutive_failures: row.consecutive_failures,
+            current_incident_id: Some(row.current_incident_id),
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum MonitorError {
     // pub status_code: u16,
