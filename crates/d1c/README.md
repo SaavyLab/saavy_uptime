@@ -224,10 +224,10 @@ Queries use special comment headers to specify behavior:
 
 **Cardinalities:**
 
-- `:one` – Returns `Option<Row>` (expects 0 or 1 results)
-- `:many` – Returns `Vec<Row>` (any number of results)
-- `:exec` – Returns nothing (for INSERT/UPDATE/DELETE without RETURNING)
-- `:scalar` – Returns `Option<T>` (for single-column results like `COUNT(*)`)
+- `:one` – Returns `Result<Option<Row>>` (expects 0 or 1 results)
+- `:many` – Returns `Result<Vec<Row>>` (any number of results)
+- `:exec` – Returns `Result<()>` (for INSERT/UPDATE/DELETE without RETURNING)
+- `:scalar` – Returns `Result<Option<T>>` (for single-column results like `COUNT(*)`)
 
 **Named parameters:**
 
@@ -340,6 +340,16 @@ Options:
 - `--config <path>` – Use a different config file (default: `d1c.toml`)
 - `--check` – Verify queries are valid without writing files
 
+### `d1c watch`
+
+Watch your queries directory for changes and automatically regenerate bindings.
+
+```bash
+d1c watch
+```
+
+This creates a long-running process that listens for file system events. It debounces rapid changes to prevent redundant builds.
+
 ### `d1c dump-schema`
 
 Export the current schema as SQL (useful for debugging).
@@ -368,7 +378,49 @@ codegen_dir = "src/db"
 
 # Optional: module name for generated code (default: "queries")
 module_name = "queries"
+
+# Optional: automatically instrument generated functions with tracing (default: false)
+# Requires the `tracing` crate in your dependencies.
+instrument_by_default = true
 ```
+
+---
+
+## Advanced Features
+
+### Tracing Integration
+
+d1c supports `tracing` out of the box. When enabled, generated functions are annotated with `#[tracing::instrument]`.
+
+To enable:
+1. Add `instrument_by_default = true` to your `d1c.toml` (or answer "Yes" during `d1c init`).
+2. Ensure `tracing` is in your `Cargo.toml`.
+
+By default, all arguments (except the `d1` connection) are included in the span. To skip specific sensitive or large arguments, use the `-- instrument:` header:
+
+```sql
+-- name: LoginUser :one
+-- instrument: skip(password_hash)
+SELECT * FROM users WHERE email = :email AND password_hash = :password_hash;
+```
+
+This generates:
+```rust
+#[tracing::instrument(name = "d1c.login_user", skip(d1, password_hash))]
+pub async fn login_user(...) { ... }
+```
+
+### Explicit Parameter Types
+
+Sometimes d1c's type inference isn't enough, or you want to enforce specific Rust types (e.g., using a newtype wrapper or handling a complex expression). You can use the `-- params:` header:
+
+```sql
+-- name: GetUserBalance :one
+-- params: user_id UserId, currency String
+SELECT balance FROM accounts WHERE user_id = :user_id AND currency = :currency;
+```
+
+d1c will use the types you specify exactly as written. Note that you are responsible for ensuring these types are in scope (e.g., by importing them in `src/db/mod.rs` or using fully qualified paths).
 
 ---
 
