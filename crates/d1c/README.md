@@ -328,9 +328,17 @@ d1c keeps the good parts (typed queries from SQL) while respecting Workers' cons
 
 ## Commands
 
+### `d1c init`
+
+Initialize `d1c.toml` in your project.
+
+```bash
+d1c init
+```
+
 ### `d1c generate`
 
-Generate Rust code from your queries.
+Generate Rust code from your queries. It also updates `schema.sql` in your queries directory for reference.
 
 ```bash
 d1c generate
@@ -341,7 +349,7 @@ Options:
 
 ### `d1c watch`
 
-Watch your queries directory for changes and automatically regenerate bindings.
+Watch your queries directory for changes and automatically regenerate bindings (and `schema.sql`).
 
 ```bash
 d1c watch
@@ -351,7 +359,7 @@ This creates a long-running process that listens for file system events. It debo
 
 ### `d1c dump-schema`
 
-Export the current schema as SQL (useful for debugging).
+Export the current schema as SQL to stdout.
 
 ```bash
 d1c dump-schema > db/schema.sql
