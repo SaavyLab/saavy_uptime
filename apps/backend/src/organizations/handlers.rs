@@ -1,3 +1,4 @@
+use crate::auth::membership::load_membership;
 use crate::{auth::current_user::CurrentUser, cloudflare::d1::AppDb};
 use axum::{
     extract::Path,
@@ -6,37 +7,8 @@ use axum::{
     Json,
 };
 use cuid2::create_id;
-use serde::{Deserialize, Serialize};
 use crate::d1c::queries::{create_organization, get_organization_by_id};
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all(deserialize = "camelCase"))]
-pub struct CreateOrganization {
-    pub slug: String,
-    pub name: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all(serialize = "camelCase"))]
-pub struct Organization {
-    pub id: String,
-    pub slug: String,
-    pub name: String,
-    pub created_at: i64,
-    pub owner_id: String,
-}
-
-impl From<crate::d1c::queries::GetOrganizationByIdRow> for Organization {
-    fn from(row: crate::d1c::queries::GetOrganizationByIdRow) -> Self {
-        Organization {
-            id: row.id.unwrap_or_default(),
-            slug: row.slug,
-            name: row.name,
-            created_at: row.created_at,
-            owner_id: row.owner_id,
-        }
-    }
-}
+use crate::organizations::types::{CreateOrganization, Organization, OrganizationError};
 
 #[worker::send]
 pub async fn get_organization_by_id_handler(
@@ -44,10 +16,15 @@ pub async fn get_organization_by_id_handler(
     Path(id): Path<String>,
     CurrentUser {
         email: _,
-        subject: _,
+        subject,
         claims: _,
     }: CurrentUser,
 ) -> Result<Json<Organization>, StatusCode> {
+    let membership = load_membership(&d1, &subject).await?;
+    if membership.organization_id != id {
+        return Err(StatusCode::FORBIDDEN);
+    }
+    
     match get_organization_by_id(&d1, &id).await {
         Ok(Some(organization)) => Ok(Json(organization.into())),
         Ok(None) => Err(StatusCode::NOT_FOUND),
@@ -66,7 +43,9 @@ pub async fn create_organization_handler(
     Json(payload): Json<CreateOrganization>,
 ) -> Result<Json<Organization>, StatusCode> {
     let id = create_id().to_string();
-    let _ = create_organization(&d1, &id, &payload.slug, &payload.name).await;
+    create_organization(&d1, &id, &payload.slug, &payload.name)
+        .await
+        .map_err(OrganizationError::DbRun)?;
 
     match get_organization_by_id(&d1, &id).await {
         Ok(Some(organization)) => Ok(Json(organization.into())),

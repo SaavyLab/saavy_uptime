@@ -9,6 +9,7 @@ use crate::monitors::service::{
 };
 use crate::monitors::types::{CreateMonitor, Monitor, UpdateMonitor};
 use axum::{extract::Path, http::StatusCode, response::Result, Json};
+use worker::console_error;
 
 #[worker::send]
 #[tracing::instrument(
@@ -99,6 +100,9 @@ pub async fn delete_monitor_handler(
     let org_id = load_membership(&d1, &subject).await?.organization_id;
     match delete_monitor(&d1, &id, &org_id).await {
         Ok(_) => Ok(StatusCode::OK),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+        Err(err) => {
+            console_error!("monitors.delete: {err:?}");
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
     }
 }

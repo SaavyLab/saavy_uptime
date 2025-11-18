@@ -31,7 +31,7 @@ pub fn run(conn: &Connection, config: &D1CConfig) -> Result<()> {
         analyze_query(conn, &mut query)?;
     }
 
-    let module_tokens = render_module(&queries, config.instrument_by_default);
+    let module_tokens = render_module(&queries, config.instrument_by_default)?;
     let ast = syn::parse2(module_tokens)?;
     let formatted = prettyplease::unparse(&ast);
 

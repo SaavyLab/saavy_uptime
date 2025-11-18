@@ -5,6 +5,7 @@ use axum::{
 };
 
 mod handlers;
+mod types;
 
 pub fn router() -> Router<AppState> {
     Router::new()

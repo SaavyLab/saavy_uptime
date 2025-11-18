@@ -21,7 +21,9 @@ pub async fn create_monitor_for_org(
     monitor: CreateMonitor,
 ) -> Result<Monitor, MonitorError> {
     let id = create_id().to_string();
-    let _ = create_monitor(&d1, &id, &org_id, &monitor.name.as_str(), "http", &monitor.url.as_str(), monitor.interval, monitor.timeout, monitor.follow_redirects as i64, monitor.verify_tls as i64, now_ms(), now_ms()).await;
+    create_monitor(&d1, &id, &org_id, &monitor.name.as_str(), "http", &monitor.url.as_str(), monitor.interval, monitor.timeout, monitor.follow_redirects as i64, monitor.verify_tls as i64, now_ms(), now_ms())
+        .await
+        .map_err(MonitorError::DbRun)?;
 
     ensure_ticker_bootstrapped(ticker, org_id)
         .await
