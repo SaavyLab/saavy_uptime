@@ -24,7 +24,14 @@ pub fn run(conn: &Connection, config: &D1CConfig) -> Result<()> {
     let module_tokens = render_module(&queries, config.instrument_by_default);
     let ast = syn::parse2(module_tokens)?;
     let formatted = prettyplease::unparse(&ast);
-    fs::write(Path::new(&config.out_dir).join("queries.rs"), formatted)?;
+    
+    let output_file = if config.module_name.ends_with(".rs") {
+        config.module_name.clone()
+    } else {
+        format!("{}.rs", config.module_name)
+    };
+    
+    fs::write(Path::new(&config.out_dir).join(output_file), formatted)?;
 
     // Emit schema.sql if configured
     if config.emit_schema {
@@ -41,7 +48,7 @@ pub fn run(conn: &Connection, config: &D1CConfig) -> Result<()> {
             format!("{}\n", schema_string)
         };
         
-        fs::write(Path::new(&config.out_dir).join("schema.sql"), final_schema)?;
+        fs::write(Path::new(&config.queries_dir).join("schema.sql"), final_schema)?;
     }
 
     Ok(())

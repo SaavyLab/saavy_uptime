@@ -152,7 +152,7 @@ pub fn run(conn: &Connection, args: &InitArgs) -> Result<(), Error> {
         .prompt()?;
 
     let module_name = inquire::Text::new("What is the name of the module for the generated code?")
-        .with_default("queries")
+        .with_default("d1c")
         .prompt()?;
 
     let emit_schema = inquire::Confirm::new("Do you want to emit the schema.sql file?")
@@ -198,7 +198,7 @@ pub fn run(conn: &Connection, args: &InitArgs) -> Result<(), Error> {
                 .map(|row| row.sql.clone())
                 .collect::<Vec<String>>()
                 .join("\n\n");
-            let mut schema_file = File::create(Path::new(&config.out_dir).join("schema.sql"))?;
+            let mut schema_file = File::create(Path::new(&config.queries_dir).join("schema.sql"))?;
             schema_file.write_all(schema_string.as_bytes())?;
         }
 
@@ -215,7 +215,7 @@ pub fn run(conn: &Connection, args: &InitArgs) -> Result<(), Error> {
         term.write_line(&format!("{} Created {}/", style("✅").green(), config.out_dir))?;
         term.write_line("")?;
         if config.emit_schema {
-             term.write_line(&format!("{} Created {}/schema.sql", style("✅").green(), config.out_dir))?;
+             term.write_line(&format!("{} Created {}/schema.sql", style("✅").green(), config.queries_dir))?;
              term.write_line("")?;
         }
         term.write_line(&format!("{} Created d1c.toml", style("✅").green()))?;

@@ -35,6 +35,7 @@ pub fn collect_sql_files(dir: PathBuf) -> Result<Vec<PathBuf>> {
         .filter(|entry| entry.file_type().is_file())
         .map(|entry| entry.into_path())
         .filter(|path| path.extension().map(|ext| ext == "sql").unwrap_or(false))
+        .filter(|path| path.file_name().map(|n| n != "schema.sql").unwrap_or(true))
         .collect();
 
     files.sort();

@@ -33,6 +33,11 @@ pub fn run(conn: &Connection, config: &D1CConfig) -> Result<()> {
                     continue;
                 }
 
+                // Ignore schema.sql changes to avoid infinite loops since we generate it
+                if event.paths.iter().any(|p| p.file_name().map(|n| n == "schema.sql").unwrap_or(false)) {
+                    continue;
+                }
+
                 // Filter out noise events (unknown/other) if they are causing issues, 
                 // but usually Modify/Create/Remove are what we want.
                 

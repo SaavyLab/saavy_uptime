@@ -383,8 +383,8 @@ queries_dir = "db/queries"
 # Required: where to write generated Rust code
 codegen_dir = "src/db"
 
-# Optional: module name for generated code (default: "queries")
-module_name = "queries"
+# Optional: module name for generated code (default: "d1c")
+module_name = "d1c"
 
 # Optional: automatically instrument generated functions with tracing (default: false)
 # Requires the `tracing` crate in your dependencies.
