@@ -9,6 +9,7 @@ use axum::{
     response::Result,
     Json,
 };
+use worker::console_error;
 
 #[worker::send]
 #[tracing::instrument(
@@ -27,7 +28,15 @@ pub async fn get_heartbeats_by_monitor_id_handler(
     let limit = params.limit.unwrap_or(50);
 
     match get_heartbeats_by_monitor_id(&d1, &org_id, &monitor_id, before, limit).await {
-        Ok(heartbeats) => Ok(Json(heartbeats.into_iter().map(|heartbeat| heartbeat.into()).collect())),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+        Ok(heartbeats) => Ok(Json(
+            heartbeats
+                .into_iter()
+                .map(|heartbeat| heartbeat.into())
+                .collect(),
+        )),
+        Err(err) => {
+            console_error!("heartbeats.get_by_monitor_id: {err:?}");
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
     }
 }

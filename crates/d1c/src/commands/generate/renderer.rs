@@ -158,8 +158,13 @@ fn render_function(query: &Query, instrument: bool) -> TokenStream {
                 }
             };
 
+            let binding_expr = match rust_type_str {
+                "i64" => quote! { (#param_name as f64).into() },
+                _ => quote! { #param_name.into() },
+            };
+
             func_args.push(quote! { #param_name: #arg_type });
-            bind_args.push(quote! { #param_name.into() });
+            bind_args.push(binding_expr);
         }
     }
 

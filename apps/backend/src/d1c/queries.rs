@@ -21,10 +21,10 @@ pub async fn write_heartbeat(
             &[
                 monitor_id.into(),
                 dispatch_id.into(),
-                ts.into(),
-                ok.into(),
-                code.into(),
-                rtt_ms.into(),
+                (ts as f64).into(),
+                (ok as f64).into(),
+                (code as f64).into(),
+                (rtt_ms as f64).into(),
                 err.into(),
                 region.into(),
             ],
@@ -57,7 +57,14 @@ pub async fn get_heartbeats_by_monitor_id(
             "SELECT h.*, m.org_id FROM heartbeats AS h INNER JOIN monitors AS m ON h.monitor_id = m.id WHERE m.org_id = ?1 AND h.monitor_id = ?2 AND h.ts < ?3 ORDER BY h.ts DESC LIMIT ?4",
         );
     let stmt = stmt
-        .bind(&[org_id.into(), monitor_id.into(), before.into(), limit.into()])?;
+        .bind(
+            &[
+                org_id.into(),
+                monitor_id.into(),
+                (before as f64).into(),
+                (limit as f64).into(),
+            ],
+        )?;
     let result = stmt.all().await?;
     let rows = result.results::<GetHeartbeatsByMonitorIdRow>()?;
     Ok(rows)
@@ -73,7 +80,7 @@ pub async fn dispatch_monitor(
         .prepare(
             "UPDATE monitor_dispatches SET status = ?1, dispatched_at_ts = ?2 WHERE id = ?3",
         );
-    let stmt = stmt.bind(&[status.into(), dispatched_at_ts.into(), id.into()])?;
+    let stmt = stmt.bind(&[status.into(), (dispatched_at_ts as f64).into(), id.into()])?;
     stmt.run().await?;
     Ok(())
 }
@@ -88,7 +95,7 @@ pub async fn complete_dispatch(
         .prepare(
             "UPDATE monitor_dispatches SET status = ?1, completed_at_ts = ?2 WHERE id = ?3",
         );
-    let stmt = stmt.bind(&[status.into(), completed_at_ts.into(), id.into()])?;
+    let stmt = stmt.bind(&[status.into(), (completed_at_ts as f64).into(), id.into()])?;
     stmt.run().await?;
     Ok(())
 }
@@ -119,12 +126,12 @@ pub async fn create_monitor(
                 name.into(),
                 kind.into(),
                 url.into(),
-                interval_s.into(),
-                timeout_ms.into(),
-                follow_redirects.into(),
-                verify_tls.into(),
-                created_at.into(),
-                updated_at.into(),
+                (interval_s as f64).into(),
+                (timeout_ms as f64).into(),
+                (follow_redirects as f64).into(),
+                (verify_tls as f64).into(),
+                (created_at as f64).into(),
+                (updated_at as f64).into(),
             ],
         )?;
     stmt.run().await?;

@@ -27,7 +27,7 @@ pub async fn create_monitor_for_org(
         .await
         .map_err(MonitorError::Bootstrap)?;
 
-    match get_monitor_by_id(&d1, &org_id, &id).await {
+    match get_monitor_by_id(&d1, &id, &org_id).await {
         Ok(Some(monitor)) => Ok(monitor.into()),
         Ok(None) => Err(MonitorError::NotFound),
         Err(_) => Err(MonitorError::DbRun(worker::Error::RustError("Failed to get monitor".to_string()))),
