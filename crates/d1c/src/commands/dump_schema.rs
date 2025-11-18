@@ -3,7 +3,13 @@ use rusqlite::Connection;
 
 pub fn run(conn: &Connection) -> Result<()> {
     println!("Dumping schema...");
-    dump_schema(conn)?;
+    let rows = dump_schema(conn)?;
+
+    for row in rows {
+        println!("-- Table: {}", row.name);
+        println!("{};\n", row.sql);
+    }
+
     println!("Schema dumped successfully");
 
     Ok(())

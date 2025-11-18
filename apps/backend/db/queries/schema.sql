@@ -8,23 +8,33 @@ CREATE TABLE heartbeats (
   region TEXT, dispatch_id TEXT REFERENCES monitor_dispatches(id) ON DELETE SET NULL,
   PRIMARY KEY (monitor_id, ts)
 )
+
 CREATE INDEX idx_heartbeats_monitor_ts
   ON heartbeats (monitor_id, ts DESC)
+
 CREATE INDEX idx_heartbeats_ts_only
   ON heartbeats (ts DESC)
+
 CREATE INDEX idx_incidents_monitor_opened
   ON incidents (monitor_id, opened_ts DESC)
+
 CREATE INDEX idx_incidents_status
   ON incidents (status, monitor_id) WHERE status = 'open'
+
 CREATE INDEX idx_monitor_dispatches_monitor
   ON monitor_dispatches (monitor_id, created_at DESC)
+
 CREATE INDEX idx_monitors_current_status
   ON monitors (current_status)
+
 CREATE INDEX idx_monitors_org_enabled_next_run
   ON monitors (org_id, enabled, next_run_at_ts)
+
 CREATE INDEX idx_notifications_monitor_kind
   ON notifications (monitor_id, kind)
+
 CREATE INDEX idx_organizations_owner_id ON organizations (owner_id)
+
 CREATE TABLE incidents (
   id TEXT PRIMARY KEY,
   monitor_id TEXT NOT NULL REFERENCES monitors(id) ON DELETE CASCADE,
@@ -35,6 +45,7 @@ CREATE TABLE incidents (
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 )
+
 CREATE TABLE members (
   identity_id TEXT NOT NULL UNIQUE PRIMARY KEY, -- references sub from CF Access JWT
   email TEXT NOT NULL,
@@ -42,6 +53,7 @@ CREATE TABLE members (
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 )
+
 CREATE TABLE monitor_dispatches (
   id TEXT PRIMARY KEY,
   monitor_id TEXT NOT NULL REFERENCES monitors(id) ON DELETE CASCADE,
@@ -54,6 +66,7 @@ CREATE TABLE monitor_dispatches (
   error TEXT,
   created_at INTEGER NOT NULL
 )
+
 CREATE TABLE monitors (
   id TEXT PRIMARY KEY,
   org_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -81,6 +94,7 @@ CREATE TABLE monitors (
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 )
+
 CREATE TABLE notifications (
   id TEXT PRIMARY KEY,
   monitor_id TEXT NOT NULL REFERENCES monitors(id) ON DELETE CASCADE,
@@ -90,6 +104,7 @@ CREATE TABLE notifications (
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 )
+
 CREATE TABLE organization_members (
   organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   identity_id TEXT NOT NULL, -- intentionally not a foreign key to allow for deletion of members from the organization
@@ -99,12 +114,14 @@ CREATE TABLE organization_members (
 
   PRIMARY KEY (organization_id, identity_id)
 )
+
 CREATE TABLE organizations (
   id TEXT PRIMARY KEY,
   slug TEXT NOT NULL UNIQUE,
   name TEXT NOT NULL, -- Display name
   created_at INTEGER NOT NULL
 , owner_id TEXT NOT NULL REFERENCES members(identity_id) ON DELETE CASCADE)
+
 CREATE TABLE settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL,

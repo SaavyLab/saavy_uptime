@@ -5,9 +5,10 @@ use axum::{
 };
 
 mod handlers;
+mod types;
 
 pub fn router() -> Router<AppState> {
     Router::new()
-        .route("/{id}", get(handlers::get_organization_by_id))
-        .route("/", post(handlers::create_organization))
+        .route("/{id}", get(handlers::get_organization_by_id_handler))
+        .route("/", post(handlers::create_organization_handler))
 }

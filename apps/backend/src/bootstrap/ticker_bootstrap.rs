@@ -1,4 +1,4 @@
-use crate::bootstrap::types::BootstrapError;
+use crate::{bootstrap::types::BootstrapError, d1c::queries::select_all_org_ids};
 use serde::{Deserialize, Serialize};
 use std::result::Result;
 use worker::{
@@ -47,12 +47,7 @@ pub async fn ensure_all_tickers(
     ticker: &ObjectNamespace,
     d1: &D1Database,
 ) -> Result<TickerReconcileSummary, BootstrapError> {
-    let statement = d1.prepare("SELECT id FROM organizations");
-    let rows = statement
-        .all()
-        .await?
-        .results::<OrgRow>()
-        .map_err(|err| worker::Error::RustError(format!("ticker bootstrap rows: {err:?}")))?;
+    let rows = select_all_org_ids(&d1).await?;
 
     let mut summary = TickerReconcileSummary {
         organizations: rows.len(),
@@ -61,10 +56,14 @@ pub async fn ensure_all_tickers(
     };
 
     for org in rows {
-        if let Err(err) = ensure_ticker_bootstrapped(&ticker, &org.id).await {
+        if org.id.is_none() {
+            continue;
+        }
+        let org_id = org.id.unwrap();
+        if let Err(err) = ensure_ticker_bootstrapped(&ticker, &org_id).await {
             console_error!(
                 "ticker.ensure_all: bootstrap failed for {}: {err:?}",
-                org.id
+                org_id
             );
             summary.failed += 1;
         } else {

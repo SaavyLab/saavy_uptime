@@ -8,7 +8,6 @@ use walkdir::WalkDir;
 /// This is called a single time at entry of the CLI so we don't accidentally
 /// re-apply migrations for anything that needs the in-memory database.
 pub fn replay_migrations(conn: &Connection, migrations_dir: &str) -> Result<()> {
-
     let entries = collect_sql_files(PathBuf::from(migrations_dir))?;
 
     for entry in entries {
@@ -35,6 +34,7 @@ pub fn collect_sql_files(dir: PathBuf) -> Result<Vec<PathBuf>> {
         .filter(|entry| entry.file_type().is_file())
         .map(|entry| entry.into_path())
         .filter(|path| path.extension().map(|ext| ext == "sql").unwrap_or(false))
+        .filter(|path| path.file_name().map(|n| n != "schema.sql").unwrap_or(true))
         .collect();
 
     files.sort();

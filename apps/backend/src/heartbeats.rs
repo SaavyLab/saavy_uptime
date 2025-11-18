@@ -2,7 +2,6 @@ use crate::router::AppState;
 use axum::{routing::get, Router};
 
 pub mod handlers;
-pub mod service;
 pub mod types;
 
 // Most of these routes are nested under the /monitors route

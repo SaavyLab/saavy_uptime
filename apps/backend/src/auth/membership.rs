@@ -2,6 +2,8 @@ use axum::http::StatusCode;
 use serde::Deserialize;
 use worker::{console_error, D1Database};
 
+use crate::d1c::queries::select_org_member;
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct Membership {
     pub organization_id: String,
@@ -20,20 +22,11 @@ pub async fn load_membership(
     d1: &D1Database,
     identity_id: &str,
 ) -> Result<Membership, MembershipError> {
-    let statement = d1.prepare(
-        "SELECT organization_id, role
-         FROM organization_members
-         WHERE identity_id = ?1
-         ORDER BY created_at DESC
-         LIMIT 1",
-    );
-
-    let query = statement
-        .bind(&[identity_id.into()])
-        .map_err(|err| MembershipError::DbBind(err))?;
-
-    match query.first::<Membership>(None).await {
-        Ok(Some(row)) => Ok(row),
+    match select_org_member(&d1, identity_id).await {
+        Ok(Some(row)) => Ok(Membership {
+            organization_id: row.organization_id,
+            role: row.role,
+        }),
         Ok(None) => Err(MembershipError::NotFound),
         Err(err) => Err(MembershipError::DbRun(err)),
     }

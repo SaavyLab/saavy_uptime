@@ -53,3 +53,19 @@ pub struct Heartbeat {
     pub region: Option<String>,
     pub dispatch_id: String,
 }
+
+impl From<crate::d1c::queries::GetHeartbeatsByMonitorIdRow> for Heartbeat {
+    fn from(row: crate::d1c::queries::GetHeartbeatsByMonitorIdRow) -> Self {
+        Heartbeat {
+            monitor_id: row.monitor_id,
+            org_id: row.org_id,
+            ts: row.ts,
+            ok: row.ok,
+            code: row.code.map(|r| r as u16),
+            rtt_ms: row.rtt_ms,
+            err: row.err,
+            region: row.region,
+            dispatch_id: row.dispatch_id.unwrap_or_default(),
+        }
+    }
+}

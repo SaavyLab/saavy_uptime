@@ -1,63 +1,40 @@
-use crate::auth::current_user::CurrentUser;
-use crate::cloudflare::d1::get_d1;
-use crate::router::AppState;
-use crate::utils::date::now_ms;
+use crate::auth::membership::load_membership;
+use crate::{auth::current_user::CurrentUser, cloudflare::d1::AppDb};
 use axum::{
-    extract::{Path, State},
+    extract::Path,
     http::StatusCode,
     response::Result,
     Json,
 };
 use cuid2::create_id;
-use serde::{Deserialize, Serialize};
-use worker::wasm_bindgen::JsValue;
-
-use crate::utils::wasm_types::js_number;
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all(deserialize = "camelCase"))]
-pub struct CreateOrganization {
-    pub slug: String,
-    pub name: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all(serialize = "camelCase"))]
-pub struct Organization {
-    pub id: String,
-    pub slug: String,
-    pub name: String,
-    pub created_at: i64,
-    pub owner_id: String,
-    pub updated_at: i64,
-}
+use crate::d1c::queries::{create_organization, get_organization_by_id};
+use crate::organizations::types::{CreateOrganization, Organization, OrganizationError};
 
 #[worker::send]
-pub async fn get_organization_by_id(
-    State(state): State<AppState>,
+pub async fn get_organization_by_id_handler(
+    AppDb(d1): AppDb,
     Path(id): Path<String>,
     CurrentUser {
         email: _,
-        subject: _,
+        subject,
         claims: _,
     }: CurrentUser,
 ) -> Result<Json<Organization>, StatusCode> {
-    let d1 = get_d1(&state.env()).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let statement = d1.prepare("SELECT * FROM organizations WHERE id = ?1");
-    let query = statement
-        .bind(&[id.into()])
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    match query.first::<Organization>(None).await {
-        Ok(Some(organization)) => Ok(Json(organization)),
+    let membership = load_membership(&d1, &subject).await?;
+    if membership.organization_id != id {
+        return Err(StatusCode::FORBIDDEN);
+    }
+    
+    match get_organization_by_id(&d1, &id).await {
+        Ok(Some(organization)) => Ok(Json(organization.into())),
         Ok(None) => Err(StatusCode::NOT_FOUND),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }
 
 #[worker::send]
-pub async fn create_organization(
-    State(state): State<AppState>,
+pub async fn create_organization_handler(
+    AppDb(d1): AppDb,
     CurrentUser {
         email: _,
         subject: _,
@@ -65,34 +42,13 @@ pub async fn create_organization(
     }: CurrentUser,
     Json(payload): Json<CreateOrganization>,
 ) -> Result<Json<Organization>, StatusCode> {
-    let d1 = get_d1(&state.env()).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let statement = d1
-        .prepare("INSERT INTO organizations (id, slug, name, created_at) VALUES (?1, ?2, ?3, ?4)");
     let id = create_id().to_string();
-    let now = now_ms();
-
-    let bind_values = vec![
-        JsValue::from_str(&id),
-        JsValue::from_str(&payload.slug),
-        JsValue::from_str(&payload.name),
-        js_number(now),
-    ];
-
-    let query = statement
-        .bind(&bind_values)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    query
-        .run()
+    create_organization(&d1, &id, &payload.slug, &payload.name)
         .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        .map_err(OrganizationError::DbRun)?;
 
-    let get_statement = d1.prepare("SELECT * FROM organizations WHERE id = ?1");
-    let get_query = get_statement
-        .bind(&[id.into()])
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    match get_query.first::<Organization>(None).await {
-        Ok(Some(organization)) => Ok(Json(organization)),
+    match get_organization_by_id(&d1, &id).await {
+        Ok(Some(organization)) => Ok(Json(organization.into())),
         Ok(None) => Err(StatusCode::INTERNAL_SERVER_ERROR),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }

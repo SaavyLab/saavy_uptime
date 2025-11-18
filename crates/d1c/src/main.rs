@@ -33,6 +33,8 @@ pub struct D1CConfig {
     pub out_dir: String,
     pub module_name: String,
     pub emit_schema: bool,
+    #[serde(default)] // To support existing configs without this field
+    pub instrument_by_default: bool,
 }
 
 impl D1CConfig {

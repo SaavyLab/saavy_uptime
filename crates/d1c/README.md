@@ -2,244 +2,152 @@
 
 **Type-safe SQL queries for Cloudflare D1 + Rust Workers**
 
-d1c generates compile-time checked Rust functions from your SQL queries, eliminating an entire class of bugs while keeping your Worker bundles tiny. Think `sqlc` for Go, but designed specifically for Cloudflare's edge platform.
+d1c generates compile-time checked Rust functions from your SQL queries. Think `sqlc` for Go, but designed for Cloudflare's edge platform.
 
 ```rust
-// db/queries/monitors.sql
+// Write SQL with named parameters
 -- name: ListMonitors :many
 SELECT id, name, enabled FROM monitors WHERE org_id = :org_id;
 
-// Generated code you get to use:
-let monitors = queries::list_monitors(&d1, org_id).await?;
-//                                    ^^^ type-safe, compile-time checked
+// Get type-safe Rust functions
+let monitors = d1c::queries::list_monitors(&d1, org_id).await?;
 ```
 
-No more positional parameter bugs. No more manual JSON parsing. No more typos in column names discovered at runtime. Just clean, fast, safe code.
+No positional parameter bugs. No manual JSON parsing. No runtime type errors.
 
-> **Status:** Early development. Core codegen works, type inference is solid, but expect the CLI and query format to evolve as we learn from real-world use.
+> **Status:** Early development. Core features work, but expect evolution based on real-world feedback.
 
 ---
 
-## Why d1c?
+## The Problem
 
-**If you're building on Cloudflare Workers with D1, you've probably written code like this:**
+**Raw D1 queries are painful:**
 
 ```rust
-let result = d1.prepare("SELECT * FROM monitors WHERE org_id = ?1")
-    .bind(&[org_id.into()])?  // positional params = footgun
+// Positional parameters are error-prone
+let result = d1.prepare("SELECT * FROM users WHERE org_id = ?1 AND active = ?2")
+    .bind(&[org_id.into(), active.into()])?  // did you get the order right?
     .all()
     .await?;
 
-// Now manually parse untyped JSON...
+// Manual JSON parsing is boilerplate-heavy
 for row in result.results {
-    let id = row.get("id").ok_or("missing id")?;
+    let id = row.get("id").ok_or("missing id")?;  // hope you spelled it right
     let name = row.get("name").ok_or("missing name")?;
-    // repeat 10x, hope you spelled everything right
+    // repeat for every field...
 }
 ```
-
-**Problems:**
-- Positional parameters (`?1`, `?2`) are error-prone
-- Column names are strings—typos become runtime panics
-- No compile-time verification that your query matches your schema
-- Manual JSON parsing is boilerplate-heavy
-- Refactoring is scary (did you update all 47 queries?)
 
 **With d1c:**
 
 ```rust
-let monitors = queries::list_monitors(&d1, org_id).await?;
-// That's it. Type-safe, compile-time checked, zero boilerplate.
+let users = queries::list_active_users(&d1, org_id).await?;
+// That's it. Compile-time checked, zero boilerplate.
 ```
-
-**Benefits:**
-- ✅ Named parameters (`:org_id` instead of `?1`)
-- ✅ Typed result structs (no manual JSON parsing)
-- ✅ Compile-time schema validation (typos fail at build time)
-- ✅ Tiny generated code (WASM-friendly, no runtime overhead)
-- ✅ Refactoring is safe (compiler catches schema changes)
-
----
-
-## How It Works
-
-d1c treats your **Wrangler migration files** as the source of truth:
-
-```
-1. Read your db/migrations/*.sql files
-   └─→ (these are the same migrations wrangler d1 migrations apply uses)
-
-2. Replay them into a local SQLite database
-   └─→ (gives us a schema that exactly matches your D1 database)
-
-3. Read your db/queries/*.sql files
-   └─→ (user-written queries with -- name: headers)
-
-4. Generate typed Rust functions
-   └─→ (compile-time checked against the schema)
-```
-
-**Key insight:** Cloudflare D1 is SQLite. By using a local SQLite database for introspection, we get 100% faithful type information without ever touching your production D1.
 
 ---
 
 ## Quick Start
 
-### Installation
+### 1. Install
 
 ```bash
 cargo install d1c
 ```
 
-### First Time Setup
+### 2. Initialize
+
 ```bash
 cd your-worker-project
 d1c init
 ```
 
-This will:
-- ✅ Read your `wrangler.toml` to find migrations
-- ✅ Suggest sensible paths for queries and generated code  
-- ✅ Create `d1c.toml` with everything configured
-- ✅ Add an example query file to get you started
+This reads your `wrangler.toml`, creates `d1c.toml`, and adds an example query.
 
-Then just:
-```bash
-d1c gen
-```
-
-and you're ready to write type-safe queries.
-
-### Write a query
+### 3. Write Queries
 
 ```sql
--- db/queries/monitors.sql
+-- db/queries/users.sql
 
--- name: GetMonitor :one
-SELECT id, name, url, interval_s, enabled
-FROM monitors
-WHERE id = :id;
+-- name: GetUser :one
+SELECT id, email, active FROM users WHERE id = :id;
 
--- name: ListMonitorsByOrg :many
-SELECT id, name, enabled
-FROM monitors
-WHERE org_id = :org_id
-ORDER BY name;
+-- name: ListActiveUsers :many
+SELECT id, email FROM users WHERE org_id = :org_id AND active = true;
 
--- name: CreateMonitor :one
-INSERT INTO monitors (id, org_id, name, url, interval_s, enabled)
-VALUES (:id, :org_id, :name, :url, :interval_s, :enabled)
+-- name: CreateUser :one
+INSERT INTO users (id, email, org_id, active)
+VALUES (:id, :email, :org_id, :active)
 RETURNING *;
-
--- name: UpdateMonitorEnabled :exec
-UPDATE monitors
-SET enabled = :enabled
-WHERE id = :id;
 ```
 
-### Generate code
+### 4. Generate Code
 
 ```bash
-d1c gen
+d1c generate
 ```
 
-This creates `src/db/queries.rs`:
+This creates `src/d1c/queries.rs` with type-safe functions for each query.
+
+### 5. Use It
 
 ```rust
-// Auto-generated by d1c - DO NOT EDIT
-
-use worker::D1Database;
-
-#[derive(Debug, Clone)]
-pub struct GetMonitorRow {
-    pub id: String,
-    pub name: String,
-    pub url: String,
-    pub interval_s: i64,
-    pub enabled: bool,
-}
-
-pub async fn get_monitor(
-    d1: &D1Database,
-    id: &str,
-) -> worker::Result<Option<GetMonitorRow>> {
-    // ... generated implementation
-}
-
-#[derive(Debug, Clone)]
-pub struct ListMonitorsByOrgRow {
-    pub id: String,
-    pub name: String,
-    pub enabled: bool,
-}
-
-pub async fn list_monitors_by_org(
-    d1: &D1Database,
-    org_id: &str,
-) -> worker::Result<Vec<ListMonitorsByOrgRow>> {
-    // ... generated implementation
-}
-
-// ... more functions
-```
-
-### Use it in your Worker
-
-```rust
-use crate::db::queries;
+use crate::d1c::queries;
 
 #[worker::event(fetch)]
 async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
     let d1 = env.d1("DB")?;
     
-    // Type-safe, compile-time checked queries
-    let monitor = queries::get_monitor(&d1, "mon_123").await?;
-    let all_monitors = queries::list_monitors_by_org(&d1, "org_456").await?;
-    
-    // Compiler enforces correct parameters
-    queries::create_monitor(
-        &d1,
-        "mon_789",
-        "org_456",
-        "API Health",
-        "https://api.example.com/health",
-        60,
-        true,
-    ).await?;
+    let user = queries::get_user(&d1, "user_123").await?;
+    let users = queries::list_active_users(&d1, "org_456").await?;
     
     Response::ok("done")
 }
 ```
 
+**👉 See [GETTING_STARTED.md](GETTING_STARTED.md) for a complete tutorial and [QUERY_FORMAT.md](QUERY_FORMAT.md) for full syntax reference.**
+
 ---
 
-## Query Format
+## How It Works
 
-Queries use special comment headers to specify behavior:
+d1c uses your Wrangler migrations as the schema source:
 
-```sql
--- name: FunctionName :cardinality
--- ^ function name    ^ :one | :many | :exec | :scalar
+```
+1. Parse db/migrations/*.sql (your Wrangler migration files)
+2. Replay them into a local SQLite database
+3. Introspect schema to understand types
+4. Read db/queries/*.sql (your query files)
+5. Generate type-safe Rust functions
 ```
 
-**Cardinalities:**
+**Key insight:** D1 is SQLite, so local SQLite introspection gives us perfect type information.
 
-- `:one` – Returns `Option<Row>` (expects 0 or 1 results)
-- `:many` – Returns `Vec<Row>` (any number of results)
-- `:exec` – Returns nothing (for INSERT/UPDATE/DELETE without RETURNING)
-- `:scalar` – Returns `Option<T>` (for single-column results like `COUNT(*)`)
+---
 
-**Named parameters:**
+## Query Reference
 
-Use `:param_name` in your queries:
+### Cardinalities
+
+Specify what your query returns with the `:cardinality` annotation:
+
+| Cardinality | Return Type | Use Case |
+|-------------|-------------|----------|
+| `:one` | `Result<Option<Row>>` | Single row (or none) |
+| `:many` | `Result<Vec<Row>>` | Multiple rows |
+| `:exec` | `Result<()>` | INSERT/UPDATE/DELETE without RETURNING |
+| `:scalar` | `Result<Option<T>>` | Single primitive value (COUNT, SUM, etc.) |
+
+### Named Parameters
+
+Use `:param_name` in queries:
 
 ```sql
 -- name: FindUser :one
-SELECT * FROM users
-WHERE email = :email AND active = :active;
+SELECT * FROM users WHERE email = :email AND active = :active;
 ```
 
-Becomes:
+Generated function signature:
 
 ```rust
 pub async fn find_user(
@@ -249,226 +157,123 @@ pub async fn find_user(
 ) -> worker::Result<Option<FindUserRow>>
 ```
 
-d1c rewrites named parameters to positional parameters behind the scenes, so you get the ergonomics without the runtime cost.
+### Headers
 
----
+Override default behavior with special comments:
 
-## Why Not Just Use...?
+```sql
+-- name: GetUserBalance :one
+-- params: user_id UserId, currency String
+SELECT balance FROM accounts WHERE user_id = :user_id AND currency = :currency;
+```
 
-### sqlx?
+**Available headers:**
+- `-- params: name Type, ...` – Override inferred parameter types (useful for newtypes)
+- `-- instrument: skip(field, ...)` – Exclude parameters from tracing spans (see Observability section)
 
-sqlx is excellent for traditional Rust apps, but:
-- ❌ Requires a runtime connection pool (doesn't fit Workers)
-- ❌ Heavy macro machinery increases compile times
-- ❌ Designed for long-running servers, not edge functions
-
-d1c generates static code at build time—zero runtime overhead, perfect for WASM.
-
-### diesel?
-
-diesel is a full ORM:
-- ❌ Large dependency tree (bloats WASM bundles)
-- ❌ Schema-first (not migration-first like Wrangler requires)
-- ❌ Designed for application servers, not serverless
-
-d1c is just codegen, not an ORM. Tiny output, no runtime.
-
-### Raw D1 bindings?
-
-You can absolutely use `worker::D1Database` directly:
-- ✅ Zero dependencies
-- ❌ Positional parameters are error-prone
-- ❌ Manual JSON parsing everywhere
-- ❌ No compile-time safety
-- ❌ Refactoring is dangerous
-
-d1c gives you the safety without the weight.
-
----
-
-## Project Philosophy
-
-**Small scope, done well:**
-- ✅ Only does codegen (doesn't run migrations)
-- ✅ Only targets D1 (not a generic SQL tool)
-- ✅ Only generates Rust (not a multi-language tool)
-
-**Cloudflare-native:**
-- ✅ Treats Wrangler migrations as source of truth
-- ✅ Generates code for `worker::D1Database`
-- ✅ Optimized for WASM bundle size
-
-**Rust-friendly:**
-- ✅ Generates idiomatic Rust (not translated Go)
-- ✅ Works with standard Cargo workflows
-- ✅ Committed generated code (like protobuf)
-
-**Out of scope:**
-- ❌ Not a migration runner (Wrangler owns that)
-- ❌ Not an ORM (just typed queries)
-- ❌ Not a remote DB tool (only introspects locally)
-
----
-
-## Comparison to sqlc
-
-d1c is heavily inspired by [sqlc](https://sqlc.dev), but adapted for Rust + Cloudflare:
-
-| Feature | sqlc (Go) | d1c (Rust) |
-|---------|-----------|------------|
-| Query syntax | `-- name:` comments | Same |
-| Named params | `:param` or `@param` | `:param` only |
-| Schema source | `schema.sql` or migrations | Wrangler migrations |
-| Target runtime | Go stdlib `database/sql` | `worker::D1Database` |
-| Bundle size | Not a concern (server binary) | Critical (WASM) |
-
-d1c keeps the good parts (typed queries from SQL) while respecting Workers' constraints (small bundles, edge runtime, Wrangler workflow).
+**👉 See [QUERY_FORMAT.md](QUERY_FORMAT.md) for complete syntax reference, examples, and edge cases.**
 
 ---
 
 ## Commands
 
-### `d1c gen`
+| Command | Description |
+|---------|-------------|
+| `d1c init` | Create `d1c.toml` config |
+| `d1c generate` (or `gen`) | Generate Rust code from queries |
+| `d1c watch` | Auto-regenerate on file changes |
+| `d1c dump-schema` | Export current schema to stdout |
 
-Generate Rust code from your queries.
+---
 
+## Features
+
+- ✅ **Named parameters** – No more positional `?1`, `?2` mistakes
+- ✅ **Compile-time safety** – Typos fail at build time, not runtime
+- ✅ **Zero boilerplate** – No manual JSON parsing
+- ✅ **WASM-optimized** – Tiny generated code, no runtime overhead
+- ✅ **Wrangler-native** – Uses your existing migration workflow
+- ✅ **Watch mode** – Auto-regenerate during development
+
+---
+
+## Observability with cf-tracing
+
+d1c integrates with [**cf-tracing**](../cf-tracing) to give you automatic observability into every database query. When enabled, generated functions are instrumented with `#[tracing::instrument]`, so you can see query durations, parameters, and row counts in Analytics Engine—without manual logging.
+
+**Enable during setup:**
 ```bash
-d1c gen
+d1c init
+# → Enable tracing? [y/N] y
 ```
 
-Options:
-- `--config <path>` – Use a different config file (default: `d1c.toml`)
-- `--check` – Verify queries are valid without writing files
-
-### `d1c dump-schema`
-
-Export the current schema as SQL (useful for debugging).
-
-```bash
-d1c dump-schema > db/schema.sql
+**Or add to `d1c.toml`:**
+```toml
+instrument_by_default = true
 ```
 
-This shows you exactly what d1c sees after applying your migrations.
+**What you get:**
+- Automatic span tracking for every query (`d1c.list_users`, `d1c.get_monitor`, etc.)
+- Query parameters logged by default (except sensitive fields)
+- Integration with Grafana dashboards for performance analysis
+
+**Hide sensitive parameters:**
+```sql
+-- name: LoginUser :one
+-- instrument: skip(password_hash)
+SELECT * FROM users WHERE email = :email AND password_hash = :password_hash;
+```
+
+This generates:
+```rust
+#[tracing::instrument(name = "d1c.login_user", skip(d1, password_hash))]
+pub async fn login_user(d1: &D1Database, email: &str, password_hash: &str) { ... }
+```
+
+**See [cf-tracing](../cf-tracing) for full setup** (Analytics Engine + Grafana dashboards).
 
 ---
 
 ## Configuration
 
-Create `d1c.toml` in your project root:
+`d1c.toml` in your project root:
 
 ```toml
-# Required: where your Wrangler migration files live
-migrations_dir = "db/migrations"
+migrations_dir = "db/migrations"  # Your Wrangler migrations
+queries_dir = "db/queries"        # Your query files
+codegen_dir = "src/d1c"           # Where to write generated code
 
-# Required: where your query files are
-queries_dir = "db/queries"
-
-# Required: where to write generated Rust code
-codegen_dir = "src/db"
-
-# Optional: module name for generated code (default: "queries")
-module_name = "queries"
+# Optional
+module_name = "queries"           # Generated module name (default: "queries")
+instrument_by_default = false     # Add tracing spans (default: false)
 ```
-
----
-
-## Workflow
-
-1. **Write migrations** (just like you already do):
-   ```sql
-   -- db/migrations/0001_create_monitors.sql
-   CREATE TABLE monitors (
-     id TEXT PRIMARY KEY,
-     org_id TEXT NOT NULL,
-     name TEXT NOT NULL,
-     ...
-   );
-   ```
-
-2. **Apply migrations** (via Wrangler):
-   ```bash
-   wrangler d1 migrations apply DB --local
-   wrangler d1 migrations apply DB --remote
-   ```
-
-3. **Write queries**:
-   ```sql
-   -- db/queries/monitors.sql
-   -- name: ListMonitors :many
-   SELECT * FROM monitors WHERE org_id = :org_id;
-   ```
-
-4. **Generate code**:
-   ```bash
-   d1c gen
-   ```
-
-5. **Use in your Worker**:
-   ```rust
-   let monitors = queries::list_monitors(&d1, org_id).await?;
-   ```
-
-6. **Commit generated code**:
-   ```bash
-   git add src/db/queries.rs
-   git commit -m "Update queries"
-   ```
-
-Generated code is committed just like protobuf—it's part of your source tree, not a build artifact.
-
----
-
-## Limitations
-
-**Current:**
-- Only supports SQLite types (D1 is SQLite, so this is fine)
-- No transaction helpers (use D1's batch API directly)
-- No connection pooling (Workers are stateless anyway)
-- Query parsing is simple (doesn't handle every SQL edge case)
-
-**Future:**
-- Better type inference for expressions
-- Support for D1's upcoming features (vectors, etc.)
-- Optional runtime helpers (if there's demand)
 
 ---
 
 ## Examples
 
-See the [examples/](examples/) directory for full working demos:
-
-- `basic/` – Simple CRUD operations
-- `saavy-uptime/` – Real-world usage in a production app
-- `relations/` – JOINs and foreign keys
+The `examples/` directory contains working demos:
+- **`basic/`** – Simple CRUD operations
+- **`saavy-uptime/`** – Real production app
+- **`relations/`** – JOINs and foreign keys
 
 ---
 
 ## Contributing
 
-d1c is young and opinionated. If you're building on D1 + Rust and hit rough edges, we'd love to hear about it:
+Found a bug? Query that doesn't parse? We'd love to hear about it:
+- **File issues** for bugs or missing features
+- **Share your queries** if d1c fails to handle them
+- **Contribute docs** for patterns you discover
 
-- **File issues** for bugs, confusing errors, or missing features
-- **Share your queries** if d1c can't handle them (helps us improve)
-- **Contribute docs** for common patterns or gotchas
-
-We're especially interested in feedback from people using D1 in production Workers.
-
----
-
-## Inspiration
-
-- **[sqlc](https://sqlc.dev)** – Proved that codegen from SQL beats ORMs for many use cases
-- **Cloudflare's D1 team** – For building SQLite at the edge
-- **The Rust community** – For showing that type safety doesn't have to sacrifice ergonomics
+Especially interested in feedback from production D1 users.
 
 ---
 
 ## License
 
-MIT or Apache 2.0 (your choice)
+MIT
 
 ---
 
-Built for teams running serious workloads on Cloudflare Workers who want the safety of Rust without the boilerplate of raw SQL strings. If you're tired of positional parameter bugs and manual JSON parsing, give d1c a try.
-
-**Let's make D1 queries as type-safe as the rest of your Rust code.** 🚀
+**Inspired by [sqlc](https://sqlc.dev).** Built for teams running Rust Workers who want type safety without the weight of traditional ORMs.
