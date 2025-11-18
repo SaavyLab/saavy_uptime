@@ -163,12 +163,22 @@ pub fn run(conn: &Connection, args: &InitArgs) -> Result<(), Error> {
         .with_default(true)
         .prompt()?;
 
+    let instrument_by_default = inquire::Confirm::new("Do you want to auto-instrument queries with tracing?")
+        .with_help_message(
+            "Adds #[tracing::instrument] to generated functions. Requires `tracing` crate dependency. \
+             Intended for use with saavylab/cf-tracing to send query spans to \
+             Workers Queues -> Analytics Enginer -> Grafana"
+        )
+        .with_default(false)
+        .prompt()?;
+
     let config = D1CConfig {
         migrations_dir: migrations_dir.unwrap(),
         queries_dir,
         out_dir,
         module_name,
         emit_schema,
+        instrument_by_default,
     };
 
     let config_string = toml::to_string_pretty(&config)?;
