@@ -29,7 +29,7 @@ pub struct Organization {
 impl From<crate::d1c::queries::GetOrganizationByIdRow> for Organization {
     fn from(row: crate::d1c::queries::GetOrganizationByIdRow) -> Self {
         Organization {
-            id: row.id,
+            id: row.id.unwrap_or_default(),
             slug: row.slug,
             name: row.name,
             created_at: row.created_at,

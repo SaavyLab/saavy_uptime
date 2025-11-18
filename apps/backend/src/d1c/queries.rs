@@ -37,11 +37,11 @@ pub struct GetHeartbeatsByMonitorIdRow {
     pub monitor_id: String,
     pub ts: i64,
     pub ok: i64,
-    pub code: i64,
-    pub rtt_ms: i64,
-    pub err: String,
-    pub region: String,
-    pub dispatch_id: String,
+    pub code: Option<i64>,
+    pub rtt_ms: Option<i64>,
+    pub err: Option<String>,
+    pub region: Option<String>,
+    pub dispatch_id: Option<String>,
     pub org_id: String,
 }
 #[tracing::instrument(name = "d1c.get_heartbeats_by_monitor_id", skip(d1))]
@@ -132,7 +132,7 @@ pub async fn create_monitor(
 }
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct GetMonitorByIdRow {
-    pub id: String,
+    pub id: Option<String>,
     pub org_id: String,
     pub name: String,
     pub kind: String,
@@ -141,18 +141,18 @@ pub struct GetMonitorByIdRow {
     pub timeout_ms: i64,
     pub follow_redirects: i64,
     pub verify_tls: i64,
-    pub expect_status_low: i64,
-    pub expect_status_high: i64,
-    pub expect_substring: String,
-    pub headers_json: String,
-    pub tags_json: String,
+    pub expect_status_low: Option<i64>,
+    pub expect_status_high: Option<i64>,
+    pub expect_substring: Option<String>,
+    pub headers_json: Option<String>,
+    pub tags_json: Option<String>,
     pub enabled: i64,
-    pub last_checked_at_ts: i64,
-    pub next_run_at_ts: i64,
+    pub last_checked_at_ts: Option<i64>,
+    pub next_run_at_ts: Option<i64>,
     pub current_status: String,
     pub last_ok: i64,
     pub consecutive_failures: i64,
-    pub current_incident_id: String,
+    pub current_incident_id: Option<String>,
     pub created_at: i64,
     pub updated_at: i64,
 }
@@ -169,7 +169,7 @@ pub async fn get_monitor_by_id(
 }
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct GetMonitorsByOrgIdRow {
-    pub id: String,
+    pub id: Option<String>,
     pub org_id: String,
     pub name: String,
     pub kind: String,
@@ -178,18 +178,18 @@ pub struct GetMonitorsByOrgIdRow {
     pub timeout_ms: i64,
     pub follow_redirects: i64,
     pub verify_tls: i64,
-    pub expect_status_low: i64,
-    pub expect_status_high: i64,
-    pub expect_substring: String,
-    pub headers_json: String,
-    pub tags_json: String,
+    pub expect_status_low: Option<i64>,
+    pub expect_status_high: Option<i64>,
+    pub expect_substring: Option<String>,
+    pub headers_json: Option<String>,
+    pub tags_json: Option<String>,
     pub enabled: i64,
-    pub last_checked_at_ts: i64,
-    pub next_run_at_ts: i64,
+    pub last_checked_at_ts: Option<i64>,
+    pub next_run_at_ts: Option<i64>,
     pub current_status: String,
     pub last_ok: i64,
     pub consecutive_failures: i64,
-    pub current_incident_id: String,
+    pub current_incident_id: Option<String>,
     pub created_at: i64,
     pub updated_at: i64,
 }
@@ -214,7 +214,7 @@ pub async fn delete_monitor(d1: &D1Database, id: &str, org_id: &str) -> Result<(
 }
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct GetOrganizationByIdRow {
-    pub id: String,
+    pub id: Option<String>,
     pub slug: String,
     pub name: String,
     pub created_at: i64,
@@ -251,7 +251,7 @@ pub async fn check_if_bootstrapped(d1: &D1Database) -> Result<Option<i64>> {
 }
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct SelectAllOrgIdsRow {
-    pub id: String,
+    pub id: Option<String>,
 }
 #[tracing::instrument(name = "d1c.select_all_org_ids", skip(d1))]
 pub async fn select_all_org_ids(d1: &D1Database) -> Result<Vec<SelectAllOrgIdsRow>> {

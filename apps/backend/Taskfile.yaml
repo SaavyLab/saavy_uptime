@@ -41,7 +41,17 @@ tasks:
     desc: "Execute a SQL file on the D1 database"
     cmds:
       - wrangler d1 execute {{.DATABASE_NAME}} --file="{{.CLI_ARGS}}"
+
+  db:generate:
+    desc: "Generate D1 queries"
+    cmds:
+      - d1c generate
       
+  db:watch:
+    desc: "Watch D1 queries for changes"
+    cmds:
+      - d1c watch
+  
   build:
     desc: "Build Rust worker to WASM"
     deps: [check]

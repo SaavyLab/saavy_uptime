@@ -56,10 +56,14 @@ pub async fn ensure_all_tickers(
     };
 
     for org in rows {
-        if let Err(err) = ensure_ticker_bootstrapped(&ticker, &org.id).await {
+        if org.id.is_none() {
+            continue;
+        }
+        let org_id = org.id.unwrap();
+        if let Err(err) = ensure_ticker_bootstrapped(&ticker, &org_id).await {
             console_error!(
                 "ticker.ensure_all: bootstrap failed for {}: {err:?}",
-                org.id
+                org_id
             );
             summary.failed += 1;
         } else {

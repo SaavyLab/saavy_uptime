@@ -26,7 +26,10 @@ pub fn analyze_query(conn: &Connection, query: &mut Query) -> Result<()> {
             }
 
             let mut columns = Vec::with_capacity(column_count);
-            for column in stmt.columns() {
+            let basic_cols = stmt.columns();
+            let metadata_cols = stmt.columns_with_metadata();
+
+            for (column, column_metadata) in basic_cols.iter().zip(metadata_cols.iter()) {
                 let decl_type = column.decl_type();
                 let rust_type = if let Some(decl_type) = decl_type {
                     sqlite_type_to_rust(decl_type)
@@ -37,44 +40,19 @@ pub fn analyze_query(conn: &Connection, query: &mut Query) -> Result<()> {
                 } else {
                     "String".to_string()
                 };
-                // SQLite's prepare/stmt.columns() doesn't expose "NOT NULL" constraints directly
-                // via the stable public API easily in older rusqlite versions, OR it requires
-                // inspecting the table schema if it's a simple select.
-                //
-                // However, for arbitrary queries (SELECT sum(x)...), nullability is complex.
-                // Rusqlite's `Column` doesn't have `not_null()`.
-                //
-                // But! d1c runs locally against a real SQLite.
-                // We can use `PRAGMA table_info(table_name)` IF the column origin is known.
-                // `column.table_name()` and `column.origin_name()` exist if `features = ["column_decltype"]` is on (which it is).
-                //
-                // Actually, rusqlite 0.31 `Column` doesn't expose `not_null`.
-                // We have to infer it or default to Option.
-                //
-                // STRATEGY:
-                // 1. If we can identify the source table and column, check that table's schema.
-                // 2. If it's an expression (count(*)), assume NOT NULL for specific aggregates?
-                //
-                // Let's try to check origin.
-                // Note: origin_name() might be None for expressions.
 
-                // TODO: Enable SQLITE_ENABLE_COLUMN_METADATA to use table_name()/origin_name()
-                // For now, defaulting to NOT NULL (false) to preserve existing behavior until build is fixed.
-                let is_nullable = false;
-                /*
-                let is_nullable = if let Some(table) = column.table_name() {
-                     if let Some(col_name) = column.origin_name() {
-                         is_column_nullable(conn, table, col_name).unwrap_or(true)
-                     } else {
-                         true // Expression or unknown
-                     }
+                let is_nullable = if let Some(table) = column_metadata.table_name() {
+                    if let Some(col_name) = column_metadata.origin_name() {
+                        is_column_nullable(conn, table, col_name).unwrap_or(true)
+                    } else {
+                        true // Expression or unknown column
+                    }
                 } else {
-                     true // Expression or unknown
+                    true // Derived column (aggregate, literal, etc.)
                 };
-                */
 
                 columns.push(ColumnInfo {
-                    name: column.name().to_string(),
+                    name: column_metadata.name().to_string(),
                     decl: decl_type.unwrap_or("TEXT").to_string(),
                     rust_type,
                     not_null: !is_nullable,

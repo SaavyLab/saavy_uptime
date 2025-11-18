@@ -61,11 +61,11 @@ impl From<crate::d1c::queries::GetHeartbeatsByMonitorIdRow> for Heartbeat {
             org_id: row.org_id,
             ts: row.ts,
             ok: row.ok,
-            code: Some(row.code as u16),
-            rtt_ms: Some(row.rtt_ms),
-            err: Some(row.err),
-            region: Some(row.region),
-            dispatch_id: row.dispatch_id,
+            code: row.code.map(|r| r as u16),
+            rtt_ms: row.rtt_ms,
+            err: row.err,
+            region: row.region,
+            dispatch_id: row.dispatch_id.unwrap_or_default(),
         }
     }
 }

@@ -23,7 +23,7 @@ pub async fn get_monitor_by_id_handler(
 ) -> Result<Json<Monitor>, StatusCode> {
     let org_id = load_membership(&d1, &subject).await?.organization_id;
 
-    match get_monitor_by_id(&d1, &org_id, &id).await {
+    match get_monitor_by_id(&d1, &id, &org_id).await {
         Ok(Some(monitor)) => Ok(Json(monitor.into())),
         Ok(None) => Err(StatusCode::NOT_FOUND),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
