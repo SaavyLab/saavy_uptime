@@ -20,7 +20,7 @@ impl FromRequestParts<AppState> for TraceQueue {
         _parts: &mut Parts,
         state: &AppState,
     ) -> Result<Self, Self::Rejection> {
-        let queue = get_queue(&state.env(), "TRACE_QUEUE").map_err(|_| {
+        let queue = get_queue(&state.env(), "trace-queue").map_err(|_| {
             console_error!("trace_queue.init: failed to get trace queue");
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
@@ -39,7 +39,7 @@ impl FromRequestParts<AppState> for HeartbeatQueue {
         _parts: &mut Parts,
         state: &AppState,
     ) -> Result<Self, Self::Rejection> {
-        let queue = get_queue(&state.env(), "HEARTBEAT_QUEUE").map_err(|_| {
+        let queue = get_queue(&state.env(), "heartbeat-queue").map_err(|_| {
             console_error!("heartbeat_queue.init: failed to get heartbeat queue");
             StatusCode::INTERNAL_SERVER_ERROR
         })?;

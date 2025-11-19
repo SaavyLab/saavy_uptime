@@ -119,10 +119,10 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 									<h1 className="text-2xl font-bold tracking-tight">
 										{monitor.name}
 									</h1>
-									<StatusPill status={monitor.currentStatus} />
+									<StatusPill status={monitor.status} />
 								</div>
 								<p className="text-muted-foreground font-mono text-sm">
-									{monitor.url}
+									{monitor.config.url}
 								</p>
 							</div>
 							<div className="flex items-center gap-2">
@@ -147,7 +147,7 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 									Last Check
 								</div>
 								<div className="mt-1 text-lg font-mono font-medium text-foreground">
-									{formatTimestamp(monitor.lastCheckedAtTs)}
+									{formatTimestamp(monitor.lastCheckedAt)}
 								</div>
 							</div>
 							<div className="rounded-xl border border-border bg-muted/20 p-4">
@@ -155,7 +155,7 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 									Interval
 								</div>
 								<div className="mt-1 text-lg font-mono font-medium text-foreground">
-									{monitor.intervalS}s
+									{monitor.config.interval}s
 								</div>
 							</div>
 							<div className="rounded-xl border border-border bg-muted/20 p-4">
@@ -163,19 +163,19 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 									Timeout
 								</div>
 								<div className="mt-1 text-lg font-mono font-medium text-foreground">
-									{monitor.timeoutMs}ms
+									{monitor.config.timeout}ms
 								</div>
 							</div>
-							<div className="rounded-xl border border-border bg-muted/20 p-4">
+							{/* <div className="rounded-xl border border-border bg-muted/20 p-4">
 								<div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
 									Status Code
 								</div>
 								<div className="mt-1 text-lg font-mono font-medium text-foreground">
-									{monitor.expectStatusLow && monitor.expectStatusHigh
+									{monitor. && monitor.expectStatusHigh
 										? `${monitor.expectStatusLow}-${monitor.expectStatusHigh}`
 										: "Any 2xx"}
 								</div>
-							</div>
+							</div> */}
 						</div>
 
 						<section className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
@@ -184,13 +184,13 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 									<div className="flex justify-between border-b border-border pb-2">
 										<dt>Follow Redirects</dt>
 										<dd className="text-foreground font-medium">
-											{monitor.followRedirects ? "Yes" : "No"}
+											{monitor.config.followRedirects ? "Yes" : "No"}
 										</dd>
 									</div>
 									<div className="flex justify-between border-b border-border pb-2">
 										<dt>Verify TLS</dt>
 										<dd className="text-foreground font-medium">
-											{monitor.verifyTls ? "Yes" : "No"}
+											{monitor.config.verifyTls ? "Yes" : "No"}
 										</dd>
 									</div>
 									<div className="flex justify-between border-b border-border pb-2">

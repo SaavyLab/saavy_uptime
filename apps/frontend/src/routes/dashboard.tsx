@@ -32,14 +32,14 @@ function DashboardPage() {
 		queryFn: () => getMonitors(),
 	});
 
-	const upCount = monitors.filter((m) => m.currentStatus === "up").length;
-	const downCount = monitors.filter((m) => m.currentStatus === "down").length;
-	const maintenanceCount = monitors.filter(
-		(m) => m.currentStatus === "maintenance",
+	const upCount = monitors.filter((m) => m.status === "up").length;
+	const downCount = monitors.filter((m) => m.status === "down").length;
+	const degradedCount = monitors.filter(
+		(m) => m.status === "degraded",
 	).length;
 
 	const recentMonitors = [...monitors]
-		.sort((a, b) => (b.lastCheckedAtTs ?? 0) - (a.lastCheckedAtTs ?? 0))
+		.sort((a, b) => (b.lastCheckedAt ?? 0) - (a.lastCheckedAt ?? 0))
 		.slice(0, 6);
 
 	return (
@@ -99,12 +99,12 @@ function DashboardPage() {
 				</Card>
 				<Card>
 					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-						<CardTitle className="text-sm font-medium">Maintenance</CardTitle>
+						<CardTitle className="text-sm font-medium">Degraded</CardTitle>
 						<AlertTriangle className="h-4 w-4 text-amber-500" />
 					</CardHeader>
 					<CardContent>
 						<div className="text-2xl font-bold">
-							{isLoading ? "..." : maintenanceCount}
+							{isLoading ? "..." : degradedCount}
 						</div>
 					</CardContent>
 				</Card>
@@ -134,9 +134,9 @@ function DashboardPage() {
 											<div
 												className={cn(
 													"w-2 h-2 rounded-full",
-													monitor.currentStatus === "up"
+													monitor.status === "up"
 														? "bg-emerald-500"
-														: monitor.currentStatus === "down"
+														: monitor.status === "down"
 															? "bg-red-500"
 															: "bg-slate-500",
 												)}
@@ -146,16 +146,16 @@ function DashboardPage() {
 													{monitor.name}
 												</p>
 												<p className="text-xs text-muted-foreground mt-1">
-													{monitor.url}
+													{monitor.config.url}
 												</p>
 											</div>
 										</div>
 										<div className="text-right">
 											<p className="text-sm font-medium">
-												{monitor.currentStatus?.toUpperCase()}
+												{monitor.status?.toUpperCase()}
 											</p>
 											<p className="text-xs text-muted-foreground">
-												{formatTimestamp(monitor.lastCheckedAtTs)}
+												{formatTimestamp(monitor.lastCheckedAt)}
 											</p>
 										</div>
 									</div>

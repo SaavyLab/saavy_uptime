@@ -44,20 +44,20 @@ binding = "ARCHIVE_BUCKET"
 bucket_name = "saavy-uptime-dev"
 
 [[queues.producers]]
-queue = "heartbeat_summaries"
-binding = "HEARTBEAT_SUMMARIES"
+queue = "heartbeat-queue"
+binding = "heartbeat-queue"
 
 [[queues.consumers]]
-queue = "heartbeat_summaries"
+queue = "heartbeat-queue"
 max_batch_size = 100
 max_batch_timeout = 5
 
 [[queues.producers]]
-queue = "traces"
-binding = "TRACE_QUEUE"
+queue = "trace-queue"
+binding = "trace-queue"
 
 [[queues.consumers]]
-queue = "traces"
+queue = "trace-queue"
 max_batch_size = 100
 max_batch_timeout = 5
 
@@ -97,10 +97,10 @@ bucket_name = "saavy-uptime"
 
 
 [[env.production.queues.producers]]
-queue = "traces"
-binding = "TRACE_QUEUE"
+queue = "trace-queue"
+binding = "trace-queue"
 
 [[env.production.queues.consumers]]
-queue = "traces"
+queue = "trace-queue"
 max_batch_size = 100
 max_batch_timeout = 5

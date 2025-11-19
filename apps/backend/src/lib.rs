@@ -37,7 +37,7 @@ pub async fn main(req: HttpRequest, env: Env, ctx: Context) -> Result<AxumRespon
 
     let response = router.call(request).await?;
 
-    let trace_queue = env.queue("TRACE_QUEUE")?;
+    let trace_queue = env.queue("trace-queue")?;
     ctx.wait_until(async move {
         if let Err(e) = guard.flush(&trace_queue).await {
             worker::console_error!("Error flushing traces: {:?}", e);

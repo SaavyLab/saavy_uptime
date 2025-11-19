@@ -127,7 +127,7 @@ function MonitorsPage() {
 			const matchesKind =
 				kindFilter === "all" ? true : monitor.kind === kindFilter;
 			const matchesSearch = normalizedSearch
-				? [monitor.name, monitor.url].some((v) =>
+				? [monitor.name, monitor.config.url].some((v) =>
 						v.toLowerCase().includes(normalizedSearch),
 					)
 				: true;
@@ -149,8 +149,8 @@ function MonitorsPage() {
 
 	// Fleet Stats
 	const totalCount = monitors.length;
-	const upCount = monitors.filter((m) => m.currentStatus === "up").length;
-	const downCount = monitors.filter((m) => m.currentStatus === "down").length;
+	const upCount = monitors.filter((m) => m.status === "up").length;
+	const downCount = monitors.filter((m) => m.status === "down").length;
 
 	return (
 		<div className="space-y-8">
@@ -316,19 +316,19 @@ function MonitorsPage() {
 											<div className="font-medium">{monitor.name}</div>
 											<div
 												className="text-xs text-muted-foreground truncate max-w-[280px]"
-												title={monitor.url}
+												title={monitor.config.url}
 											>
-												{monitor.url}
+												{monitor.config.url}
 											</div>
 										</TableCell>
 										<TableCell>
-											<StatusBadge status={monitor.currentStatus} />
+											<StatusBadge status={monitor.status} />
 										</TableCell>
-										<TableCell>{monitor.intervalS}s</TableCell>
+										<TableCell>{monitor.config.interval}s</TableCell>
 										<TableCell>
-											{monitor.lastCheckedAtTs
+											{monitor.lastCheckedAt
 												? new Date(
-														monitor.lastCheckedAtTs * 1000,
+														monitor.lastCheckedAt * 1000,
 													).toLocaleString()
 												: "Never"}
 										</TableCell>

@@ -3,24 +3,35 @@ import { withAccessHeader } from "./api";
 
 const apiBase = import.meta.env.VITE_API_URL;
 
+const httpMonitorConfigSchema = z.object({
+	url: z.string(),
+	interval: z.number(),
+	timeout: z.number(),
+	verifyTls: z.boolean(),
+	followRedirects: z.boolean(),
+});
+
+export type HttpMonitorConfig = z.infer<typeof httpMonitorConfigSchema>;
+
+export const monitorStatusSchema = z.enum(["up", "down", "degraded", "pending"]).transform((status) => status.toUpperCase());
+
+export const monitorKindSchema = z.enum(["http", "tcp", "udp"]);
+
 const monitorSchema = z.object({
 	id: z.string(),
 	orgId: z.string(),
 	name: z.string(),
-	kind: z.string(),
-	url: z.string(),
-	intervalS: z.number(),
-	timeoutMs: z.number(),
-	followRedirects: z.number(),
-	verifyTls: z.number(),
-	expectStatusLow: z.number().nullable().optional(),
-	expectStatusHigh: z.number().nullable().optional(),
-	expectSubstring: z.string().nullable().optional(),
-	headersJson: z.string().nullable().optional(),
-	tagsJson: z.string().nullable().optional(),
-	currentStatus: z.string(),
-	lastCheckedAtTs: z.number().nullable(),
+	kind: monitorKindSchema,
 	enabled: z.number(),
+	config: z.string().transform((config) => JSON.parse(config) as HttpMonitorConfig),
+	status: z.string().transform((status) => status.toLowerCase()),
+	lastCheckedAt: z.number().nullable(),
+	lastFailedAt: z.number().nullable(),
+	firstCheckedAt: z.number().nullable(),
+	rtMs: z.number().nullable(),
+	region: z.string().nullable(),
+	lastError: z.string().nullable(),
+	nextRunAt: z.number().nullable(),
 	createdAt: z.number(),
 	updatedAt: z.number(),
 });
@@ -68,7 +79,12 @@ export const getMonitors = async (): Promise<Monitor[]> => {
 		throw new Error(`Unable to load monitors (${response.status})`);
 	}
 
-	return monitorSchema.array().parse(await response.json());
+    try {
+        return monitorSchema.array().parse(await response.json());
+    } catch (error) {
+        console.error(error);
+        throw new Error(`Unable to parse monitors (${error})`);
+    }
 };
 
 export const getMonitor = async (monitorId: string): Promise<Monitor> => {
