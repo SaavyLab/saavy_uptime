@@ -1,8 +1,11 @@
 use axum::{body::Body as AxumBody, response::Response as AxumResponse};
 use console_error_panic_hook::set_once as set_panic_hook;
+use hb_tracing::ConsoleLayer;
 use tower_service::Service;
-use worker::{Context, Env, HttpRequest, Result};
+use worker::{Context, Env, HttpRequest, MessageBatch, Result};
 use worker_macros::event;
+use tracing_subscriber::prelude::*;
+use tracing_subscriber::registry;
 
 pub mod auth;
 pub mod bootstrap;
@@ -12,18 +15,32 @@ pub mod external;
 pub mod heartbeats;
 pub mod internal;
 pub mod monitors;
-pub mod observability;
 pub mod organizations;
 pub mod router;
 pub mod utils;
 
 #[event(fetch, respond_with_errors)]
-pub async fn main(req: HttpRequest, env: Env, _ctx: Context) -> Result<AxumResponse> {
+pub async fn main(req: HttpRequest, env: Env, ctx: Context) -> Result<AxumResponse> {
     set_panic_hook();
-    observability::init(&env);
+    
+    // Initialize tracing
+    let (buffer, guard) = hb_tracing::buffer_layer();
+    registry()
+        .with(buffer)
+        .with(ConsoleLayer);
 
-    let mut router = router::create_router(env);
+
+    let mut router = router::create_router(&env);
     let request = req.map(AxumBody::new);
 
-    Ok(router.call(request).await?)
+    let response = router.call(request).await?;
+
+    let queue = env.queue("TRACE_QUEUE")?;
+    ctx.wait_until(async move {
+        if let Err(e) = guard.flush(&queue).await {
+            worker::console_error!("Error flushing traces: {:?}", e);
+        }
+    });
+
+    Ok(response)
 }

@@ -52,6 +52,15 @@ queue = "heartbeat_summaries"
 max_batch_size = 100
 max_batch_timeout = 5
 
+[[queues.producers]]
+queue = "traces"
+binding = "TRACE_QUEUE"
+
+[[queues.consumers]]
+queue = "traces"
+max_batch_size = 100
+max_batch_timeout = 5
+
 # ========================================
 # PRODUCTION ENVIRONMENT
 # ========================================

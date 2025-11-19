@@ -5,9 +5,9 @@ edition = "2021"
 description = "Type-safe SQL generator for Cloudflare D1 + Rust"
 authors = ["SaavyLab LLC <jayson@saavylab.com>"]
 license = "MIT"
-homepage = "https://github.com/saavylab/d1c"
+homepage = "https://crates.io/crates/hb-d1c"
 repository = "https://github.com/saavylab/d1c"
-documentation = "https://github.com/saavylab/d1c"
+documentation = "https://hb.saavylab.dev/docs/hb-d1c"
 readme = "README.md"
 
 [dependencies]

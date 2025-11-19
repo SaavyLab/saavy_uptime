@@ -1,7 +1,8 @@
-use crate::observability::visitor::FieldRecorder;
 use tracing::{Event, Level, Subscriber};
-use tracing_subscriber::layer::{Context, Layer};
+use tracing_subscriber::{layer::Context, Layer};
 use worker::{console_error, console_log};
+
+use crate::visitor::FieldRecorder;
 
 #[derive(Debug, Default, Clone)]
 pub struct ConsoleLayer;
@@ -22,8 +23,8 @@ where
         };
 
         match *metadata.level() {
-            Level::ERROR | Level::WARN => console_error!("{message}"),
-            _ => console_log!("{message}"),
+            Level::ERROR | Level::WARN => console_error!("{:?}", message),
+            _ => console_log!("{:?}", message),
         }
     }
 }
