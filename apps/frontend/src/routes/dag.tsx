@@ -21,7 +21,6 @@ import {
 	CheckCircle2,
 	XCircle,
 } from "lucide-react";
-import { Hero } from "@/components/layout/Hero";
 import { SectionCard } from "@/components/layout/SectionCard";
 import { Button } from "@/components/ui/button";
 import type { RouterContext } from "@/router-context";
@@ -386,212 +385,198 @@ function DAGVisualizerPage() {
 	}, [setNodes, setEdges]);
 
 	return (
-		<main className="min-h-screen bg-[var(--surface)] px-6 py-10 text-[var(--text-primary)] lg:px-8">
-			<div className="mx-auto max-w-6xl space-y-10">
-				<Hero
-					eyebrow="Execution DAG"
-					title="Real-time health check simulation."
-					description="Watch the Ticker DO alarm fire, dispatch checks to ephemeral Runner Workers across global POPs, and write results to D1/AE/R2 storage."
-					actions={
-						<>
-							<Button
-								type="button"
-								onClick={isSimulating ? stopSimulation : startSimulation}
-								className="flex items-center gap-2"
-							>
-								{isSimulating ? (
-									<>
-										<XCircle size={16} />
-										Stop simulation
-									</>
-								) : (
-									<>
-										<Play size={16} />
-										Start simulation
-									</>
-								)}
-							</Button>
-						</>
-					}
-					sideContent={
-						<div className="space-y-4">
-							<div className="rounded-xl border border-white/10 bg-white/5 p-4">
-								<div className="mb-3 text-xs uppercase tracking-wider text-[var(--text-soft)]">
-									Ticker Stats
-								</div>
-								<div className="space-y-2 font-mono text-sm">
-									<div className="flex justify-between">
-										<span className="text-[var(--text-muted)]">
-											Alarm cycles:
-										</span>
-										<span className="text-[var(--text-primary)]">
-											{tickCount}
-										</span>
-									</div>
-									<div className="flex justify-between">
-										<span className="text-[var(--text-muted)]">
-											Active jobs:
-										</span>
-										<span className="text-[var(--accent)]">
-											{activeJobs.length}
-										</span>
-									</div>
-								</div>
-							</div>
+		<div className="space-y-8">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight">DAG Execution</h1>
+          <p className="text-muted-foreground">
+            Visualize real-time health check dispatch and execution flow.
+          </p>
+        </div>
+        <Button
+          type="button"
+          onClick={isSimulating ? stopSimulation : startSimulation}
+          className="gap-2"
+        >
+          {isSimulating ? (
+            <>
+              <XCircle size={16} />
+              Stop Simulation
+            </>
+          ) : (
+            <>
+              <Play size={16} />
+              Start Simulation
+            </>
+          )}
+        </Button>
+      </div>
 
-							<div className="rounded-xl border border-white/10 bg-white/5 p-4">
-								<div className="mb-3 text-xs uppercase tracking-wider text-[var(--text-soft)]">
-									Check Results
-								</div>
-								<div className="space-y-2 font-mono text-sm">
-									<div className="flex justify-between">
-										<span className="text-[var(--text-muted)]">Total:</span>
-										<span className="text-[var(--text-primary)]">
-											{stats.total}
-										</span>
-									</div>
-									<div className="flex justify-between">
-										<span className="text-green-500">Success:</span>
-										<span className="text-green-500">{stats.success}</span>
-									</div>
-									<div className="flex justify-between">
-										<span className="text-red-500">Failed:</span>
-										<span className="text-red-500">{stats.failed}</span>
-									</div>
-								</div>
-							</div>
-						</div>
-					}
-				/>
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="rounded-xl border border-border bg-muted/20 p-4">
+          <div className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Ticker Stats
+          </div>
+          <div className="space-y-2 font-mono text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Alarm Cycles</span>
+              <span className="text-foreground font-medium">{tickCount}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Active Jobs</span>
+              <span className="text-primary font-medium">{activeJobs.length}</span>
+            </div>
+          </div>
+        </div>
 
-				<SectionCard
-					title="Architecture Flow"
-					description="Ticker DO dispatches checks → Runner Workers execute → Results stream to D1/AE, archive to R2"
+        <div className="rounded-xl border border-border bg-muted/20 p-4">
+          <div className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Check Results
+          </div>
+          <div className="space-y-2 font-mono text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Total</span>
+              <span className="text-foreground font-medium">{stats.total}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Success</span>
+              <span className="text-emerald-500 font-medium">{stats.success}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Failed</span>
+              <span className="text-red-500 font-medium">{stats.failed}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+			<SectionCard
+				title="Architecture Flow"
+				description="Ticker DO dispatches checks → Runner Workers execute → Results stream to D1/AE, archive to R2"
+			>
+				<div
+					className="relative h-[650px] w-full rounded-xl border border-border bg-card"
+					style={{
+						background:
+							"radial-gradient(circle at 50% 50%, rgba(255,255,255,0.03) 0%, transparent 100%)",
+					}}
 				>
-					<div
-						className="relative h-[650px] w-full rounded-xl border border-white/10 bg-[var(--surface-card)]"
-						style={{
-							background:
-								"radial-gradient(circle at 50% 50%, rgba(255,255,255,0.03) 0%, transparent 100%)",
-						}}
+					<ReactFlow
+						nodes={nodes}
+						edges={edges}
+						onNodesChange={onNodesChange}
+						onEdgesChange={onEdgesChange}
+						nodeTypes={nodeTypes}
+						fitView
+						attributionPosition="bottom-left"
+						proOptions={{ hideAttribution: true }}
 					>
-						<ReactFlow
-							nodes={nodes}
-							edges={edges}
-							onNodesChange={onNodesChange}
-							onEdgesChange={onEdgesChange}
-							nodeTypes={nodeTypes}
-							fitView
-							attributionPosition="bottom-left"
-							proOptions={{ hideAttribution: true }}
-						>
-							<Background
-								color="var(--text-soft)"
-								gap={16}
-								size={1}
-								style={{ opacity: 0.1 }}
-							/>
-							<Controls
-								style={{
-									background: "var(--surface-card)",
-									border: "1px solid var(--border-muted)",
-									borderRadius: "12px",
-								}}
-							/>
-							<MiniMap
-								nodeColor={(node) => {
-									if (node.data.error) return "#ef4444";
-									if (node.data.success) return "#22c55e";
-									if (node.data.active) return "var(--accent)";
-									return "var(--text-soft)";
-								}}
-								maskColor="rgba(0, 0, 0, 0.8)"
-								style={{
-									background: "var(--surface-card)",
-									border: "1px solid var(--border-muted)",
-									borderRadius: "12px",
-								}}
-							/>
-						</ReactFlow>
-					</div>
+						<Background
+							color="#71717a"
+							gap={16}
+							size={1}
+							style={{ opacity: 0.1 }}
+						/>
+						<Controls
+							style={{
+								background: "var(--card)",
+								border: "1px solid var(--border)",
+								borderRadius: "12px",
+							}}
+						/>
+						<MiniMap
+							nodeColor={(node) => {
+								if (node.data.error) return "#ef4444";
+								if (node.data.success) return "#22c55e";
+								if (node.data.active) return "var(--primary)";
+								return "#71717a";
+							}}
+							maskColor="rgba(0, 0, 0, 0.8)"
+							style={{
+								background: "var(--card)",
+								border: "1px solid var(--border)",
+								borderRadius: "12px",
+							}}
+						/>
+					</ReactFlow>
+				</div>
 
-					<div className="mt-6 space-y-4">
-						<div className="rounded-xl border border-white/10 bg-white/5 p-4">
-							<h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[var(--text-soft)]">
-								Simulation Details
-							</h3>
-							<div className="space-y-3 text-sm text-[var(--text-muted)]">
-								<div>
-									<strong className="text-[var(--text-primary)]">
-										Ticker DO alarm:
-									</strong>{" "}
-									Fires every 2 seconds, queries D1 for monitors due, and
-									dispatches 2-4 checks per cycle.
-								</div>
-								<div>
-									<strong className="text-[var(--text-primary)]">
-										Runner Workers (ephemeral):
-									</strong>{" "}
-									Spawn dynamically from 6 global POPs (SJC, AMS, SIN, SYD, GRU,
-									NRT), execute the check, then disappear after writing results.
-								</div>
-								<div>
-									<strong className="text-[var(--text-primary)]">
-										Check lifecycle:
-									</strong>{" "}
-									Dispatch (0.5s) → Execute (1s) → Write to D1/AE (0.5s) →
-									Complete. Green edges indicate success, red edges indicate
-									failures.
-								</div>
-								<div>
-									<strong className="text-[var(--text-primary)]">
-										Data archival (D1→R2):
-									</strong>{" "}
-									Dashed line represents the janitor cron that moves old
-									heartbeats from D1 to R2 for long-term storage.
-								</div>
+				<div className="mt-6 space-y-4">
+					<div className="rounded-xl border border-border bg-muted/20 p-4">
+						<h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+							Simulation Details
+						</h3>
+						<div className="space-y-3 text-sm text-muted-foreground">
+							<div>
+								<strong className="text-foreground">
+									Ticker DO alarm:
+								</strong>{" "}
+								Fires every 2 seconds, queries D1 for monitors due, and
+								dispatches 2-4 checks per cycle.
+							</div>
+							<div>
+								<strong className="text-foreground">
+									Runner Workers (ephemeral):
+								</strong>{" "}
+								Spawn dynamically from 6 global POPs (SJC, AMS, SIN, SYD, GRU,
+								NRT), execute the check, then disappear after writing results.
+							</div>
+							<div>
+								<strong className="text-foreground">
+									Check lifecycle:
+								</strong>{" "}
+								Dispatch (0.5s) → Execute (1s) → Write to D1/AE (0.5s) →
+								Complete. Green edges indicate success, red edges indicate
+								failures.
+							</div>
+							<div>
+								<strong className="text-foreground">
+									Data archival (D1→R2):
+								</strong>{" "}
+								Dashed line represents the janitor cron that moves old
+								heartbeats from D1 to R2 for long-term storage.
 							</div>
 						</div>
-
-						<div className="rounded-xl border border-white/10 bg-white/5 p-4">
-							<h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[var(--text-soft)]">
-								Future Enhancements
-							</h3>
-							<ul className="space-y-2 text-sm text-[var(--text-muted)]">
-								<li>
-									•{" "}
-									<strong className="text-[var(--text-primary)]">
-										Live SSE/WebSocket stream
-									</strong>{" "}
-									from backend with real dispatch metadata
-								</li>
-								<li>
-									•{" "}
-									<strong className="text-[var(--text-primary)]">
-										Per-POP latency heatmap
-									</strong>{" "}
-									showing geographic distribution of checks
-								</li>
-								<li>
-									•{" "}
-									<strong className="text-[var(--text-primary)]">
-										Incident correlation
-									</strong>{" "}
-									highlighting which checks triggered incidents
-								</li>
-								<li>
-									•{" "}
-									<strong className="text-[var(--text-primary)]">
-										Response payload inspection
-									</strong>{" "}
-									showing HTTP status, headers, and body snippets
-								</li>
-							</ul>
-						</div>
 					</div>
-				</SectionCard>
-			</div>
-		</main>
+
+					<div className="rounded-xl border border-border bg-muted/20 p-4">
+						<h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+							Future Enhancements
+						</h3>
+						<ul className="space-y-2 text-sm text-muted-foreground">
+							<li>
+								•{" "}
+								<strong className="text-foreground">
+									Live SSE/WebSocket stream
+								</strong>{" "}
+								from backend with real dispatch metadata
+							</li>
+							<li>
+								•{" "}
+								<strong className="text-foreground">
+									Per-POP latency heatmap
+								</strong>{" "}
+								showing geographic distribution of checks
+							</li>
+							<li>
+								•{" "}
+								<strong className="text-foreground">
+									Incident correlation
+								</strong>{" "}
+								highlighting which checks triggered incidents
+							</li>
+							<li>
+								•{" "}
+								<strong className="text-foreground">
+									Response payload inspection
+								</strong>{" "}
+								showing HTTP status, headers, and body snippets
+							</li>
+						</ul>
+					</div>
+				</div>
+			</SectionCard>
+		</div>
 	);
 }
 

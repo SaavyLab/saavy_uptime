@@ -22,20 +22,20 @@ export function SectionCard({
 	return (
 		<section
 			className={cn(
-				"rounded-[32px] border border-white/10 bg-white/[0.02] shadow-[var(--shadow-soft)]",
+				"rounded-xl border border-border bg-card shadow-sm",
 				className,
 			)}
 		>
 			{title || description || actions ? (
-				<div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 px-6 py-5">
+				<div className="flex flex-wrap items-center justify-between gap-4 border-b border-border px-6 py-4">
 					<div>
 						{title ? (
-							<h2 className="text-sm font-semibold uppercase tracking-[0.4em] text-[var(--text-soft)]">
+							<h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
 								{title}
 							</h2>
 						) : null}
 						{description ? (
-							<p className="text-sm text-[var(--text-muted)]">{description}</p>
+							<p className="text-sm text-muted-foreground">{description}</p>
 						) : null}
 					</div>
 					{actions ? <div className="flex gap-2">{actions}</div> : null}

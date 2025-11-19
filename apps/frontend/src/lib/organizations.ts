@@ -16,26 +16,40 @@ const organizationSchema = z.object({
 	name: z.string(),
 	createdAt: z.number(),
 	ownerId: z.string(),
-	updatedAt: z.number(),
+	updatedAt: z.number().optional().nullable(),
 });
 
 export type Organization = z.infer<typeof organizationSchema>;
 
-export const getOrganization = async (
-	organizationId: string,
-): Promise<Organization> => {
-	const response = await fetch(
-		`${apiBase}/api/organizations/${organizationId}`,
-		{
-			headers: withAccessHeader(),
-		},
-	);
+const memberSchema = z.object({
+	email: z.string(),
+	role: z.string(),
+});
+
+export type Member = z.infer<typeof memberSchema>;
+
+export const getOrganization = async (): Promise<Organization> => {
+	const response = await fetch(`${apiBase}/api/organizations`, {
+		headers: withAccessHeader(),
+	});
 
 	if (!response.ok) {
 		throw new Error(`Unable to load organization (${response.status})`);
 	}
 
 	return organizationSchema.parse(await response.json());
+};
+
+export const getOrganizationMembers = async (): Promise<Member[]> => {
+	const response = await fetch(`${apiBase}/api/organizations/members`, {
+		headers: withAccessHeader(),
+	});
+
+	if (!response.ok) {
+		throw new Error(`Unable to load members (${response.status})`);
+	}
+
+	return memberSchema.array().parse(await response.json());
 };
 
 export const createOrganization = async (

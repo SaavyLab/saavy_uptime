@@ -1,281 +1,143 @@
 import { useQuery } from "@tanstack/react-query";
 import type { Register, RootRoute } from "@tanstack/react-router";
 import { createRoute } from "@tanstack/react-router";
-import { Building2, RefreshCcw, Sparkles } from "lucide-react";
-import { useId, useState } from "react";
-import { useAppForm } from "@/components/form/useAppForm";
-import { Hero } from "@/components/layout/Hero";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { createOrganization, getOrganization } from "@/lib/organizations";
+import { Shield, Mail } from "lucide-react";
+import { SectionCard } from "@/components/layout/SectionCard";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { getOrganization, getOrganizationMembers } from "@/lib/organizations";
 import type { RouterContext } from "@/router-context";
 
 const formatTimestamp = (value?: number) => {
 	if (!value) {
 		return "—";
 	}
-
 	return new Date(value * 1000).toLocaleString();
 };
 
 function OrganizationPage() {
-	const lookupFieldId = useId();
-	const [lookupId, setLookupId] = useState("");
-	const [activeOrgId, setActiveOrgId] = useState("");
-	const [creationError, setCreationError] = useState<string | null>(null);
-	const [creationSuccess, setCreationSuccess] = useState<string | null>(null);
-
 	const organizationQuery = useQuery({
-		queryKey: ["organization", activeOrgId],
-		queryFn: () => getOrganization(activeOrgId),
-		enabled: Boolean(activeOrgId),
+		queryKey: ["organization"],
+		queryFn: () => getOrganization(),
 	});
 
-	const orgForm = useAppForm({
-		defaultValues: {
-			name: "",
-			slug: "",
-		},
-		onSubmit: async ({ value, formApi }) => {
-			setCreationError(null);
-			setCreationSuccess(null);
-			try {
-				const organization = await createOrganization({
-					name: value.name.trim(),
-					slug: value.slug.trim(),
-				});
-				setLookupId(organization.id);
-				setActiveOrgId(organization.id);
-				setCreationSuccess(
-					`Created ${organization.name} (${organization.slug})`,
-				);
-				formApi.reset();
-			} catch (error) {
-				const message =
-					error instanceof Error
-						? error.message
-						: "Failed to create organization";
-				setCreationError(message);
-			}
-		},
-	});
-
-	const handleLookup = (event: React.FormEvent<HTMLFormElement>) => {
-		event.preventDefault();
-		if (!lookupId.trim()) {
-			return;
-		}
-		setActiveOrgId(lookupId.trim());
-	};
+  const membersQuery = useQuery({
+    queryKey: ["organization", "members"],
+    queryFn: () => getOrganizationMembers(),
+  });
 
 	const organization = organizationQuery.data;
-	const isLoadingOrganization = organizationQuery.isFetching;
-	const organizationError =
-		organizationQuery.error instanceof Error ? organizationQuery.error : null;
+  const members = membersQuery.data ?? [];
 
 	return (
-		<main className="min-h-screen bg-[var(--surface)] px-6 py-10 text-[var(--text-primary)] lg:px-8">
-			<div className="mx-auto max-w-6xl space-y-8">
-				<Hero
-					eyebrow="Organization"
-					title="Tenant controls for Saavy Uptime"
-					description="Look up an org or mint a new one for testing without leaving this pane."
-					sideContent={
-						<div className="rounded-2xl border border-white/10 bg-black/30 p-4 w-fit">
-							<Building2 size={32} />
-						</div>
-					}
-				/>
+		<div className="space-y-8">
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight">
+            {organization?.name ?? "Organization"}
+          </h1>
+          <p className="text-muted-foreground">
+            {organization 
+              ? `Manage settings and members for ${organization.slug}` 
+              : "Loading organization details..."}
+          </p>
+        </div>
+      </div>
 
-				<div className="grid gap-8 lg:grid-cols-2">
-					<div className="rounded-[32px] border border-white/10 bg-white/[0.02]">
-						<div className="border-b border-white/10 px-6 py-5">
-							<div className="flex items-center justify-between">
-								<div>
-									<p className="text-xs uppercase tracking-[0.4em] text-[var(--text-soft)]">
-										Lookup
-									</p>
-									<p className="text-sm text-[var(--text-muted)]">
-										Inspect current organization data.
-									</p>
-								</div>
-								{isLoadingOrganization ? (
-									<RefreshCcw
-										className="animate-spin text-[var(--accent-green)]"
-										size={18}
-									/>
-								) : null}
-							</div>
-							<form onSubmit={handleLookup} className="mt-4 space-y-4">
-								<div className="space-y-2">
-									<Label htmlFor={lookupFieldId} className="tracking-[0.3em]">
-										Organization ID
-									</Label>
-									<div className="flex flex-col gap-3 sm:flex-row">
-										<Input
-											id={lookupFieldId}
-											placeholder="cjwtc8example"
-											value={lookupId}
-											onChange={(event) => setLookupId(event.target.value)}
-											autoComplete="off"
-										/>
-										<Button
-											type="submit"
-											variant="secondary"
-											disabled={!lookupId.trim()}
-											className="sm:w-32"
-										>
-											Load
-										</Button>
-									</div>
-									<p className="text-xs text-[var(--text-muted)]">
-										Tip: after creating an org the ID appears here
-										automatically.
-									</p>
-								</div>
-							</form>
-						</div>
-						<div className="px-6 py-6">
-							{!activeOrgId ? (
-								<p className="text-sm text-[var(--text-muted)]">
-									No organization selected yet. Enter an ID or use the form on
-									the right to create one.
-								</p>
-							) : isLoadingOrganization ? (
-								<p className="text-sm text-[var(--accent-green)]">
-									Loading organization…
-								</p>
-							) : organizationError ? (
-								<p className="text-sm text-[var(--accent-red)]">
-									{organizationError.message}
-								</p>
-							) : organization ? (
-								<div className="space-y-4">
-									<div>
-										<p className="text-xs uppercase tracking-[0.3em] text-[var(--text-soft)]">
-											Name
-										</p>
-										<p className="text-xl font-semibold">{organization.name}</p>
-									</div>
-									<div>
-										<p className="text-xs uppercase tracking-[0.3em] text-[var(--text-soft)]">
-											Slug
-										</p>
-										<p className="font-mono text-sm text-[var(--text-muted)]">
-											{organization.slug}
-										</p>
-									</div>
-									<div>
-										<p className="text-xs uppercase tracking-[0.3em] text-[var(--text-soft)]">
-											ID
-										</p>
-										<p className="font-mono text-xs text-[var(--text-muted)] break-all">
-											{organization.id}
-										</p>
-									</div>
-									<div>
-										<p className="text-xs uppercase tracking-[0.3em] text-[var(--text-soft)]">
-											Created
-										</p>
-										<p className="font-mono text-sm text-[var(--text-muted)]">
-											{formatTimestamp(organization.createdAt)}
-										</p>
-									</div>
-								</div>
-							) : null}
-						</div>
-					</div>
+      {organizationQuery.isLoading ? (
+        <div className="grid gap-8 lg:grid-cols-2">
+           <Skeleton className="h-64 w-full" />
+           <Skeleton className="h-64 w-full" />
+        </div>
+      ) : organization ? (
+        <div className="grid gap-8 lg:grid-cols-[1fr_1.5fr]">
+          <SectionCard title="General Information">
+             <dl className="divide-y divide-border">
+                <div className="py-4 grid grid-cols-3 gap-4">
+                   <dt className="text-sm font-medium text-muted-foreground">Name</dt>
+                   <dd className="text-sm font-medium text-foreground col-span-2">{organization.name}</dd>
+                </div>
+                <div className="py-4 grid grid-cols-3 gap-4">
+                   <dt className="text-sm font-medium text-muted-foreground">Slug</dt>
+                   <dd className="text-sm font-mono text-foreground col-span-2">{organization.slug}</dd>
+                </div>
+                <div className="py-4 grid grid-cols-3 gap-4">
+                   <dt className="text-sm font-medium text-muted-foreground">ID</dt>
+                   <dd className="text-xs font-mono text-muted-foreground col-span-2 break-all">{organization.id}</dd>
+                </div>
+                <div className="py-4 grid grid-cols-3 gap-4">
+                   <dt className="text-sm font-medium text-muted-foreground">Created</dt>
+                   <dd className="text-sm text-foreground col-span-2">{formatTimestamp(organization.createdAt)}</dd>
+                </div>
+             </dl>
+          </SectionCard>
 
-					<div className="rounded-[32px] border border-white/10 bg-white/[0.02] p-6 shadow-[var(--shadow-soft)]">
-						<div className="flex items-center gap-3">
-							<Sparkles size={20} className="text-[var(--accent)]" />
-							<div>
-								<p className="text-xs uppercase tracking-[0.4em] text-[var(--text-soft)]">
-									Create organization
-								</p>
-								<p className="text-sm text-[var(--text-muted)]">
-									Slug must be unique per environment.
-								</p>
-							</div>
-						</div>
-
-						<orgForm.AppForm>
-							<form
-								className="mt-6 space-y-6"
-								onSubmit={(event) => {
-									event.preventDefault();
-									void orgForm.handleSubmit();
-								}}
-							>
-								<orgForm.AppField
-									name="name"
-									validators={{
-										onBlur: ({ value }) => {
-											const trimmed = value?.trim() ?? "";
-											if (!trimmed) {
-												return "Name is required";
-											}
-											return undefined;
-										},
-									}}
-								>
-									{(field) => (
-										<field.TextField
-											label="Display name"
-											placeholder="Saavy Internal"
-										/>
-									)}
-								</orgForm.AppField>
-
-								<orgForm.AppField
-									name="slug"
-									validators={{
-										onBlur: ({ value }) => {
-											const trimmed = value?.trim() ?? "";
-											if (!trimmed) {
-												return "Slug is required";
-											}
-											if (!/^[a-z0-9-]+$/.test(trimmed)) {
-												return "Use lowercase letters, numbers, and dashes only";
-											}
-											return undefined;
-										},
-									}}
-								>
-									{(field) => (
-										<field.TextField
-											label="Slug"
-											placeholder="saavy"
-											description="Used in URLs and APIs"
-										/>
-									)}
-								</orgForm.AppField>
-
-								{creationError ? (
-									<p className="text-sm text-[var(--accent-red)]" role="alert">
-										{creationError}
-									</p>
-								) : null}
-								{creationSuccess ? (
-									<p
-										className="text-sm text-[var(--accent-green)]"
-										aria-live="polite"
-									>
-										{creationSuccess}
-									</p>
-								) : null}
-
-								<orgForm.SubmitButton
-									className="w-full"
-									label="Create organization"
-								/>
-							</form>
-						</orgForm.AppForm>
-					</div>
-				</div>
-			</div>
-		</main>
+          <SectionCard 
+            title="Members" 
+            description={`Manage access to ${organization.name}`}
+            actions={<div className="text-xs font-medium text-muted-foreground">{members.length} members</div>}
+            contentClassName="p-0"
+          >
+             {membersQuery.isLoading ? (
+                <div className="p-6 space-y-2">
+                   <Skeleton className="h-10 w-full" />
+                   <Skeleton className="h-10 w-full" />
+                   <Skeleton className="h-10 w-full" />
+                </div>
+             ) : (
+               <div className="border-t border-border">
+                 <Table>
+                   <TableHeader>
+                     <TableRow className="hover:bg-transparent border-border">
+                       <TableHead className="pl-6">User</TableHead>
+                       <TableHead>Role</TableHead>
+                     </TableRow>
+                   </TableHeader>
+                   <TableBody>
+                     {members.map((member) => (
+                       <TableRow key={member.email} className="border-border hover:bg-muted/30">
+                         <TableCell className="pl-6">
+                           <div className="flex items-center gap-3">
+                              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                <Mail size={14} className="text-primary" />
+                              </div>
+                              <span className="font-medium">{member.email}</span>
+                           </div>
+                         </TableCell>
+                         <TableCell>
+                           <div className="flex items-center gap-2">
+                             <Shield size={14} className="text-muted-foreground" />
+                             <span className="capitalize">{member.role}</span>
+                           </div>
+                         </TableCell>
+                       </TableRow>
+                     ))}
+                     {members.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={2} className="text-center text-muted-foreground h-24 border-border">
+                            No members found
+                          </TableCell>
+                        </TableRow>
+                     )}
+                   </TableBody>
+                 </Table>
+               </div>
+             )}
+          </SectionCard>
+        </div>
+      ) : (
+        <div className="p-12 text-center rounded-xl border border-dashed border-border">
+           <p className="text-muted-foreground">Organization not found.</p>
+        </div>
+      )}
+		</div>
 	);
 }
 

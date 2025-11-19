@@ -2,10 +2,9 @@ import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Register, RootRoute } from "@tanstack/react-router";
 import { createRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Pencil } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { useAppForm } from "@/components/form/useAppForm";
-import { Hero } from "@/components/layout/Hero";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { getMonitor, updateMonitor, type Monitor } from "@/lib/monitors";
@@ -79,47 +78,25 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 			monitorQuery.error instanceof Error ? monitorQuery.error : null;
 
 		return (
-			<main className="min-h-screen bg-[var(--surface)] px-6 py-10 text-[var(--text-primary)] lg:px-8">
-				<div className="mx-auto max-w-5xl space-y-10">
-					<Link
-						to="/monitors"
-						className="inline-flex items-center gap-2 text-sm text-[var(--text-muted)] transition hover:text-[var(--text-primary)]"
+			<div className="space-y-8">
+				<div className="flex items-center justify-between">
+					<div className="space-y-1">
+						<h1 className="text-2xl font-bold tracking-tight">Edit Monitor</h1>
+						<p className="text-muted-foreground">
+							Refine monitor behavior without redeploying Workers.
+						</p>
+					</div>
+					<Button
+						type="button"
+						variant="secondary"
+						onClick={() => navigate({ to: "/monitors" })}
 					>
-						<ArrowLeft size={16} />
-						Back to monitors
-					</Link>
+						Cancel
+					</Button>
+				</div>
 
-					<Hero
-						eyebrow="Edit monitor"
-						title="Refine monitor behavior"
-						description="Adjust cadence, timeouts, and URL targets without redeploying Workers. Changes apply instantly to the Durable Object scheduler."
-						actions={
-							<Button
-								type="button"
-								variant="secondary"
-								onClick={() => navigate({ to: "/monitors" })}
-							>
-								Cancel
-							</Button>
-						}
-						sideContent={
-							<div className="rounded-2xl border border-white/10 bg-black/30 p-4">
-								<div className="flex items-center gap-3">
-									<Pencil size={18} className="text-[var(--accent)]" />
-									<div>
-										<p className="text-xs uppercase tracking-[0.3em] text-[var(--text-soft)]">
-											Live updates
-										</p>
-										<p className="text-sm text-[var(--text-muted)]">
-											No worker restarts required—updates propagate instantly.
-										</p>
-									</div>
-								</div>
-							</div>
-						}
-					/>
-
-					<section className="rounded-[32px] border border-white/10 bg-white/[0.02] p-6 shadow-[var(--shadow-soft)] sm:p-8">
+				<div className="grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.7fr)]">
+					<div className="rounded-xl border border-border bg-card p-6 shadow-sm sm:p-8">
 						{isLoading ? (
 							<div className="space-y-4">
 								<Skeleton className="h-16" />
@@ -128,7 +105,7 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 							</div>
 						) : loadError ? (
 							<div className="space-y-4">
-								<p className="font-mono text-sm text-[var(--accent-red)]">
+								<p className="font-mono text-sm text-destructive">
 									{loadError.message}
 								</p>
 								<Button type="button" onClick={() => monitorQuery.refetch()}>
@@ -221,8 +198,8 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 											</form.AppField>
 										</div>
 
-										<div className="rounded-3xl border border-white/15 bg-black/30 p-6">
-											<p className="text-xs font-mono uppercase tracking-[0.4em] text-[var(--text-soft)]">
+										<div className="rounded-xl border border-border bg-muted/20 p-6">
+											<p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
 												Advanced options
 											</p>
 											<div className="mt-4 space-y-4">
@@ -258,9 +235,21 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 								</form>
 							</form.AppForm>
 						)}
-					</section>
+					</div>
+
+					<aside className="rounded-xl border border-border bg-muted/10 p-6 shadow-sm">
+						<div className="rounded-lg border border-border bg-muted/20 p-6">
+							<div className="flex items-center gap-2 mb-2">
+								<Pencil size={18} className="text-primary" />
+								<p className="text-sm font-medium text-foreground">Live updates</p>
+							</div>
+							<p className="text-sm text-muted-foreground">
+								Changes apply instantly to the Durable Object scheduler. No worker restarts required.
+							</p>
+						</div>
+					</aside>
 				</div>
-			</main>
+			</div>
 		);
 	}
 

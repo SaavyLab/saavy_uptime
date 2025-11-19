@@ -13,3 +13,6 @@ SELECT id FROM organizations;
 
 -- name: select_org_member :one
 SELECT organization_id, role from organization_members where identity_id = :identity_id ORDER BY created_at DESC LIMIT 1;
+
+-- name: get_organization_members :many
+select m.email, om.role from members m join organization_members om on m.identity_id = om.identity_id where om.organization_id = :organization_id;

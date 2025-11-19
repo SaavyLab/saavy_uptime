@@ -1,501 +1,347 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState, useId } from "react";
+import { useMemo, useState, useEffect } from "react";
 import type { Register, RootRoute } from "@tanstack/react-router";
-import { createRoute, Link } from "@tanstack/react-router";
+import { createRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
-	Database,
-	RefreshCcw,
-	Sparkles,
-	Wrench,
-	ArrowUpRight,
+  RefreshCcw,
+  Plus,
+  Search,
+  Wrench,
+  Database,
+  ChevronLeft,
+  ChevronRight,
+  Activity,
+  CheckCircle,
+  XCircle
 } from "lucide-react";
 import { toast } from "sonner";
-import { Hero } from "@/components/layout/Hero";
-import { SectionCard } from "@/components/layout/SectionCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/Skeleton";
-import { StatsGrid } from "@/components/ui/StatsCard";
-import { StatusPill } from "@/components/ui/StatusPill";
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getMonitors, seedMonitors, type Monitor } from "@/lib/monitors";
 import { reconcileTickers } from "@/lib/ticker";
 import type { RouterContext } from "@/router-context";
+import { cn } from "@/lib/utils";
 
-const formatTimestamp = (value?: number | null) => {
-	if (!value) {
-		return "—";
-	}
-
-	return new Date(value * 1000).toLocaleString();
-};
+function StatusBadge({ status }: { status?: string }) {
+  const colors = {
+    up: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+    down: "bg-red-500/15 text-red-600 dark:text-red-400",
+    maintenance: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+    unknown: "bg-slate-500/15 text-slate-600 dark:text-slate-400",
+  };
+  
+  const color = colors[status as keyof typeof colors] || colors.unknown;
+  
+  return (
+    <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ring-black/5 dark:ring-white/10", color)}>
+      {status?.toUpperCase() || "UNKNOWN"}
+    </span>
+  );
+}
 
 function MonitorsPage() {
-	const { data, isLoading, error, refetch } = useQuery<Monitor[]>({
-		queryKey: ["monitors"],
-		queryFn: () => getMonitors(),
-	});
+  const { data: monitors = [], isLoading, refetch } = useQuery<Monitor[]>({
+    queryKey: ["monitors"],
+    queryFn: () => getMonitors(),
+  });
 
-	const [searchTerm, setSearchTerm] = useState("");
-	const [kindFilter, setKindFilter] = useState("all");
-	const [pageSize, setPageSize] = useState(20);
-	const [currentPage, setCurrentPage] = useState(0);
-	const searchFieldId = useId();
-	const kindFieldId = useId();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [kindFilter, setKindFilter] = useState("all");
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageSize, setPageSize] = useState(20);
+  
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
-	const tickerAdminEnabled =
-		import.meta.env.DEV ||
-		["1", "true"].includes(
-			(import.meta.env.VITE_ENABLE_TICKER_ADMIN ?? "").toLowerCase(),
-		);
+  const tickerAdminEnabled =
+    import.meta.env.DEV ||
+    ["1", "true"].includes(
+      (import.meta.env.VITE_ENABLE_TICKER_ADMIN ?? "").toLowerCase(),
+    );
 
-	const reconcileMutation = useMutation({
-		mutationFn: () => reconcileTickers(),
-		onSuccess: (summary) => {
-			toast.success("Ticker bootstrap complete", {
-				description: `Bootstrapped ${summary.bootstrapped}/${summary.organizations} orgs`,
-			});
-			void refetch();
-		},
-		onError: (err: unknown) => {
-			const message =
-				err instanceof Error ? err.message : "Unable to reconcile tickers";
-			toast.error(message);
-		},
-	});
+  const reconcileMutation = useMutation({
+    mutationFn: () => reconcileTickers(),
+    onSuccess: (summary) => {
+      toast.success("Ticker bootstrap complete", {
+        description: `Bootstrapped ${summary.bootstrapped}/${summary.organizations} orgs`,
+      });
+      void refetch();
+    },
+    onError: (err: unknown) => {
+      toast.error(err instanceof Error ? err.message : "Unable to reconcile tickers");
+    },
+  });
 
-	const monitors = data ?? [];
-	const total = monitors.length;
-	const enabled = monitors.filter((monitor) => Boolean(monitor.enabled)).length;
-	const failing = monitors.filter(
-		(monitor) => monitor.currentStatus === "down",
-	).length;
-	const averageInterval = monitors.length
-		? Math.round(
-				monitors.reduce(
-					(sum, monitor) => sum + Number(monitor.intervalS ?? 0),
-					0,
-				) / monitors.length,
-			)
-		: null;
-	const mostRecentCheck = monitors.reduce(
-		(latest, monitor) => Math.max(latest, monitor.lastCheckedAtTs ?? 0),
-		0,
-	);
+  const seedMutation = useMutation({
+    mutationFn: () => seedMonitors(),
+    onSuccess: ({ created, failed }) => {
+      const description = failed > 0
+        ? `Created ${created} monitors (${failed} failed)`
+        : `Created ${created} monitors`;
+      toast.success("Seed complete", { description });
+      queryClient.invalidateQueries({ queryKey: ["monitors"] });
+    },
+    onError: (err: unknown) => {
+      toast.error(err instanceof Error ? err.message : "Unable to seed monitors");
+    },
+  });
 
-	const monitorKinds = useMemo(() => {
+  const monitorKinds = useMemo(() => {
 		const kinds = Array.from(new Set(monitors.map((monitor) => monitor.kind)));
 		return kinds.sort((a, b) => a.localeCompare(b));
 	}, [monitors]);
 
-	const filteredMonitors = useMemo(() => {
-		const normalizedSearch = searchTerm.trim().toLowerCase();
-		return monitors.filter((monitor) => {
-			const matchesKind =
-				kindFilter === "all"
-					? true
-					: monitor.kind.toLowerCase() === kindFilter.toLowerCase();
-			const matchesSearch = normalizedSearch
-				? [monitor.name, monitor.url].some((value) =>
-						value.toLowerCase().includes(normalizedSearch),
-					)
-				: true;
-			return matchesKind && matchesSearch;
-		});
-	}, [monitors, kindFilter, searchTerm]);
+  const filteredMonitors = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    return monitors.filter((monitor) => {
+      const matchesKind = kindFilter === "all" ? true : monitor.kind === kindFilter;
+      const matchesSearch = normalizedSearch
+        ? [monitor.name, monitor.url].some((v) => v.toLowerCase().includes(normalizedSearch))
+        : true;
+      return matchesKind && matchesSearch;
+    });
+  }, [monitors, kindFilter, searchTerm]);
 
-	const sortedFilteredMonitors = useMemo(
-		() =>
-			[...filteredMonitors].sort(
-				(a, b) => (b.lastCheckedAtTs ?? 0) - (a.lastCheckedAtTs ?? 0),
-			),
-		[filteredMonitors],
-	);
+  // Pagination logic
+  const totalPages = Math.ceil(filteredMonitors.length / pageSize) || 1;
+  const safePageIndex = Math.min(pageIndex, totalPages - 1);
+  const pageStart = safePageIndex * pageSize;
+  const pageEnd = Math.min(pageStart + pageSize, filteredMonitors.length);
+  const currentData = filteredMonitors.slice(pageStart, pageEnd);
 
-	const totalPages = Math.max(
-		1,
-		Math.ceil(sortedFilteredMonitors.length / pageSize) || 1,
-	);
-	const safePage = Math.min(currentPage, totalPages - 1);
-	const pageStart = safePage * pageSize;
-	const pageEnd = Math.min(pageStart + pageSize, sortedFilteredMonitors.length);
-	const paginatedMonitors = sortedFilteredMonitors.slice(pageStart, pageEnd);
+  // Reset page when filters change
+  useEffect(() => {
+    setPageIndex(0);
+  }, [searchTerm, kindFilter, pageSize]);
 
-	useEffect(() => {
-		setCurrentPage(0);
-	}, [searchTerm, kindFilter, pageSize]);
+  // Fleet Stats
+  const totalCount = monitors.length;
+  const upCount = monitors.filter(m => m.currentStatus === 'up').length;
+  const downCount = monitors.filter(m => m.currentStatus === 'down').length;
 
-	useEffect(() => {
-		if (currentPage !== safePage) {
-			setCurrentPage(safePage);
-		}
-	}, [currentPage, safePage]);
+  return (
+    <div className="space-y-8">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight">Monitor Inventory</h1>
+          <p className="text-muted-foreground">
+            Manage configuration and view health status for all deployed checks.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+           {tickerAdminEnabled && (
+              <>
+                <Button 
+                  variant="outline" 
+                  onClick={() => reconcileMutation.mutate()} 
+                  disabled={reconcileMutation.isPending}
+                  className="gap-2"
+                >
+                   <Wrench className={cn("h-4 w-4", reconcileMutation.isPending && "animate-spin")} />
+                   Warm Ticker
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => seedMutation.mutate()} 
+                  disabled={seedMutation.isPending}
+                  className="gap-2"
+                >
+                   <Database className={cn("h-4 w-4", seedMutation.isPending && "animate-spin")} />
+                   Seed Data
+                </Button>
+              </>
+           )}
+           <Button variant="secondary" onClick={() => refetch()} className="gap-2">
+             <RefreshCcw className={cn("h-4 w-4", isLoading && "animate-spin")} />
+             Refresh
+           </Button>
+           <Link to="/monitors/new">
+            <Button className="gap-2">
+              <Plus className="h-4 w-4" />
+              New Monitor
+            </Button>
+           </Link>
+        </div>
+      </div>
 
-	const overviewCards = [
-		{
-			label: "Total monitors",
-			value: isLoading ? "…" : total,
-			meta: `${enabled} enabled`,
-		},
-		{
-			label: "Down",
-			value: isLoading ? "…" : failing,
-			meta: "requires attention",
-		},
-		{
-			label: "Average interval",
-			value: averageInterval ? `${averageInterval}s` : "—",
-			meta: "fleet cadence",
-		},
-		{
-			label: "Last check",
-			value: mostRecentCheck ? formatTimestamp(mostRecentCheck) : "—",
-			meta: "latest sample",
-		},
-	];
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Monitors</CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalCount}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Healthy</CardTitle>
+            <CheckCircle className="h-4 w-4 text-emerald-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{upCount}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Down</CardTitle>
+            <XCircle className="h-4 w-4 text-red-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{downCount}</div>
+          </CardContent>
+        </Card>
+      </div>
 
-	const queryClient = useQueryClient();
-	const seedMutation = useMutation({
-		mutationFn: () => seedMonitors(),
-		onSuccess: ({ created, failed }) => {
-			const description =
-				failed > 0
-					? `Created ${created} monitors (${failed} failed)`
-					: `Created ${created} monitors`;
-			toast.success("Seed complete", { description });
-			queryClient.invalidateQueries({ queryKey: ["monitors"] });
-		},
-		onError: (err: unknown) => {
-			const message =
-				err instanceof Error ? err.message : "Unable to seed monitors";
-			toast.error(message);
-		},
-	});
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-4">
+          <div className="relative flex-1 max-w-sm">
+             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+             <Input 
+                placeholder="Search monitors..." 
+                className="pl-9 bg-background"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+             />
+          </div>
+          <Select value={kindFilter} onValueChange={setKindFilter}>
+            <SelectTrigger className="w-[180px] bg-background">
+              <SelectValue placeholder="Filter by type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              {monitorKinds.map(k => (
+                 <SelectItem key={k} value={k}>{k.toUpperCase()}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-	return (
-		<main className="min-h-screen bg-[var(--surface)] px-6 py-10 text-[var(--text-primary)] lg:px-8">
-			<div className="mx-auto max-w-6xl space-y-10">
-				<Hero
-					eyebrow="Monitor Fleet"
-					title="Live monitor inventory for Saavy Uptime."
-					description="Review the checks you’ve already deployed, refresh status from the worker, and stay focused on a lean uptime MVP."
-					actions={
-						<>
-							<Link to="/monitors/new">
-								<Button>New monitor</Button>
-							</Link>
-							<Button
-								type="button"
-								variant="secondary"
-								onClick={() => refetch()}
-								disabled={isLoading}
-								className="flex items-center gap-2"
-							>
-								<RefreshCcw size={16} />
-								Refresh
-							</Button>
-							{tickerAdminEnabled ? (
-								<>
-									<Button
-										type="button"
-										variant="outline"
-										onClick={() => reconcileMutation.mutate()}
-										disabled={reconcileMutation.isPending}
-										className="flex items-center gap-2"
-									>
-										<Wrench size={16} />
-										{reconcileMutation.isPending
-											? "Bootstrapping…"
-											: "Warm ticker"}
-									</Button>
-									<Button
-										type="button"
-										variant="outline"
-										onClick={() => seedMutation.mutate()}
-										disabled={seedMutation.isPending}
-										className="flex items-center gap-2"
-									>
-										<Database size={16} />
-										{seedMutation.isPending ? "Seeding…" : "Seed monitors"}
-									</Button>
-								</>
-							) : null}
-						</>
-					}
-					sideContent={
-						<div className="space-y-4">
-							<StatsGrid
-								items={overviewCards}
-								cardClassName="bg-white/5 border-white/10"
-							/>
-							<div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm">
-								<Sparkles size={18} className="text-[var(--accent)]" />
-								<span className="text-[var(--text-muted)]">
-									{enabled
-										? `${enabled} monitors currently online`
-										: "Waiting for your first monitor"}
-								</span>
-							</div>
-						</div>
-					}
-				/>
-
-				<SectionCard
-					title="Monitor inventory"
-					actions={
-						<>
-							<Button
-								type="button"
-								variant="ghost"
-								size="sm"
-								onClick={() => refetch()}
-								className="flex items-center gap-2"
-							>
-								<RefreshCcw size={14} />
-								Sync
-							</Button>
-							<Link to="/monitors/new">
-								<Button size="sm">Add</Button>
-							</Link>
-						</>
-					}
-				>
-					{isLoading ? (
-						<div className="space-y-4">
-							{["alpha", "beta", "gamma"].map((token) => (
-								<Skeleton key={`monitors-skeleton-${token}`} className="h-24" />
-							))}
-						</div>
-					) : error instanceof Error ? (
-						<div className="space-y-4">
-							<p className="font-mono text-sm text-[var(--accent-red)]">
-								{error.message}
-							</p>
-							<Button type="button" onClick={() => refetch()}>
-								Try again
-							</Button>
-						</div>
-					) : monitors.length === 0 ? (
-						<div className="space-y-4 py-12 text-center">
-							<p className="text-base text-[var(--text-muted)]">
-								No monitors yet. Create one to start tracking uptime.
-							</p>
-							<Link to="/monitors/new">
-								<Button>Launch first monitor</Button>
-							</Link>
-						</div>
-					) : (
-						<div className="space-y-6">
-							<div className="flex flex-col gap-4 border-b border-white/5 pb-6 lg:flex-row lg:items-end lg:justify-between">
-								<div className="flex-1 space-y-2">
-									<Label
-										htmlFor={searchFieldId}
-										className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--text-soft)]"
-									>
-										Search
-									</Label>
-									<Input
-										id={searchFieldId}
-										placeholder="Search by name or URL"
-										value={searchTerm}
-										onChange={(event) => setSearchTerm(event.target.value)}
-									/>
-								</div>
-								<div className="space-y-2">
-									<Label
-										htmlFor={kindFieldId}
-										className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--text-soft)]"
-									>
-										Monitor type
-									</Label>
-									<Select
-										value={kindFilter}
-										onValueChange={(value) => setKindFilter(value)}
-									>
-										<SelectTrigger id={kindFieldId} className="min-w-[200px]">
-											<SelectValue placeholder="All monitors" />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="all">All monitors</SelectItem>
-											{monitorKinds.map((kind) => (
-												<SelectItem key={kind} value={kind}>
-													{kind.toUpperCase()}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-								</div>
-							</div>
-
-							{filteredMonitors.length === 0 ? (
-								<div className="space-y-4 py-12 text-center">
-									<p className="text-base text-[var(--text-muted)]">
-										No monitors match your filters. Try adjusting the search or
-										type filter.
-									</p>
-									<Button
-										type="button"
-										variant="secondary"
-										onClick={() => {
-											setSearchTerm("");
-											setKindFilter("all");
-										}}
-									>
-										Clear filters
-									</Button>
-								</div>
-							) : (
-								<>
-									<div className="space-y-4">
-										{paginatedMonitors.map((monitor) => (
-											<Link
-												key={monitor.id}
-												to="/monitors/$monitorId"
-												params={{ monitorId: monitor.id }}
-												className="block rounded-[28px] border border-white/10 bg-white/[0.01] p-4 transition hover:border-white/30 hover:bg-white/[0.03]"
-											>
-												<div className="grid gap-6 md:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
-													<div className="space-y-3">
-														<div className="flex flex-wrap items-center gap-3">
-															<h3 className="text-xl font-semibold">
-																{monitor.name}
-															</h3>
-															<StatusPill status={monitor.currentStatus} />
-															<span className="flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.3em] text-[var(--text-soft)]">
-																View
-																<ArrowUpRight size={12} />
-															</span>
-														</div>
-														<p className="font-mono text-sm text-[var(--text-muted)] break-all">
-															{monitor.url}
-														</p>
-														<p className="font-mono text-xs text-[var(--text-soft)]">
-															Created {formatTimestamp(monitor.createdAt)}
-														</p>
-													</div>
-													<dl className="grid grid-cols-2 gap-4 text-sm font-mono text-[var(--text-muted)]">
-														<div>
-															<dt className="text-xs uppercase tracking-[0.3em] text-[var(--text-soft)]">
-																Interval
-															</dt>
-															<dd className="text-base text-[var(--text-primary)]">
-																{monitor.intervalS}s
-															</dd>
-														</div>
-														<div>
-															<dt className="text-xs uppercase tracking-[0.3em] text-[var(--text-soft)]">
-																Timeout
-															</dt>
-															<dd className="text-base text-[var(--text-primary)]">
-																{monitor.timeoutMs}ms
-															</dd>
-														</div>
-														<div>
-															<dt className="text-xs uppercase tracking-[0.3em] text-[var(--text-soft)]">
-																Last check
-															</dt>
-															<dd className="text-base text-[var(--text-primary)]">
-																{formatTimestamp(monitor.lastCheckedAtTs)}
-															</dd>
-														</div>
-														<div>
-															<dt className="text-xs uppercase tracking-[0.3em] text-[var(--text-soft)]">
-																Enabled
-															</dt>
-															<dd
-																className={
-																	monitor.enabled
-																		? "text-[var(--accent-green)]"
-																		: "text-[var(--accent-red)]"
-																}
-															>
-																{monitor.enabled ? "Yes" : "No"}
-															</dd>
-														</div>
-													</dl>
-												</div>
-											</Link>
-										))}
-									</div>
-									<div className="flex flex-col gap-4 border-t border-white/5 pt-4 text-sm text-[var(--text-muted)] md:flex-row md:items-center md:justify-between">
-										<p>
-											Showing{" "}
-											<strong className="text-[var(--text-primary)]">
-												{filteredMonitors.length === 0
-													? 0
-													: `${pageStart + 1}-${pageEnd}`}
-											</strong>{" "}
-											of{" "}
-											<strong className="text-[var(--text-primary)]">
-												{filteredMonitors.length}
-											</strong>{" "}
-											monitors
-										</p>
-										<div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-6">
-											<div className="flex items-center gap-2">
-												<span>Rows per page</span>
-												<Select
-													value={pageSize.toString()}
-													onValueChange={(value) => {
-														setPageSize(Number(value));
-													}}
-												>
-													<SelectTrigger size="sm">
-														<SelectValue />
-													</SelectTrigger>
-													<SelectContent>
-														<SelectItem value="10">10</SelectItem>
-														<SelectItem value="20">20</SelectItem>
-														<SelectItem value="50">50</SelectItem>
-													</SelectContent>
-												</Select>
-											</div>
-											<div className="flex items-center gap-2">
-												<Button
-													type="button"
-													variant="ghost"
-													size="sm"
-													onClick={() =>
-														setCurrentPage((prev) => Math.max(prev - 1, 0))
-													}
-													disabled={safePage === 0}
-												>
-													Prev
-												</Button>
-												<p className="text-xs uppercase tracking-[0.3em] text-[var(--text-soft)]">
-													Page {safePage + 1} / {totalPages}
-												</p>
-												<Button
-													type="button"
-													variant="ghost"
-													size="sm"
-													onClick={() =>
-														setCurrentPage((prev) =>
-															Math.min(prev + 1, totalPages - 1),
-														)
-													}
-													disabled={safePage >= totalPages - 1}
-												>
-													Next
-												</Button>
-											</div>
-										</div>
-									</div>
-								</>
-							)}
-						</div>
-					)}
-				</SectionCard>
-			</div>
-		</main>
-	);
+        <div className="rounded-md border bg-card">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[300px]">Name</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Interval</TableHead>
+                <TableHead>Last Check</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center">
+                    Loading monitors...
+                  </TableCell>
+                </TableRow>
+              ) : currentData.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                    No monitors found.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                currentData.map((monitor) => (
+                  <TableRow 
+                    key={monitor.id} 
+                    className="cursor-pointer"
+                    onClick={() => navigate({ to: "/monitors/$monitorId", params: { monitorId: monitor.id } })}
+                  >
+                    <TableCell>
+                      <div className="font-medium">{monitor.name}</div>
+                      <div className="text-xs text-muted-foreground truncate max-w-[280px]" title={monitor.url}>
+                        {monitor.url}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={monitor.currentStatus} />
+                    </TableCell>
+                    <TableCell>{monitor.intervalS}s</TableCell>
+                    <TableCell>
+                      {monitor.lastCheckedAtTs 
+                        ? new Date(monitor.lastCheckedAtTs * 1000).toLocaleString() 
+                        : "Never"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                       <Button variant="ghost" size="sm">
+                         Details
+                       </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+        
+        <div className="flex items-center justify-between px-2">
+          <div className="text-xs text-muted-foreground">
+            Showing {currentData.length > 0 ? pageStart + 1 : 0}-{pageEnd} of {filteredMonitors.length} monitors
+          </div>
+          
+          <div className="flex items-center gap-2">
+             <div className="flex items-center gap-2 mr-4">
+                <span className="text-xs text-muted-foreground">Rows per page</span>
+                <Select
+                  value={pageSize.toString()}
+                  onValueChange={(val) => setPageSize(Number(val))}
+                >
+                  <SelectTrigger className="h-8 w-[70px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+             </div>
+             
+             <Button
+               variant="outline"
+               size="icon"
+               className="h-8 w-8"
+               onClick={() => setPageIndex(p => Math.max(0, p - 1))}
+               disabled={safePageIndex === 0}
+             >
+               <ChevronLeft className="h-4 w-4" />
+             </Button>
+             <div className="text-xs font-medium">
+               Page {safePageIndex + 1} of {totalPages}
+             </div>
+             <Button
+               variant="outline"
+               size="icon"
+               className="h-8 w-8"
+               onClick={() => setPageIndex(p => Math.min(totalPages - 1, p + 1))}
+               disabled={safePageIndex >= totalPages - 1}
+             >
+               <ChevronRight className="h-4 w-4" />
+             </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default (parentRoute: RootRoute<Register, undefined, RouterContext>) =>

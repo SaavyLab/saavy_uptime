@@ -1,10 +1,8 @@
-import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Register, RootRoute } from "@tanstack/react-router";
 import { createRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Trash } from "lucide-react";
+import { Trash } from "lucide-react";
 import { toast } from "sonner";
-import { Hero } from "@/components/layout/Hero";
 import { SectionCard } from "@/components/layout/SectionCard";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -14,7 +12,6 @@ import {
 	getMonitor,
 	getMonitorHeartbeats,
 	type Heartbeat,
-	type Monitor,
 } from "@/lib/monitors";
 import type { RouterContext } from "@/router-context";
 
@@ -83,175 +80,147 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 		const monitor = monitorQuery.data;
 		const heartbeats = heartbeatQuery.data ?? [];
 
-		const configSummary = useMemo(() => {
-			if (!monitor) {
-				return [];
-			}
-			return [
-				{ label: "Interval", value: `${monitor.intervalS}s` },
-				{ label: "Timeout", value: `${monitor.timeoutMs}ms` },
-				{
-					label: "Redirects",
-					value: monitor.followRedirects ? "Follow" : "Do not follow",
-				},
-				{
-					label: "TLS",
-					value: monitor.verifyTls ? "Verify" : "Allow self-signed",
-				},
-				{
-					label: "Status expectations",
-					value:
-						monitor.expectStatusLow && monitor.expectStatusHigh
-							? `${monitor.expectStatusLow}–${monitor.expectStatusHigh}`
-							: "Any 2xx",
-				},
-			];
-		}, [monitor]);
-
 		return (
-			<main className="min-h-screen bg-[var(--surface)] px-6 py-10 text-[var(--text-primary)] lg:px-8">
-				<div className="mx-auto max-w-6xl space-y-10">
-					<Link
-						to="/monitors"
-						className="inline-flex items-center gap-2 text-sm text-[var(--text-muted)] transition hover:text-[var(--text-primary)]"
-					>
-						<ArrowLeft size={16} />
-						Back to monitors
-					</Link>
+			<div className="space-y-8">
+				<div className="flex items-center justify-between">
+					<div className="flex items-center gap-2 text-sm text-muted-foreground">
+						<Link to="/monitors" className="hover:text-foreground transition-colors">
+							Monitors
+						</Link>
+						<span>/</span>
+						<span className="text-foreground font-medium">{monitor?.name ?? "Loading..."}</span>
+					</div>
+				</div>
 
-					{monitorQuery.isLoading ? (
-						<div className="space-y-6">
-							<Skeleton className="h-24" />
-							<Skeleton className="h-64" />
+				{monitorQuery.isLoading ? (
+					<div className="space-y-6">
+						<Skeleton className="h-24" />
+						<Skeleton className="h-64" />
+					</div>
+				) : monitorQuery.error instanceof Error ? (
+					<div className="space-y-4">
+						<p className="font-mono text-sm text-destructive">
+							{monitorQuery.error.message}
+						</p>
+						<Button type="button" onClick={() => monitorQuery.refetch()}>
+							Try again
+						</Button>
+					</div>
+				) : monitor ? (
+					<>
+						<div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+							<div className="space-y-1">
+								<div className="flex items-center gap-3">
+									<h1 className="text-2xl font-bold tracking-tight">{monitor.name}</h1>
+									<StatusPill status={monitor.currentStatus} />
+								</div>
+								<p className="text-muted-foreground font-mono text-sm">{monitor.url}</p>
+							</div>
+							<div className="flex items-center gap-2">
+								<Link to="/monitors/$monitorId/edit" params={{ monitorId }}>
+									<Button variant="outline">Edit</Button>
+								</Link>
+								<Button
+									type="button"
+									variant="destructive"
+									onClick={handleDelete}
+									disabled={deleteMutation.isPending}
+									size="icon"
+								>
+									<Trash size={16} />
+								</Button>
+							</div>
 						</div>
-					) : monitorQuery.error instanceof Error ? (
-						<div className="space-y-4">
-							<p className="font-mono text-sm text-[var(--accent-red)]">
-								{monitorQuery.error.message}
-							</p>
-							<Button type="button" onClick={() => monitorQuery.refetch()}>
-								Try again
-							</Button>
+
+						<div className="grid gap-4 md:grid-cols-4">
+							<div className="rounded-xl border border-border bg-muted/20 p-4">
+								<div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Last Check</div>
+								<div className="mt-1 text-lg font-mono font-medium text-foreground">{formatTimestamp(monitor.lastCheckedAtTs)}</div>
+							</div>
+							<div className="rounded-xl border border-border bg-muted/20 p-4">
+								<div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Interval</div>
+								<div className="mt-1 text-lg font-mono font-medium text-foreground">{monitor.intervalS}s</div>
+							</div>
+							<div className="rounded-xl border border-border bg-muted/20 p-4">
+								<div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Timeout</div>
+								<div className="mt-1 text-lg font-mono font-medium text-foreground">{monitor.timeoutMs}ms</div>
+							</div>
+							<div className="rounded-xl border border-border bg-muted/20 p-4">
+								<div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Status Code</div>
+								<div className="mt-1 text-lg font-mono font-medium text-foreground">
+									{monitor.expectStatusLow && monitor.expectStatusHigh
+										? `${monitor.expectStatusLow}-${monitor.expectStatusHigh}`
+										: "Any 2xx"}
+								</div>
+							</div>
 						</div>
-					) : monitor ? (
-						<>
-							<Hero
-								eyebrow="Monitor detail"
-								title={monitor.name}
-								description={monitor.url}
-								actions={
-									<div className="flex flex-wrap gap-3">
-										<Link to="/monitors/$monitorId/edit" params={{ monitorId }}>
-											<Button>Edit monitor</Button>
-										</Link>
+
+						<section className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+							<SectionCard title="Configuration">
+								<dl className="grid grid-cols-1 gap-4 text-sm text-muted-foreground">
+									<div className="flex justify-between border-b border-border pb-2">
+										<dt>Follow Redirects</dt>
+										<dd className="text-foreground font-medium">{monitor.followRedirects ? "Yes" : "No"}</dd>
+									</div>
+									<div className="flex justify-between border-b border-border pb-2">
+										<dt>Verify TLS</dt>
+										<dd className="text-foreground font-medium">{monitor.verifyTls ? "Yes" : "No"}</dd>
+									</div>
+									<div className="flex justify-between border-b border-border pb-2">
+										<dt>Created At</dt>
+										<dd className="text-foreground font-medium">{formatTimestamp(monitor.createdAt)}</dd>
+									</div>
+									<div className="flex justify-between border-b border-border pb-2">
+										<dt>Enabled</dt>
+										<dd className={monitor.enabled ? "text-emerald-500 font-medium" : "text-muted-foreground font-medium"}>
+											{monitor.enabled ? "Yes" : "No"}
+										</dd>
+									</div>
+								</dl>
+							</SectionCard>
+							<SectionCard
+								title="Recent heartbeats"
+								description="Latest executions streamed from the worker ticker"
+							>
+								{heartbeatQuery.isLoading ? (
+									<div className="space-y-3">
+										<Skeleton className="h-12" />
+										<Skeleton className="h-12" />
+										<Skeleton className="h-12" />
+									</div>
+								) : heartbeatQuery.error instanceof Error ? (
+									<div className="space-y-4">
+										<p className="font-mono text-sm text-destructive">
+											{heartbeatQuery.error.message}
+										</p>
 										<Button
 											type="button"
-											variant="destructive"
-											onClick={handleDelete}
-											disabled={deleteMutation.isPending}
-											className="flex items-center gap-2"
+											variant="secondary"
+											onClick={() => heartbeatQuery.refetch()}
 										>
-											<Trash size={16} />
-											{deleteMutation.isPending ? "Deleting…" : "Delete"}
+											Retry
 										</Button>
 									</div>
-								}
-								sideContent={
-									<div className="rounded-2xl border border-white/10 bg-black/30 p-4">
-										<div className="space-y-2">
-											<p className="text-xs uppercase tracking-[0.3em] text-[var(--text-soft)]">
-												Status
-											</p>
-											<StatusPill status={monitor.currentStatus} />
-											<p className="text-xs text-[var(--text-muted)]">
-												Last check: {formatTimestamp(monitor.lastCheckedAtTs)}
-											</p>
-										</div>
-									</div>
-								}
-							/>
-
-							<section className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-								<SectionCard title="Configuration">
-									<dl className="grid grid-cols-1 gap-4 text-sm font-mono text-[var(--text-muted)]">
-										{configSummary.map((item) => (
-											<div key={item.label}>
-												<dt className="text-xs uppercase tracking-[0.3em] text-[var(--text-soft)]">
-													{item.label}
-												</dt>
-												<dd className="text-base text-[var(--text-primary)]">
-													{item.value}
-												</dd>
-											</div>
+								) : heartbeats.length === 0 ? (
+									<p className="text-sm text-muted-foreground">
+										No heartbeats yet. Checks will appear here after the first
+										run.
+									</p>
+								) : (
+									<div className="space-y-3">
+										{heartbeats.map((heartbeat) => (
+											<HeartbeatRow
+												key={`${heartbeat.monitorId}-${heartbeat.ts}`}
+												heartbeat={heartbeat}
+											/>
 										))}
-										<div>
-											<dt className="text-xs uppercase tracking-[0.3em] text-[var(--text-soft)]">
-												Created
-											</dt>
-											<dd className="text-base text-[var(--text-primary)]">
-												{formatTimestamp(monitor.createdAt)}
-											</dd>
-										</div>
-										<div>
-											<dt className="text-xs uppercase tracking-[0.3em] text-[var(--text-soft)]">
-												Enabled
-											</dt>
-											<dd
-												className={
-													monitor.enabled
-														? "text-[var(--accent-green)]"
-														: "text-[var(--accent-red)]"
-												}
-											>
-												{monitor.enabled ? "Active" : "Disabled"}
-											</dd>
-										</div>
-									</dl>
-								</SectionCard>
-								<SectionCard
-									title="Recent heartbeats"
-									description="Latest executions streamed from the worker ticker"
-								>
-									{heartbeatQuery.isLoading ? (
-										<div className="space-y-3">
-											<Skeleton className="h-12" />
-											<Skeleton className="h-12" />
-											<Skeleton className="h-12" />
-										</div>
-									) : heartbeatQuery.error instanceof Error ? (
-										<div className="space-y-4">
-											<p className="font-mono text-sm text-[var(--accent-red)]">
-												{heartbeatQuery.error.message}
-											</p>
-											<Button
-												type="button"
-												variant="secondary"
-												onClick={() => heartbeatQuery.refetch()}
-											>
-												Retry
-											</Button>
-										</div>
-									) : heartbeats.length === 0 ? (
-										<p className="text-sm text-[var(--text-muted)]">
-											No heartbeats yet. Checks will appear here after the first
-											run.
-										</p>
-									) : (
-										<div className="space-y-3">
-											{heartbeats.map((heartbeat) => (
-												<HeartbeatRow
-													key={`${heartbeat.monitorId}-${heartbeat.ts}`}
-													heartbeat={heartbeat}
-												/>
-											))}
-										</div>
-									)}
-								</SectionCard>
-							</section>
-						</>
-					) : null}
-				</div>
-			</main>
+									</div>
+								)}
+							</SectionCard>
+						</section>
+					</>
+				) : null}
+			</div>
 		);
 	}
 
