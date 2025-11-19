@@ -2,10 +2,10 @@ use axum::{body::Body as AxumBody, response::Response as AxumResponse};
 use console_error_panic_hook::set_once as set_panic_hook;
 use hb_tracing::ConsoleLayer;
 use tower_service::Service;
-use worker::{Context, Env, HttpRequest, MessageBatch, Result};
-use worker_macros::event;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::registry;
+use worker::{Context, Env, HttpRequest, Result};
+use worker_macros::event;
 
 pub mod auth;
 pub mod bootstrap;
@@ -22,13 +22,10 @@ pub mod utils;
 #[event(fetch, respond_with_errors)]
 pub async fn main(req: HttpRequest, env: Env, ctx: Context) -> Result<AxumResponse> {
     set_panic_hook();
-    
+
     // Initialize tracing
     let (buffer, guard) = hb_tracing::buffer_layer();
-    registry()
-        .with(buffer)
-        .with(ConsoleLayer);
-
+    registry().with(buffer).with(ConsoleLayer);
 
     let mut router = router::create_router(&env);
     let request = req.map(AxumBody::new);

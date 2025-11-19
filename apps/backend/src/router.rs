@@ -44,7 +44,8 @@ impl HasAuthConfig for AppState {
 pub fn create_router(env: &Env) -> Router {
     let team_domain = &env
         .var("ACCESS_TEAM_DOMAIN")
-        .expect("ACCESS_TEAM_DOMAIN binding missing").to_string();
+        .expect("ACCESS_TEAM_DOMAIN binding missing")
+        .to_string();
     let audience = &env
         .var("ACCESS_AUD")
         .expect("ACCESS_AUD binding missing")
