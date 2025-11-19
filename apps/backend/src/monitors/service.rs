@@ -4,8 +4,8 @@ use worker::wasm_bindgen::JsValue;
 use worker::{console_log, D1Database, ObjectNamespace};
 
 use crate::bootstrap::ticker_bootstrap::ensure_ticker_bootstrapped;
-use crate::d1c::queries::monitors::{create_monitor, get_monitor_by_id};
-use crate::monitors::types::{CreateMonitor, Monitor, MonitorError, UpdateMonitor};
+use crate::d1c::queries::monitors::{create_monitor, get_monitor_by_id, update_monitor_status};
+use crate::monitors::types::{CreateMonitor, Monitor, MonitorError, MonitorStatus, UpdateMonitor, HeartbeatResult};
 use crate::utils::date::now_ms;
 use crate::utils::wasm_types::js_number;
 
@@ -27,11 +27,9 @@ pub async fn create_monitor_for_org(
         &org_id,
         &monitor.name.as_str(),
         "http",
-        &monitor.url.as_str(),
-        monitor.interval,
-        monitor.timeout,
-        monitor.follow_redirects as i64,
-        monitor.verify_tls as i64,
+        1,
+        &monitor.config,
+        "PENDING",
         now_ms(),
         now_ms(),
     )
@@ -155,6 +153,43 @@ pub async fn update_monitor_for_org(
     query.run().await.map_err(MonitorError::DbRun)?;
 
     console_log!("updated monitor: {monitor_id}");
+
+    Ok(())
+}
+
+#[tracing::instrument(
+    name = "monitors.update_status",
+    skip(d1),
+    fields(monitor_id = %heartbeat.monitor_id, org_id = %heartbeat.org_id, timestamp = %heartbeat.timestamp)
+)]
+pub async fn update_monitor_status_for_org(
+    d1: &D1Database,
+    heartbeat: &HeartbeatResult,
+) -> Result<(), MonitorError> {
+    let curr = get_monitor_by_id(&d1, &heartbeat.monitor_id, &heartbeat.org_id).await?.unwrap();
+
+    let first_checked_at = curr.first_checked_at.unwrap_or(now_ms());
+    let mut last_failed_at = curr.last_failed_at.unwrap_or_default();
+    let updated_at = now_ms();
+
+    if heartbeat.status.is_down() {
+        if curr.status.parse().unwrap_or(MonitorStatus::Pending).is_down() {
+            last_failed_at = now_ms();
+        }
+    }
+
+    update_monitor_status(
+        &d1,
+        heartbeat.status.to_string().as_str(),
+        heartbeat.timestamp,
+        last_failed_at,
+        first_checked_at,
+        heartbeat.latency_ms,
+        "Health check failed",
+        updated_at,
+        &heartbeat.monitor_id,
+        &heartbeat.org_id,
+    ).await.map_err(MonitorError::DbRun)?;
 
     Ok(())
 }

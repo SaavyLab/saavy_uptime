@@ -3,7 +3,7 @@ use std::fmt::Display;
 use serde::{Deserialize, Serialize};
 use worker::console_error;
 
-use crate::monitors::types::MonitorError;
+use crate::monitors::types::{MonitorError, HeartbeatResult};
 
 #[derive(Serialize)]
 pub struct ReconcileResponse {
@@ -12,7 +12,7 @@ pub struct ReconcileResponse {
     pub failed: usize,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum MonitorKind {
     Http,
@@ -35,6 +35,7 @@ impl Display for MonitorKind {
 pub struct DispatchRequest {
     pub dispatch_id: String,
     pub monitor_id: String,
+    pub org_id: String,
     pub monitor_url: String,
     pub kind: MonitorKind,
     pub scheduled_for_ts: i64,
@@ -44,23 +45,12 @@ pub struct DispatchRequest {
 }
 
 #[derive(Debug)]
-pub struct CheckResult {
-    pub ok: bool,
-    pub status_code: Option<u16>,
-    pub rtt_ms: Option<i64>,
-    pub end_ms: Option<i64>,
-    pub error_msg: Option<String>,
-    pub colo: String,
-    pub extra: Option<serde_json::Value>,
-}
-
-#[derive(Debug)]
 pub enum DispatchError {
     Database {
         context: &'static str,
         source: worker::Error,
     },
-    CheckFailed(CheckResult),
+    CheckFailed(HeartbeatResult),
     Heartbeat(worker::Error),
     Monitor(MonitorError),
 }
@@ -87,8 +77,8 @@ impl From<DispatchError> for axum::http::StatusCode {
             DispatchError::CheckFailed(result) => {
                 console_error!(
                     "dispatch.check.failed: status={} error={:?}",
-                    result.status_code.unwrap_or(0),
-                    result.error_msg
+                    result.status.to_string(),
+                    result.error,
                 );
                 axum::http::StatusCode::INTERNAL_SERVER_ERROR
             }
@@ -96,6 +86,17 @@ impl From<DispatchError> for axum::http::StatusCode {
                 console_error!("dispatch.heartbeat: {err:?}");
                 axum::http::StatusCode::INTERNAL_SERVER_ERROR
             }
+            DispatchError::Monitor(err) => err.into(),
+        }
+    }
+}
+
+impl Into<String> for DispatchError {
+    fn into(self) -> String {
+        match self {
+            DispatchError::Database { context, source } => format!("{context}: {source:?}"),
+            DispatchError::CheckFailed(result) => format!("dispatch.check.failed: status={} error={:?}", result.status.to_string(), result.error),
+            DispatchError::Heartbeat(err) => format!("dispatch.heartbeat: {err:?}"),
             DispatchError::Monitor(err) => err.into(),
         }
     }

@@ -1,20 +1,67 @@
+
+use strum::{Display, EnumString};
 use serde::{Deserialize, Serialize};
-use worker::console_error;
+use worker::{BlobType, console_error};
 
 use crate::{
     auth::membership::MembershipError, bootstrap::types::BootstrapError,
     internal::types::MonitorKind,
 };
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all(deserialize = "camelCase"))]
-pub struct CreateMonitor {
-    pub name: String,
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct HttpMonitorConfig {
     pub url: String,
     pub interval: i64,
     pub timeout: i64,
     pub verify_tls: bool,
     pub follow_redirects: bool,
+}
+
+impl HttpMonitorConfig {
+    pub fn new(url: &str, interval: i64, timeout: i64, verify_tls: bool, follow_redirects: bool) -> Self {
+        Self {
+            url: url.to_string(),
+            interval,
+            timeout,
+            verify_tls,
+            follow_redirects,
+        }
+    }
+}
+
+impl Into<String> for HttpMonitorConfig {
+    fn into(self) -> String {
+        serde_json::to_string(&self).unwrap()
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all(deserialize = "camelCase"))]
+pub struct CreateMonitor {
+    pub name: String,
+    pub config: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, Display, PartialEq, PartialOrd, Eq, EnumString)]
+#[strum(serialize_all = "snake_case", ascii_case_insensitive)]
+#[serde(rename_all(deserialize = "snake_case"))]
+pub enum MonitorStatus {
+    Up,
+    Down,
+    Degraded,
+    Pending,
+}
+
+impl MonitorStatus {
+    pub fn is_down(&self) -> bool {
+        matches!(self, MonitorStatus::Down | MonitorStatus::Degraded)
+    }
+}
+
+impl Into<BlobType> for MonitorStatus {
+    fn into(self) -> BlobType {
+        BlobType::String(self.to_string())
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -24,23 +71,16 @@ pub struct Monitor {
     pub org_id: String,
     pub name: String,
     pub kind: String,
-    pub url: String,
-    pub interval_s: i64,
-    pub timeout_ms: i64,
-    pub follow_redirects: i64,
-    pub verify_tls: i64,
-    pub expect_status_low: Option<i64>,
-    pub expect_status_high: Option<i64>,
-    pub expect_substring: Option<String>,
-    pub headers_json: Option<String>,
-    pub tags_json: Option<String>,
     pub enabled: i64,
-    pub last_checked_at_ts: Option<i64>,
-    pub next_run_at_ts: Option<i64>,
-    pub current_status: String,
-    pub last_ok: i64,
-    pub consecutive_failures: i64,
-    pub current_incident_id: Option<String>,
+    pub config: String,
+    pub status: String,
+    pub last_checked_at: Option<i64>,
+    pub last_failed_at: Option<i64>,
+    pub first_checked_at: Option<i64>,
+    pub rt_ms: Option<i64>,
+    pub region: Option<String>,
+    pub last_error: Option<String>,
+    pub next_run_at: Option<i64>,
     pub created_at: i64,
     pub updated_at: i64,
 }
@@ -52,23 +92,16 @@ impl From<crate::d1c::queries::monitors::GetMonitorByIdRow> for Monitor {
             org_id: row.org_id,
             name: row.name,
             kind: row.kind,
-            url: row.url,
-            interval_s: row.interval_s,
-            timeout_ms: row.timeout_ms,
-            follow_redirects: row.follow_redirects,
-            verify_tls: row.verify_tls,
-            expect_status_low: row.expect_status_low,
-            expect_status_high: row.expect_status_high,
-            expect_substring: row.expect_substring,
-            headers_json: row.headers_json,
-            tags_json: row.tags_json,
             enabled: row.enabled,
-            last_checked_at_ts: row.last_checked_at_ts,
-            next_run_at_ts: row.next_run_at_ts,
-            current_status: row.current_status,
-            last_ok: row.last_ok,
-            consecutive_failures: row.consecutive_failures,
-            current_incident_id: row.current_incident_id,
+            config: row.config_json,
+            status: row.status,
+            last_checked_at: row.last_checked_at,
+            last_failed_at: row.last_failed_at,
+            first_checked_at: row.first_checked_at,
+            rt_ms: row.rt_ms,
+            region: row.region,
+            last_error: row.last_error,
+            next_run_at: row.next_run_at,
             created_at: row.created_at,
             updated_at: row.updated_at,
         }
@@ -82,23 +115,16 @@ impl From<crate::d1c::queries::monitors::GetMonitorsByOrgIdRow> for Monitor {
             org_id: row.org_id,
             name: row.name,
             kind: row.kind,
-            url: row.url,
-            interval_s: row.interval_s,
-            timeout_ms: row.timeout_ms,
-            follow_redirects: row.follow_redirects,
-            verify_tls: row.verify_tls,
-            expect_status_low: row.expect_status_low,
-            expect_status_high: row.expect_status_high,
-            expect_substring: row.expect_substring,
-            headers_json: row.headers_json,
-            tags_json: row.tags_json,
             enabled: row.enabled,
-            last_checked_at_ts: row.last_checked_at_ts,
-            next_run_at_ts: row.next_run_at_ts,
-            current_status: row.current_status,
-            last_ok: row.last_ok,
-            consecutive_failures: row.consecutive_failures,
-            current_incident_id: row.current_incident_id,
+            config: row.config_json,
+            status: row.status,
+            last_checked_at: row.last_checked_at,
+            last_failed_at: row.last_failed_at,
+            first_checked_at: row.first_checked_at,
+            rt_ms: row.rt_ms,
+            region: row.region,
+            last_error: row.last_error,
+            next_run_at: row.next_run_at,
             created_at: row.created_at,
             updated_at: row.updated_at,
         }
@@ -107,6 +133,7 @@ impl From<crate::d1c::queries::monitors::GetMonitorsByOrgIdRow> for Monitor {
 
 #[derive(Debug)]
 pub enum MonitorError {
+    InvalidStatus(String),
     // pub status_code: u16,
     DbInit(worker::Error),
     DbBind(worker::Error),
@@ -161,6 +188,26 @@ impl From<MonitorError> for axum::http::StatusCode {
                 console_error!("monitors.no.fields.to.update");
                 axum::http::StatusCode::BAD_REQUEST
             }
+            MonitorError::InvalidStatus(status) => {
+                console_error!("monitors.invalid.status: {status}");
+                axum::http::StatusCode::BAD_REQUEST
+            }
+        }
+    }
+}
+
+impl Into<String> for MonitorError {
+    fn into(self) -> String {
+        match self {
+            MonitorError::InvalidStatus(status) => format!("monitors.invalid.status: {status}"),
+            MonitorError::DbInit(err) => format!("monitors.db.init: {err:?}"),
+            MonitorError::DbBind(err) => format!("monitors.db.bind: {err:?}"),
+            MonitorError::DbRun(err) => format!("monitors.db.run: {err:?}"),
+            MonitorError::NotFound => format!("monitors.not.found"),
+            MonitorError::Forbidden => format!("monitors.forbidden"),
+            MonitorError::Bootstrap(err) => format!("monitors.bootstrap: {err:?}"),
+            MonitorError::Membership(err) => format!("monitors.membership: {err:?}"),
+            MonitorError::NoFieldsToUpdate => format!("monitors.no.fields.to.update"),
         }
     }
 }
@@ -181,4 +228,24 @@ pub struct UpdateMonitor {
     pub headers_json: Option<String>,
     pub tags_json: Option<String>,
     pub enabled: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct HeartbeatResult {
+    // Identity
+    pub monitor_id: String,
+    pub org_id: String,
+
+    // Result
+    pub timestamp: i64,
+    pub status: MonitorStatus,
+
+    // Metrics 
+    pub latency_ms: i64,
+    pub region: String,
+    pub colo: String,
+
+    pub error: Option<String>,
+
+    pub code: Option<u16>,
 }

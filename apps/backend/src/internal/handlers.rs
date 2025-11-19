@@ -2,10 +2,11 @@ use crate::auth::membership::load_membership;
 use crate::bootstrap::ticker_bootstrap::ensure_all_tickers;
 use crate::cloudflare::d1::AppDb;
 use crate::cloudflare::durable_objects::ticker::AppTicker;
+use crate::cloudflare::queues::HeartbeatQueue;
 use crate::internal::dispatch::handle_dispatch;
 use crate::internal::types::{DispatchRequest, ReconcileResponse};
 use crate::monitors::service::create_monitor_for_org;
-use crate::monitors::types::CreateMonitor;
+use crate::monitors::types::{CreateMonitor, HttpMonitorConfig};
 use crate::router::AppState;
 use axum::{
     extract::State,
@@ -37,11 +38,12 @@ pub async fn reconcile_tickers_handler(
 pub async fn dispatch_handler(
     State(state): State<AppState>,
     AppDb(d1): AppDb,
+    HeartbeatQueue(heartbeat_queue): HeartbeatQueue,
     headers: HeaderMap,
     Json(payload): Json<DispatchRequest>,
 ) -> Result<StatusCode, StatusCode> {
     validate_dispatch_token(&state, &headers)?;
-    handle_dispatch(d1, payload).await?;
+    handle_dispatch(d1, heartbeat_queue, payload).await?;
 
     Ok(StatusCode::ACCEPTED)
 }
@@ -113,24 +115,10 @@ fn seed_definitions() -> Vec<CreateMonitor> {
         for (idx, url) in urls.iter().cycle().take(count).enumerate() {
             list.push(CreateMonitor {
                 name: format!("{prefix} #{:03}", idx + 1),
-                url: url.to_string(),
-                interval: 60,
-                timeout: 7000,
-                verify_tls: true,
-                follow_redirects,
+                config: HttpMonitorConfig::new(url, 60, 7000, true, follow_redirects).into(),
             });
         }
-    }
-
-    let httpbin = [
-        "https://httpbin.org/status/200",
-        "https://httpbin.org/status/404",
-        "https://httpbin.org/status/500",
-        "https://httpbin.org/delay/2",
-        "https://httpbin.org/redirect/3",
-    ];
-    push_many(&mut monitors, "httpbin", &httpbin, 100, true);
-
+    }    
     let httpstat = [
         "https://httpstat.us/200",
         "https://httpstat.us/404",

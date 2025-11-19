@@ -4,7 +4,7 @@ use axum::{
     http::{request::Parts, StatusCode},
 };
 use std::result::Result;
-use worker::{console_error, D1Database, Env};
+use worker::{D1Database, Env, console_error};
 
 pub fn get_d1(env: &Env) -> Result<D1Database, worker::Error> {
     env.d1("DB")

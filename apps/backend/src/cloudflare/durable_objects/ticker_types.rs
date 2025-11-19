@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::internal::types::MonitorKind;
+use crate::{internal::types::MonitorKind, monitors::types::HttpMonitorConfig};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TickerConfig {
@@ -19,23 +19,15 @@ pub struct TickerState {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MonitorRow {
     pub id: String,
-    pub interval_s: i64,
-    pub url: String,
     pub kind: MonitorKind,
-    pub timeout_ms: i64,
-    pub follow_redirects: i64,
-    pub verify_tls: i64,
+    pub config_json: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MonitorDispatch {
+pub struct MonitorDispatchRow {
     pub id: String,
-    pub url: String,
     pub kind: MonitorKind,
-    pub scheduled_for_ts: i64,
-    pub timeout_ms: i64,
-    pub follow_redirects: bool,
-    pub verify_tls: bool,
+    pub config: HttpMonitorConfig,
 }
 
 #[derive(Serialize)]
@@ -43,27 +35,20 @@ pub struct MonitorDispatch {
 pub struct DispatchPayload {
     pub dispatch_id: String,
     pub monitor_id: String,
-    pub monitor_url: String,
+    pub org_id: String,
     pub kind: MonitorKind,
-    pub scheduled_for_ts: i64,
-    pub timeout_ms: i64,
-    pub follow_redirects: bool,
-    pub verify_tls: bool,
+    pub config: HttpMonitorConfig,
 }
 
-impl From<(MonitorRow, i64)> for MonitorDispatch {
-    fn from((row, scheduled_for_ts): (MonitorRow, i64)) -> Self {
-        Self {
-            id: row.id,
-            url: row.url,
-            kind: row.kind,
-            scheduled_for_ts,
-            timeout_ms: row.timeout_ms,
-            follow_redirects: row.follow_redirects != 0,
-            verify_tls: row.verify_tls != 0,
-        }
-    }
-}
+// impl From<(MonitorRow, i64)> for MonitorDispatch {
+//     fn from((row, scheduled_for_ts): (MonitorRow, i64)) -> Self {
+//         Self {
+//             id: row.id,
+//             kind: row.kind,
+//             config: serde_json::from_str(&row.config_json).unwrap(),
+//         }
+//     }
+// }
 
 #[derive(Debug)]
 pub enum TickerError {
@@ -86,6 +71,7 @@ pub enum TickerError {
         context: &'static str,
         status: u16,
     },
+    UnsupportedMonitorKind(MonitorKind),
 }
 
 impl TickerError {
@@ -114,6 +100,9 @@ impl TickerError {
     pub fn response_status(context: &'static str, status: u16) -> Self {
         TickerError::ResponseStatus { context, status }
     }
+    pub fn unsupported_monitor_kind(context: &'static str, kind: MonitorKind) -> Self {
+        TickerError::UnsupportedMonitorKind(kind)
+    }
 }
 
 impl From<worker::Error> for TickerError {
@@ -140,6 +129,7 @@ impl From<TickerError> for worker::Error {
                 worker::Error::RustError(format!("{context}: {source:?}"))
             }
             TickerError::Alarm(source) => worker::Error::RustError(format!("alarm: {source:?}")),
+            TickerError::UnsupportedMonitorKind(kind) => worker::Error::RustError(format!("unsupported monitor kind: {kind}")),
         }
     }
 }

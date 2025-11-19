@@ -8,9 +8,8 @@ use worker::*;
 
 use crate::{
     cloudflare::durable_objects::ticker_types::{
-        DispatchPayload, MonitorDispatch, MonitorRow, TickerConfig, TickerError, TickerState,
-    },
-    utils::{date::now_ms, wasm_types::js_number},
+        DispatchPayload, MonitorDispatchRow, MonitorRow, TickerConfig, TickerError, TickerState,
+    }, d1c::queries::monitor_dispatches::create_dispatch, internal::types::MonitorKind, monitors::types::HttpMonitorConfig, utils::{date::now_ms, wasm_types::js_number}
 };
 
 const DEFAULT_TICK_INTERVAL_MS: u64 = 15_000;
@@ -112,13 +111,13 @@ impl Ticker {
     async fn claim_due_monitors(
         &self,
         config: &TickerConfig,
-    ) -> std::result::Result<Vec<MonitorDispatch>, TickerError> {
+    ) -> std::result::Result<Vec<MonitorDispatchRow>, TickerError> {
         let d1 = self.env.d1("DB")?;
         let now = now_ms();
 
         let select_statement = d1.prepare(
             "
-            SELECT id, kind, interval_s, url, timeout_ms, follow_redirects, verify_tls
+            SELECT id, kind, config_json
             FROM monitors
             WHERE org_id = ?1
               AND enabled = 1
@@ -151,7 +150,10 @@ impl Ticker {
         let mut claimed = Vec::with_capacity(rows.len());
 
         for row in rows {
-            let next_run_at = now + row.interval_s * 1_000;
+            if row.kind != MonitorKind::Http {
+                return Err(TickerError::unsupported_monitor_kind("ticker.claim.unsupported_kind", row.kind));
+            }
+            let next_run_at = now + config.tick_interval_ms as i64 * 1000;
             let update_statement = d1.prepare(
                 "
                 UPDATE monitors
@@ -171,7 +173,11 @@ impl Ticker {
                 .map_err(|err| TickerError::database("ticker.claim.update_bind", err))?;
 
             statements.push(update_query);
-            claimed.push(MonitorDispatch::from((row, next_run_at)));
+            claimed.push(MonitorDispatchRow {
+                id: row.id,
+                kind: row.kind,
+                config: serde_json::from_str(&row.config_json).unwrap(),
+            });
         }
 
         d1.batch(statements)
@@ -184,43 +190,23 @@ impl Ticker {
     async fn dispatch_monitor(
         &self,
         config: &TickerConfig,
-        monitor: &MonitorDispatch,
+        monitor: &MonitorDispatchRow,
     ) -> std::result::Result<(), TickerError> {
         let dispatch_id = create_id().to_string();
         self.record_dispatch(config, monitor, &dispatch_id).await?;
-        self.send_dispatch_request(&dispatch_id, monitor).await
+        self.send_dispatch_request(&dispatch_id, &config.org_id, monitor).await
     }
 
     async fn record_dispatch(
         &self,
         config: &TickerConfig,
-        monitor: &MonitorDispatch,
+        monitor: &MonitorDispatchRow,
         dispatch_id: &str,
     ) -> std::result::Result<(), TickerError> {
         let d1 = self.env.d1("DB")?;
         let now = now_ms();
 
-        let statement = d1.prepare(
-            "
-            INSERT INTO monitor_dispatches
-                (id, monitor_id, org_id, status, scheduled_for_ts, created_at)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-            ",
-        );
-
-        statement
-            .bind(&[
-                JsValue::from_str(dispatch_id),
-                JsValue::from_str(&monitor.id),
-                JsValue::from_str(&config.org_id),
-                JsValue::from_str("pending"),
-                js_number(monitor.scheduled_for_ts),
-                js_number(now),
-            ])
-            .map_err(|err| TickerError::database("ticker.dispatch.bind", err))?
-            .run()
-            .await
-            .map_err(|err| TickerError::database("ticker.dispatch.insert", err))?;
+        create_dispatch(&d1, dispatch_id, &monitor.id, &config.org_id, "pending", now, now).await?;
 
         Ok(())
     }
@@ -228,7 +214,8 @@ impl Ticker {
     async fn send_dispatch_request(
         &self,
         dispatch_id: &str,
-        monitor: &MonitorDispatch,
+        org_id: &str,
+        monitor: &MonitorDispatchRow,
     ) -> std::result::Result<(), TickerError> {
         let base_url = self
             .env
@@ -246,6 +233,7 @@ impl Ticker {
         let payload = DispatchPayload {
             dispatch_id: dispatch_id.to_string(),
             monitor_id: monitor.id.clone(),
+            org_id: org_id.to_string(),
             monitor_url: monitor.url.clone(),
             kind: monitor.kind.clone(),
             scheduled_for_ts: monitor.scheduled_for_ts,
