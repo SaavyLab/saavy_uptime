@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use worker::console_error;
-use crate::d1c::queries::GetOrganizationByIdRow;
+use crate::d1c::queries::organizations::GetOrganizationByIdRow;
 
 
 #[derive(Debug, Serialize, Deserialize)]

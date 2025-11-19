@@ -45,8 +45,8 @@ pub struct Monitor {
     pub updated_at: i64,
 }
 
-impl From<crate::d1c::queries::GetMonitorByIdRow> for Monitor {
-    fn from(row: crate::d1c::queries::GetMonitorByIdRow) -> Self {
+impl From<crate::d1c::queries::monitors::GetMonitorByIdRow> for Monitor {
+    fn from(row: crate::d1c::queries::monitors::GetMonitorByIdRow) -> Self {
         Monitor {
             id: row.id.unwrap_or_default(),
             org_id: row.org_id,
@@ -75,8 +75,8 @@ impl From<crate::d1c::queries::GetMonitorByIdRow> for Monitor {
     }
 }
 
-impl From<crate::d1c::queries::GetMonitorsByOrgIdRow> for Monitor {
-    fn from(row: crate::d1c::queries::GetMonitorsByOrgIdRow) -> Self {
+impl From<crate::d1c::queries::monitors::GetMonitorsByOrgIdRow> for Monitor {
+    fn from(row: crate::d1c::queries::monitors::GetMonitorsByOrgIdRow) -> Self {
         Monitor {
             id: row.id.unwrap_or_default(),
             org_id: row.org_id,

@@ -54,8 +54,8 @@ pub struct Heartbeat {
     pub dispatch_id: String,
 }
 
-impl From<crate::d1c::queries::GetHeartbeatsByMonitorIdRow> for Heartbeat {
-    fn from(row: crate::d1c::queries::GetHeartbeatsByMonitorIdRow) -> Self {
+impl From<crate::d1c::queries::heartbeats::GetHeartbeatsByMonitorIdRow> for Heartbeat {
+    fn from(row: crate::d1c::queries::heartbeats::GetHeartbeatsByMonitorIdRow) -> Self {
         Heartbeat {
             monitor_id: row.monitor_id,
             org_id: row.org_id,

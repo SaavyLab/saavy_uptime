@@ -21,6 +21,12 @@ struct ParamVisitor {
 
 pub fn process_query_file(file: &PathBuf) -> Result<Vec<Query>> {
     let sql_content = fs::read_to_string(file)?;
+    let file_stem = file
+        .file_stem()
+        .ok_or_else(|| anyhow::anyhow!("Invalid filename"))?
+        .to_string_lossy()
+        .to_string();
+
     let mut lines = sql_content.lines().peekable();
     let mut queries: Vec<Query> = Vec::new();
 
@@ -62,7 +68,7 @@ pub fn process_query_file(file: &PathBuf) -> Result<Vec<Query>> {
             }
 
             // 2. Parse header
-            let (name, cardinality) = parse_query_header(query_name.as_str())?;
+            let (name, cardinality, gen_stmt) = parse_query_header(query_name.as_str())?;
 
             // 3. Parse and Rewrite SQL
             let raw_sql = query_sql.join("\n");
@@ -144,6 +150,8 @@ pub fn process_query_file(file: &PathBuf) -> Result<Vec<Query>> {
                 instrument_skip,
                 scalar_type_hint,
                 columns: Vec::new(),
+                source_file: file_stem.clone(),
+                gen_stmt,
             });
         }
     }
@@ -191,7 +199,7 @@ fn rewrite_and_extract_params(sql: &str) -> Result<(String, Vec<String>)> {
     Ok((transformed_sql, visitor.found_params))
 }
 
-pub fn parse_query_header(line: &str) -> Result<(String, Cardinality)> {
+pub fn parse_query_header(line: &str) -> Result<(String, Cardinality, bool)> {
     let parts = line
         .strip_prefix(QUERY_NAME)
         .ok_or(anyhow::anyhow!("Invalid query header"))?
@@ -199,7 +207,7 @@ pub fn parse_query_header(line: &str) -> Result<(String, Cardinality)> {
         .collect::<Vec<&str>>();
 
     if parts.len() < 2 {
-        anyhow::bail!("Query header must be: -- name: <function_name> :<cardinality>");
+        anyhow::bail!("Query header must be: -- name: <function_name> :<cardinality> [:stmt]");
     }
 
     let name = parts[0].to_string();
@@ -210,8 +218,10 @@ pub fn parse_query_header(line: &str) -> Result<(String, Cardinality)> {
         ":scalar" => Cardinality::Scalar,
         _ => anyhow::bail!("Invalid cardinality: {}", parts[1]),
     };
+    
+    let gen_stmt = parts.len() >= 3 && parts[2] == ":stmt";
 
-    Ok((name, cardinality))
+    Ok((name, cardinality, gen_stmt))
 }
 
 fn infer_scalar_type(sql: &str) -> Option<String> {

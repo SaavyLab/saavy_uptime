@@ -139,6 +139,7 @@ fn render_function(query: &Query, instrument: bool) -> Result<TokenStream> {
     // 1. Generate Function Arguments (Positional)
     let mut func_args = Vec::new();
     let mut bind_args = Vec::new();
+    let mut call_args = Vec::new();
 
     if let Some(params) = &query.params {
         for param in params {
@@ -165,6 +166,7 @@ fn render_function(query: &Query, instrument: bool) -> Result<TokenStream> {
 
             func_args.push(quote! { #param_name: #arg_type });
             bind_args.push(binding_expr);
+            call_args.push(quote! { #param_name });
         }
     }
 
@@ -241,12 +243,33 @@ fn render_function(query: &Query, instrument: bool) -> Result<TokenStream> {
         Cardinality::Scalar => quote! { Result<Option<#row_type_ident>> },
     };
 
-    Ok(quote! {
-        #instrument_attr
-        pub async fn #fn_name(d1: &D1Database, #(#func_args),*) -> #result_type {
-            let stmt = d1.prepare(#sql);
-            #bind_logic
-            #exec_logic
-        }
-    })
+    if query.gen_stmt {
+        let stmt_fn_name = format_ident!("{}_stmt", &query.name.to_snake_case());
+        let stmt_fn = quote! {
+            pub fn #stmt_fn_name(d1: &D1Database, #(#func_args),*) -> Result<worker::D1PreparedStatement> {
+                let stmt = d1.prepare(#sql);
+                #bind_logic
+                Ok(stmt)
+            }
+        };
+
+        Ok(quote! {
+            #stmt_fn
+
+            #instrument_attr
+            pub async fn #fn_name(d1: &D1Database, #(#func_args),*) -> #result_type {
+                let stmt = #stmt_fn_name(d1, #(#call_args),*)?;
+                #exec_logic
+            }
+        })
+    } else {
+        Ok(quote! {
+            #instrument_attr
+            pub async fn #fn_name(d1: &D1Database, #(#func_args),*) -> #result_type {
+                let stmt = d1.prepare(#sql);
+                #bind_logic
+                #exec_logic
+            }
+        })
+    }
 }

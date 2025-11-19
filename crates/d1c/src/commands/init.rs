@@ -288,6 +288,10 @@ pub fn run(conn: &Connection, args: &InitArgs) -> Result<(), Error> {
             "{}",
             style(format!("      use crate::d1c::{}::*;", &config.module_name)).dim()
         ))?;
+        term.write_line(&format!(
+            "{}",
+            style(format!("      // or specific modules: use crate::d1c::{}::example::*;", &config.module_name)).dim()
+        ))?;
         term.write_line("")?;
         term.write_line(&format!("{} Happy querying!", style("🚀").green()))?;
     } else {

@@ -7,7 +7,7 @@ use axum::{
 };
 use cuid2::create_id;
 use worker::console_error;
-use crate::d1c::queries::{GetOrganizationMembersRow, create_organization, get_organization_by_id, get_organization_members};
+use crate::d1c::queries::organizations::{GetOrganizationMembersRow, create_organization, get_organization_by_id, get_organization_members};
 use crate::organizations::types::{CreateOrganization, Organization, OrganizationError};
 
 #[worker::send]

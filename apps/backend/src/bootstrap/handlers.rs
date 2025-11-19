@@ -1,14 +1,14 @@
 use crate::bootstrap::ticker_bootstrap::ensure_ticker_bootstrapped;
-use crate::cloudflare::d1::{get_d1, AppDb};
-use crate::d1c::queries::check_if_bootstrapped;
+use crate::cloudflare::d1::AppDb;
+use crate::d1c::queries::bootstrap::{create_member_stmt, create_organization_member_stmt, create_organization_stmt};
+use crate::d1c::queries::organizations::check_if_bootstrapped;
 use crate::router::AppState;
 use crate::utils::date::now_ms;
 use crate::{auth::current_user::CurrentUser, cloudflare::durable_objects::ticker::AppTicker};
 use axum::{extract::State, http::StatusCode, response::Result, Json};
 use cuid2::create_id;
-use worker::{console_error, wasm_bindgen::JsValue};
+use worker::console_error;
 
-use crate::utils::wasm_types::js_number;
 
 use serde::{Deserialize, Serialize};
 
@@ -58,8 +58,8 @@ pub struct InitializePayload {
 
 #[worker::send]
 pub async fn initialize(
-    State(state): State<AppState>,
     AppTicker(ticker): AppTicker,
+    AppDb(d1): AppDb,
     CurrentUser {
         email,
         subject,
@@ -67,61 +67,23 @@ pub async fn initialize(
     }: CurrentUser,
     Json(payload): Json<InitializePayload>,
 ) -> Result<Json<BootstrapStatus>, StatusCode> {
-    let d1 = get_d1(&state.env()).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    let org_statement = d1.prepare(
-        "INSERT INTO organizations (id, slug, name, owner_id, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
-    );
-    let member_statement = d1.prepare(
-        "INSERT INTO members (identity_id, email, is_workspace_admin, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)
-         ON CONFLICT(identity_id) DO UPDATE SET email=excluded.email, updated_at=excluded.updated_at",
-    );
-    let organization_member_statement = d1.prepare(
-        "INSERT INTO organization_members (organization_id, identity_id, role, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)",
-    );
     let org_id = create_id().to_string();
     let now = now_ms();
 
-    let org_bind_values = vec![
-        JsValue::from_str(&org_id),
-        JsValue::from_str(&payload.slug),
-        JsValue::from_str(&payload.name),
-        JsValue::from_str(&subject),
-        js_number(now),
-    ];
-    let member_bind_values = vec![
-        JsValue::from_str(&subject),
-        JsValue::from_str(&email),
-        js_number(0),
-        js_number(now),
-        js_number(now),
-    ];
-    let organization_member_bind_values = vec![
-        JsValue::from_str(&org_id),
-        JsValue::from_str(&subject),
-        JsValue::from_str("admin"),
-        js_number(now),
-        js_number(now),
-    ];
+    let org_statement = create_organization_stmt(&d1, &org_id, &payload.slug, &payload.name, &subject, now).map_err(|err| {
+        console_error!("bootstrap.initialize: create organization statement failed: {err:?}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    let member_statement = create_member_stmt(&d1, &subject, &email, 0, now, now).map_err(|err| {
+        console_error!("bootstrap.initialize: create member statement failed: {err:?}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    let organization_member_statement = create_organization_member_stmt(&d1, &org_id, &subject, "admin", now, now).map_err(|err| {
+        console_error!("bootstrap.initialize: create organization member statement failed: {err:?}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
-    let statements = vec![
-        member_statement.bind(&member_bind_values).map_err(|err| {
-            console_error!("bootstrap.initialize: member bind failed: {err:?}");
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?,
-        org_statement.bind(&org_bind_values).map_err(|err| {
-            console_error!("bootstrap.initialize: org bind failed: {err:?}");
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?,
-        organization_member_statement
-            .bind(&organization_member_bind_values)
-            .map_err(|err| {
-                console_error!("bootstrap.initialize: org-member bind failed: {err:?}");
-                StatusCode::INTERNAL_SERVER_ERROR
-            })?,
-    ];
-
-    let batch_results = d1.batch(statements).await.map_err(|err| {
+    let batch_results = d1.batch(vec![member_statement, org_statement, organization_member_statement]).await.map_err(|err| {
         console_error!("bootstrap.initialize: batch execution failed: {err:?}");
         StatusCode::INTERNAL_SERVER_ERROR
     })?;

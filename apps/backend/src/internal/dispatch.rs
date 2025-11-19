@@ -5,7 +5,10 @@ use worker::{
     Response,
 };
 
-use crate::d1c::queries::{complete_dispatch, dispatch_monitor, write_heartbeat};
+use crate::d1c::queries::{
+    heartbeats::write_heartbeat,
+    monitor_dispatches::{complete_dispatch, dispatch_monitor},
+};
 use crate::internal::types::{CheckResult, DispatchError, DispatchRequest, MonitorKind};
 use crate::utils::date::now_ms;
 

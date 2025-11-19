@@ -1,10 +1,6 @@
 -- name: get_organization_by_id :one
 SELECT * FROM organizations WHERE id = :id;
 
--- name: create_organization :exec
--- instrument: skip(name)
-INSERT INTO organizations (id, slug, name) VALUES (:id, :slug, :name);
-
 -- name: check_if_bootstrapped :scalar
 SELECT COUNT(*) as count FROM organizations;
 

@@ -24,6 +24,12 @@ pub struct Query {
     pub columns: Vec<ColumnInfo>,
 
     pub transformed_sql: String,
+    
+    // Source file stem (e.g. "monitors" for "monitors.sql")
+    pub source_file: String,
+    
+    // Should we generate a statement function?
+    pub gen_stmt: bool,
 }
 
 impl Query {
