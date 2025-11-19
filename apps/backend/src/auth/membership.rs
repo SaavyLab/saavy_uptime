@@ -2,7 +2,7 @@ use axum::http::StatusCode;
 use serde::Deserialize;
 use worker::{console_error, D1Database};
 
-use crate::d1c::queries::select_org_member;
+use crate::d1c::queries::organizations::select_org_member;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Membership {

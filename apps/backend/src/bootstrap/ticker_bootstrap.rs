@@ -1,4 +1,4 @@
-use crate::{bootstrap::types::BootstrapError, d1c::queries::select_all_org_ids};
+use crate::{bootstrap::types::BootstrapError, d1c::queries::organizations::select_all_org_ids};
 use serde::{Deserialize, Serialize};
 use std::result::Result;
 use worker::{

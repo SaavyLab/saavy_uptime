@@ -2,7 +2,7 @@ use crate::auth::current_user::CurrentUser;
 use crate::auth::membership::load_membership;
 use crate::cloudflare::d1::AppDb;
 use crate::cloudflare::durable_objects::ticker::AppTicker;
-use crate::d1c::queries::{delete_monitor, get_monitor_by_id, get_monitors_by_org_id};
+use crate::d1c::queries::monitors::{delete_monitor, get_monitor_by_id, get_monitors_by_org_id};
 use crate::monitors::service::{
     create_monitor_for_org,
     update_monitor_for_org,

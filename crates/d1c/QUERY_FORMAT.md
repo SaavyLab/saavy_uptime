@@ -39,6 +39,7 @@ Specifies the generated function name and return type.
 - Function names must be valid Rust identifiers (snake_case recommended)
 - Cardinality must be one of: `:one`, `:many`, `:exec`, `:scalar`
 - This header is **required** for every query
+- Optional `:stmt` flag generates a prepared statement function (see "Batching" below)
 
 **Example:**
 ```sql
@@ -484,7 +485,26 @@ INSERT INTO logs (id, level, message, timestamp)
 VALUES (:id, :level, :message, :timestamp);
 ```
 
-**Note:** For actual bulk operations, use D1's batch API directly—d1c is for typed queries, not batching.
+### Batching with `:stmt`
+
+If you need to perform batch operations (like `d1.batch()`), you can generate a prepared statement constructor by adding the `:stmt` flag to your query header.
+
+```sql
+-- name: CreateLog :exec :stmt
+INSERT INTO logs (id, message) VALUES (:id, :message);
+```
+
+**Generates two functions:**
+1. `create_log_stmt(d1, ...)` -> Returns `Result<D1PreparedStatement>`
+2. `create_log(d1, ...)` -> Executes the query (helper wrapper)
+
+**Usage:**
+
+```rust
+let stmt1 = create_log_stmt(&d1, "1", "log 1")?;
+let stmt2 = create_log_stmt(&d1, "2", "log 2")?;
+let results = d1.batch(vec![stmt1, stmt2]).await?;
+```
 
 ### Exists Checks
 

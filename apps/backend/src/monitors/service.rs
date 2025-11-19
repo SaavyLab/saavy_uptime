@@ -4,7 +4,7 @@ use worker::wasm_bindgen::JsValue;
 use worker::{console_log, D1Database, ObjectNamespace};
 
 use crate::bootstrap::ticker_bootstrap::ensure_ticker_bootstrapped;
-use crate::d1c::queries::{create_monitor, get_monitor_by_id};
+use crate::d1c::queries::monitors::{create_monitor, get_monitor_by_id};
 use crate::monitors::types::{CreateMonitor, Monitor, MonitorError, UpdateMonitor};
 use crate::utils::date::now_ms;
 use crate::utils::wasm_types::js_number;
