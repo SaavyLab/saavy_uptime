@@ -34,9 +34,7 @@ function DashboardPage() {
 
 	const upCount = monitors.filter((m) => m.status === "up").length;
 	const downCount = monitors.filter((m) => m.status === "down").length;
-	const degradedCount = monitors.filter(
-		(m) => m.status === "degraded",
-	).length;
+	const degradedCount = monitors.filter((m) => m.status === "degraded").length;
 
 	const recentMonitors = [...monitors]
 		.sort((a, b) => (b.lastCheckedAt ?? 0) - (a.lastCheckedAt ?? 0))

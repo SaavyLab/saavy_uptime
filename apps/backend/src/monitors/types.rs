@@ -34,12 +34,6 @@ impl HttpMonitorConfig {
     }
 }
 
-impl Into<String> for HttpMonitorConfig {
-    fn into(self) -> String {
-        serde_json::to_string(&self).unwrap()
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all(deserialize = "camelCase"))]
 pub struct CreateMonitor {
@@ -224,16 +218,7 @@ impl Into<String> for MonitorError {
 pub struct UpdateMonitor {
     pub name: Option<String>,
     pub kind: Option<MonitorKind>,
-    pub url: Option<String>,
-    pub interval: Option<i64>,
-    pub timeout: Option<i64>,
-    pub follow_redirects: Option<bool>,
-    pub verify_tls: Option<bool>,
-    pub expect_status_low: Option<i64>,
-    pub expect_status_high: Option<i64>,
-    pub expect_substring: Option<String>,
-    pub headers_json: Option<String>,
-    pub tags_json: Option<String>,
+    pub config: Option<HttpMonitorConfig>,
     pub enabled: Option<bool>,
 }
 

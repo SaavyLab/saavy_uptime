@@ -44,16 +44,6 @@ pub struct DispatchPayload {
     pub last_failed_at: Option<i64>,
 }
 
-// impl From<(MonitorRow, i64)> for MonitorDispatch {
-//     fn from((row, scheduled_for_ts): (MonitorRow, i64)) -> Self {
-//         Self {
-//             id: row.id,
-//             kind: row.kind,
-//             config: serde_json::from_str(&row.config_json).unwrap(),
-//         }
-//     }
-// }
-
 #[derive(Debug)]
 pub enum TickerError {
     Database {

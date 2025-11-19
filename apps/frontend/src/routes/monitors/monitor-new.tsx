@@ -21,11 +21,7 @@ function MonitorNewPage() {
 		onSubmit: async ({ value, formApi }) => {
 			await createMonitor({
 				name: value.name,
-				url: value.url,
-				interval: value.interval,
-				timeout: value.timeout,
-				followRedirects: value.followRedirects,
-				verifyTls: value.verifyTls,
+				config: value.config,
 			});
 			formApi.reset();
 			navigate({ to: "/monitors" });
@@ -70,7 +66,7 @@ function MonitorNewPage() {
 								</form.AppField>
 
 								<form.AppField
-									name="url"
+									name="config.url"
 									validators={{
 										onBlur: ({ value }) => {
 											if (!value?.trim()) {
@@ -95,7 +91,7 @@ function MonitorNewPage() {
 
 								<div className="grid gap-6 md:grid-cols-2">
 									<form.AppField
-										name="interval"
+										name="config.interval"
 										validators={{
 											onBlur: ({ value }) =>
 												value >= 15 ? undefined : "Min interval is 15 seconds",
@@ -110,7 +106,7 @@ function MonitorNewPage() {
 										)}
 									</form.AppField>
 									<form.AppField
-										name="timeout"
+										name="config.timeout"
 										validators={{
 											onBlur: ({ value }) =>
 												value >= 1000 ? undefined : "Min timeout is 1000 ms",
@@ -131,12 +127,12 @@ function MonitorNewPage() {
 										Advanced options
 									</p>
 									<div className="mt-4 space-y-4">
-										<form.AppField name="followRedirects">
+										<form.AppField name="config.followRedirects">
 											{(field) => (
 												<field.BooleanSwitchField label="Follow redirects" />
 											)}
 										</form.AppField>
-										<form.AppField name="verifyTls">
+										<form.AppField name="config.verifyTls">
 											{(field) => (
 												<field.BooleanSwitchField label="Verify TLS certificate" />
 											)}

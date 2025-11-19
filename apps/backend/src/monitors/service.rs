@@ -77,54 +77,11 @@ pub async fn update_monitor_for_org(
         values.push(JsValue::from_str(&kind.to_string()));
     }
 
-    if let Some(url) = monitor.url {
+    if let Some(config) = monitor.config {
         fields.push("url = ?".to_string());
-        values.push(JsValue::from_str(&url));
-    }
-
-    if let Some(interval) = monitor.interval {
-        fields.push("interval_s = ?".to_string());
-        values.push(js_number(interval));
-    }
-
-    if let Some(timeout) = monitor.timeout {
-        fields.push("timeout_ms = ?".to_string());
-        values.push(js_number(timeout));
-    }
-
-    if let Some(follow_redirects) = monitor.follow_redirects {
-        fields.push("follow_redirects = ?".to_string());
-        values.push(js_number(follow_redirects as i64));
-    }
-
-    if let Some(verify_tls) = monitor.verify_tls {
-        fields.push("verify_tls = ?".to_string());
-        values.push(js_number(verify_tls as i64));
-    }
-
-    if let Some(expect_status_low) = monitor.expect_status_low {
-        fields.push("expect_status_low = ?".to_string());
-        values.push(js_number(expect_status_low));
-    }
-
-    if let Some(expect_status_high) = monitor.expect_status_high {
-        fields.push("expect_status_high = ?".to_string());
-        values.push(js_number(expect_status_high));
-    }
-
-    if let Some(expect_substring) = monitor.expect_substring {
-        fields.push("expect_substring = ?".to_string());
-        values.push(JsValue::from_str(&expect_substring));
-    }
-
-    if let Some(headers_json) = monitor.headers_json {
-        fields.push("headers_json = ?".to_string());
-        values.push(JsValue::from_str(&headers_json));
-    }
-
-    if let Some(tags_json) = monitor.tags_json {
-        fields.push("tags_json = ?".to_string());
-        values.push(JsValue::from_str(&tags_json));
+        values.push(JsValue::from_str(
+            &serde_json::to_string(&config).unwrap_or_default(),
+        ));
     }
 
     if let Some(enabled) = monitor.enabled {
@@ -173,7 +130,8 @@ pub async fn update_monitor_status_for_org(
     let first_checked_at = snapshot.first_checked_at.unwrap_or(now);
     let mut last_failed_at = snapshot.last_failed_at.unwrap_or_default();
 
-    if heartbeat.status.is_down() && snapshot.status.is_down() {
+    // We don't want to overwrite the last failed at if the monitor is already down.
+    if heartbeat.status.is_down() && !snapshot.status.is_down() {
         last_failed_at = now;
     }
 

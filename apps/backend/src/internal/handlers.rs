@@ -113,10 +113,13 @@ fn seed_definitions() -> Vec<CreateMonitor> {
         follow_redirects: bool,
     ) {
         for (idx, url) in urls.iter().cycle().take(count).enumerate() {
-            list.push(CreateMonitor {
+            let config = HttpMonitorConfig::new(url, 60, 7000, true, follow_redirects);
+            let monitor = CreateMonitor {
                 name: format!("{prefix} #{:03}", idx + 1),
-                config: HttpMonitorConfig::new(url, 60, 7000, true, follow_redirects).into(),
-            });
+                config: serde_json::to_string(&config).unwrap_or_default(),
+            };
+
+            list.push(monitor);
         }
     }
     let httpstat = [

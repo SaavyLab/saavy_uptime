@@ -3,7 +3,7 @@ import { withAccessHeader } from "./api";
 
 const apiBase = import.meta.env.VITE_API_URL;
 
-const httpMonitorConfigSchema = z.object({
+export const httpMonitorConfigSchema = z.object({
 	url: z.string(),
 	interval: z.number(),
 	timeout: z.number(),
@@ -13,7 +13,9 @@ const httpMonitorConfigSchema = z.object({
 
 export type HttpMonitorConfig = z.infer<typeof httpMonitorConfigSchema>;
 
-export const monitorStatusSchema = z.enum(["up", "down", "degraded", "pending"]).transform((status) => status.toUpperCase());
+export const monitorStatusSchema = z
+	.enum(["up", "down", "degraded", "pending"])
+	.transform((status) => status.toUpperCase());
 
 export const monitorKindSchema = z.enum(["http", "tcp", "udp"]);
 
@@ -23,7 +25,9 @@ const monitorSchema = z.object({
 	name: z.string(),
 	kind: monitorKindSchema,
 	enabled: z.number(),
-	config: z.string().transform((config) => JSON.parse(config) as HttpMonitorConfig),
+	config: z
+		.string()
+		.transform((config) => JSON.parse(config) as HttpMonitorConfig),
 	status: z.string().transform((status) => status.toLowerCase()),
 	lastCheckedAt: z.number().nullable(),
 	lastFailedAt: z.number().nullable(),
@@ -40,11 +44,7 @@ export type Monitor = z.infer<typeof monitorSchema>;
 
 const createMonitorSchema = z.object({
 	name: z.string(),
-	url: z.string(),
-	interval: z.number(),
-	timeout: z.number(),
-	followRedirects: z.boolean(),
-	verifyTls: z.boolean(),
+	config: httpMonitorConfigSchema,
 });
 
 export type CreateMonitorInput = z.infer<typeof createMonitorSchema>;
@@ -79,12 +79,12 @@ export const getMonitors = async (): Promise<Monitor[]> => {
 		throw new Error(`Unable to load monitors (${response.status})`);
 	}
 
-    try {
-        return monitorSchema.array().parse(await response.json());
-    } catch (error) {
-        console.error(error);
-        throw new Error(`Unable to parse monitors (${error})`);
-    }
+	try {
+		return monitorSchema.array().parse(await response.json());
+	} catch (error) {
+		console.error(error);
+		throw new Error(`Unable to parse monitors (${error})`);
+	}
 };
 
 export const getMonitor = async (monitorId: string): Promise<Monitor> => {

@@ -10,7 +10,10 @@ use crate::{
     cloudflare::durable_objects::ticker_types::{
         DispatchPayload, MonitorDispatchRow, TickerConfig, TickerError, TickerState,
     },
-    d1c::queries::{monitor_dispatches::create_dispatch, monitors::{list_due_monitors, update_monitor_next_run_at_stmt}},
+    d1c::queries::{
+        monitor_dispatches::create_dispatch,
+        monitors::{list_due_monitors, update_monitor_next_run_at_stmt},
+    },
     internal::types::MonitorKind,
     monitors::types::HttpMonitorConfig,
     utils::date::now_ms,
@@ -140,13 +143,13 @@ impl Ticker {
                     kind,
                 ));
             }
-            let next_run_at = now + config.tick_interval_ms as i64 * 1000;
+            let next_run_at = now + config.tick_interval_ms as i64;
             let update_statement = update_monitor_next_run_at_stmt(
-                &d1, 
-                next_run_at, 
-                now, 
-                now, 
-                &monitor_id, 
+                &d1,
+                next_run_at,
+                now,
+                now,
+                &monitor_id,
                 &config.org_id,
             )?;
 
