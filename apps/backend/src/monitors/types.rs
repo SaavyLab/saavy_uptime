@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
 use worker::{console_error, BlobType};
@@ -6,6 +8,10 @@ use crate::{
     auth::membership::MembershipError, bootstrap::types::BootstrapError,
     internal::types::MonitorKind,
 };
+
+fn default_monitor_kind() -> MonitorKind {
+    MonitorKind::Http
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct HttpMonitorConfig {
@@ -32,13 +38,48 @@ impl HttpMonitorConfig {
             follow_redirects,
         }
     }
+
+    pub fn validate(&self) -> Result<(), MonitorError> {
+        let url_lower = self.url.to_ascii_lowercase();
+        if !(url_lower.starts_with("http://") || url_lower.starts_with("https://")) {
+            return Err(MonitorError::InvalidConfig(
+                "URL must start with http:// or https://".to_string(),
+            ));
+        }
+
+        if self.interval < 15 {
+            return Err(MonitorError::InvalidConfig(
+                "Interval must be at least 15 seconds".to_string(),
+            ));
+        }
+
+        if self.timeout < 1000 {
+            return Err(MonitorError::InvalidConfig(
+                "Timeout must be at least 1000 ms".to_string(),
+            ));
+        }
+
+        Ok(())
+    }
+
+    pub fn to_json(&self) -> Result<String, MonitorError> {
+        serde_json::to_string(self)
+            .map_err(|err| MonitorError::InvalidConfig(format!("invalid http config: {err}")))
+    }
+
+    pub fn from_json(raw: &str) -> Result<Self, MonitorError> {
+        serde_json::from_str(raw)
+            .map_err(|err| MonitorError::InvalidConfig(format!("invalid http config: {err}")))
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all(deserialize = "camelCase"))]
 pub struct CreateMonitor {
     pub name: String,
-    pub config: String,
+    #[serde(default = "default_monitor_kind")]
+    pub kind: MonitorKind,
+    pub config: HttpMonitorConfig,
 }
 
 #[derive(
@@ -59,9 +100,9 @@ impl MonitorStatus {
     }
 }
 
-impl Into<BlobType> for MonitorStatus {
-    fn into(self) -> BlobType {
-        BlobType::String(self.to_string())
+impl From<MonitorStatus> for BlobType {
+    fn from(status: MonitorStatus) -> Self {
+        BlobType::String(status.to_string())
     }
 }
 
@@ -71,9 +112,9 @@ pub struct Monitor {
     pub id: String,
     pub org_id: String,
     pub name: String,
-    pub kind: String,
+    pub kind: MonitorKind,
     pub enabled: i64,
-    pub config: String,
+    pub config: HttpMonitorConfig,
     pub status: String,
     pub last_checked_at: Option<i64>,
     pub last_failed_at: Option<i64>,
@@ -86,15 +127,32 @@ pub struct Monitor {
     pub updated_at: i64,
 }
 
-impl From<crate::d1c::queries::monitors::GetMonitorByIdRow> for Monitor {
-    fn from(row: crate::d1c::queries::monitors::GetMonitorByIdRow) -> Self {
-        Monitor {
+impl TryFrom<crate::d1c::queries::monitors::GetMonitorByIdRow> for Monitor {
+    type Error = MonitorError;
+
+    fn try_from(
+        row: crate::d1c::queries::monitors::GetMonitorByIdRow,
+    ) -> Result<Self, Self::Error> {
+        let raw_kind = row.kind.clone();
+        let kind = MonitorKind::from_str(&raw_kind).map_err(|_| {
+            MonitorError::InvalidConfig(format!("unsupported monitor kind: {raw_kind}"))
+        })?;
+        let config = match kind {
+            MonitorKind::Http => HttpMonitorConfig::from_json(&row.config_json)?,
+            _ => {
+                return Err(MonitorError::InvalidConfig(format!(
+                    "unsupported monitor kind: {kind}"
+                )))
+            }
+        };
+
+        Ok(Monitor {
             id: row.id.unwrap_or_default(),
             org_id: row.org_id,
             name: row.name,
-            kind: row.kind,
+            kind,
             enabled: row.enabled,
-            config: row.config_json,
+            config,
             status: row.status,
             last_checked_at: row.last_checked_at,
             last_failed_at: row.last_failed_at,
@@ -105,19 +163,36 @@ impl From<crate::d1c::queries::monitors::GetMonitorByIdRow> for Monitor {
             next_run_at: row.next_run_at,
             created_at: row.created_at,
             updated_at: row.updated_at,
-        }
+        })
     }
 }
 
-impl From<crate::d1c::queries::monitors::GetMonitorsByOrgIdRow> for Monitor {
-    fn from(row: crate::d1c::queries::monitors::GetMonitorsByOrgIdRow) -> Self {
-        Monitor {
+impl TryFrom<crate::d1c::queries::monitors::GetMonitorsByOrgIdRow> for Monitor {
+    type Error = MonitorError;
+
+    fn try_from(
+        row: crate::d1c::queries::monitors::GetMonitorsByOrgIdRow,
+    ) -> Result<Self, Self::Error> {
+        let raw_kind = row.kind.clone();
+        let kind = MonitorKind::from_str(&raw_kind).map_err(|_| {
+            MonitorError::InvalidConfig(format!("unsupported monitor kind: {raw_kind}"))
+        })?;
+        let config = match kind {
+            MonitorKind::Http => HttpMonitorConfig::from_json(&row.config_json)?,
+            _ => {
+                return Err(MonitorError::InvalidConfig(format!(
+                    "unsupported monitor kind: {kind}"
+                )))
+            }
+        };
+
+        Ok(Monitor {
             id: row.id.unwrap_or_default(),
             org_id: row.org_id,
             name: row.name,
-            kind: row.kind,
+            kind,
             enabled: row.enabled,
-            config: row.config_json,
+            config,
             status: row.status,
             last_checked_at: row.last_checked_at,
             last_failed_at: row.last_failed_at,
@@ -128,13 +203,14 @@ impl From<crate::d1c::queries::monitors::GetMonitorsByOrgIdRow> for Monitor {
             next_run_at: row.next_run_at,
             created_at: row.created_at,
             updated_at: row.updated_at,
-        }
+        })
     }
 }
 
 #[derive(Debug)]
 pub enum MonitorError {
     InvalidStatus(String),
+    InvalidConfig(String),
     // pub status_code: u16,
     DbInit(worker::Error),
     DbBind(worker::Error),
@@ -193,14 +269,19 @@ impl From<MonitorError> for axum::http::StatusCode {
                 console_error!("monitors.invalid.status: {status}");
                 axum::http::StatusCode::BAD_REQUEST
             }
+            MonitorError::InvalidConfig(reason) => {
+                console_error!("monitors.invalid.config: {reason}");
+                axum::http::StatusCode::BAD_REQUEST
+            }
         }
     }
 }
 
-impl Into<String> for MonitorError {
-    fn into(self) -> String {
-        match self {
+impl From<MonitorError> for String {
+    fn from(err: MonitorError) -> Self {
+        match err {
             MonitorError::InvalidStatus(status) => format!("monitors.invalid.status: {status}"),
+            MonitorError::InvalidConfig(reason) => format!("monitors.invalid.config: {reason}"),
             MonitorError::DbInit(err) => format!("monitors.db.init: {err:?}"),
             MonitorError::DbBind(err) => format!("monitors.db.bind: {err:?}"),
             MonitorError::DbRun(err) => format!("monitors.db.run: {err:?}"),

@@ -1,12 +1,13 @@
 use cuid2::create_id;
-use std::result::Result;
+use std::{convert::TryFrom, result::Result};
 use worker::wasm_bindgen::JsValue;
 use worker::{console_log, D1Database, ObjectNamespace};
 
 use crate::bootstrap::ticker_bootstrap::ensure_ticker_bootstrapped;
 use crate::d1c::queries::monitors::{create_monitor, get_monitor_by_id, update_monitor_status};
 use crate::monitors::types::{
-    CreateMonitor, HeartbeatResult, Monitor, MonitorError, MonitorStatusSnapshot, UpdateMonitor,
+    CreateMonitor, HeartbeatResult, Monitor, MonitorError, MonitorStatus, MonitorStatusSnapshot,
+    UpdateMonitor,
 };
 use crate::utils::date::now_ms;
 use crate::utils::wasm_types::js_number;
@@ -23,15 +24,18 @@ pub async fn create_monitor_for_org(
     monitor: CreateMonitor,
 ) -> Result<Monitor, MonitorError> {
     let id = create_id().to_string();
+    monitor.config.validate()?;
+    let config_json = monitor.config.to_json()?;
+    let kind = monitor.kind.to_string();
     create_monitor(
-        &d1,
+        d1,
         &id,
         &org_id,
         &monitor.name.as_str(),
-        "http",
+        &kind,
         1,
-        &monitor.config,
-        "PENDING",
+        &config_json,
+        MonitorStatus::Pending.to_string().as_str(),
         now_ms(),
         now_ms(),
     )
@@ -42,8 +46,8 @@ pub async fn create_monitor_for_org(
         .await
         .map_err(MonitorError::Bootstrap)?;
 
-    match get_monitor_by_id(&d1, &id, &org_id).await {
-        Ok(Some(monitor)) => Ok(monitor.into()),
+    match get_monitor_by_id(d1, &id, &org_id).await {
+        Ok(Some(row)) => Monitor::try_from(row),
         Ok(None) => Err(MonitorError::NotFound),
         Err(_) => Err(MonitorError::DbRun(worker::Error::RustError(
             "Failed to get monitor".to_string(),
@@ -74,14 +78,15 @@ pub async fn update_monitor_for_org(
 
     if let Some(kind) = monitor.kind {
         fields.push("kind = ?".to_string());
-        values.push(JsValue::from_str(&kind.to_string()));
+        let kind_str = kind.to_string();
+        values.push(JsValue::from_str(&kind_str));
     }
 
     if let Some(config) = monitor.config {
-        fields.push("url = ?".to_string());
-        values.push(JsValue::from_str(
-            &serde_json::to_string(&config).unwrap_or_default(),
-        ));
+        config.validate()?;
+        let config_json = config.to_json()?;
+        fields.push("config_json = ?".to_string());
+        values.push(JsValue::from_str(&config_json));
     }
 
     if let Some(enabled) = monitor.enabled {
@@ -144,7 +149,7 @@ pub async fn update_monitor_status_for_org(
     });
 
     update_monitor_status(
-        &d1,
+        d1,
         heartbeat.status.to_string().as_str(),
         heartbeat.timestamp,
         last_failed_at,

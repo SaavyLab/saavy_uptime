@@ -42,7 +42,7 @@ pub async fn ensure_all_tickers(
     ticker: &ObjectNamespace,
     d1: &D1Database,
 ) -> Result<TickerReconcileSummary, BootstrapError> {
-    let rows = select_all_org_ids(&d1).await?;
+    let rows = select_all_org_ids(d1).await?;
 
     let mut summary = TickerReconcileSummary {
         organizations: rows.len(),
@@ -51,11 +51,11 @@ pub async fn ensure_all_tickers(
     };
 
     for org in rows {
-        if org.id.is_none() {
+        let Some(org_id) = org.id else {
             continue;
-        }
-        let org_id = org.id.unwrap();
-        if let Err(err) = ensure_ticker_bootstrapped(&ticker, &org_id).await {
+        };
+
+        if let Err(err) = ensure_ticker_bootstrapped(ticker, &org_id).await {
             console_error!(
                 "ticker.ensure_all: bootstrap failed for {}: {err:?}",
                 org_id

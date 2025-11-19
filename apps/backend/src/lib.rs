@@ -1,3 +1,5 @@
+#![warn(clippy::disallowed_methods)]
+
 use std::sync::OnceLock;
 
 use axum::{body::Body as AxumBody, response::Response as AxumResponse};
@@ -21,10 +23,10 @@ pub mod utils;
 
 static TRACE_SUBSCRIBER: OnceLock<()> = OnceLock::new();
 
+#[allow(clippy::disallowed_methods)]
 #[event(fetch, respond_with_errors)]
 pub async fn main(req: HttpRequest, env: Env, ctx: Context) -> Result<AxumResponse> {
     set_panic_hook();
-
     // Initialize tracing
     let (buffer, guard) = hb_tracing::buffer_layer();
 
@@ -32,8 +34,13 @@ pub async fn main(req: HttpRequest, env: Env, ctx: Context) -> Result<AxumRespon
         registry().with(buffer).with(ConsoleLayer).init();
     });
 
-    let mut router = router::create_router(&env);
-    let request = req.map(AxumBody::new);
+    let mut router = router::create_router(&env)?;
+
+    let cf = req.extensions().get::<worker::Cf>().cloned();
+    let mut request = req.map(AxumBody::new);
+    if let Some(cf) = cf {
+        request.extensions_mut().insert(cf);
+    }
 
     let response = router.call(request).await?;
 

@@ -1,6 +1,7 @@
 use std::{str::FromStr, time::Duration};
 
 use cuid2::create_id;
+use futures::stream::{self, StreamExt, TryStreamExt};
 use js_sys::wasm_bindgen::JsValue;
 use serde::Deserialize;
 use serde_json::to_string;
@@ -23,6 +24,7 @@ const DEFAULT_TICK_INTERVAL_MS: u64 = 15_000;
 const DEFAULT_BATCH_SIZE: usize = 100;
 const MIN_REARM_DELAY_MS: u64 = 1_000;
 const MAX_BACKOFF_MS: u64 = 60_000;
+const MAX_CONCURRENT_DISPATCHES: usize = 20;
 
 #[durable_object]
 pub struct Ticker {
@@ -97,16 +99,15 @@ impl Ticker {
         };
 
         let claimed = self.claim_due_monitors(&config).await?;
+        let claimed_count = claimed.len();
 
-        for monitor in &claimed {
-            self.dispatch_monitor(&config, monitor).await?;
-        }
+        self.dispatch_monitors(&config, claimed).await?;
 
         state.last_tick_ts = now_ms();
         state.consecutive_errors = 0;
         self.save_state(&state).await?;
 
-        if claimed.len() >= config.batch_size {
+        if claimed_count >= config.batch_size {
             self.arm_alarm(MIN_REARM_DELAY_MS).await?;
         } else {
             self.arm_alarm(config.tick_interval_ms).await?;
@@ -180,14 +181,33 @@ impl Ticker {
         Ok(claimed)
     }
 
+    async fn dispatch_monitors(
+        &self,
+        config: &TickerConfig,
+        monitors: Vec<MonitorDispatchRow>,
+    ) -> std::result::Result<(), TickerError> {
+        if monitors.is_empty() {
+            return Ok(());
+        }
+
+        let concurrency = config.batch_size.max(1).min(MAX_CONCURRENT_DISPATCHES);
+
+        stream::iter(monitors.into_iter())
+            .map(|monitor| self.dispatch_monitor(config, monitor))
+            .buffer_unordered(concurrency)
+            .try_collect::<Vec<_>>()
+            .await
+            .map(|_| ())
+    }
+
     async fn dispatch_monitor(
         &self,
         config: &TickerConfig,
-        monitor: &MonitorDispatchRow,
+        monitor: MonitorDispatchRow,
     ) -> std::result::Result<(), TickerError> {
         let dispatch_id = create_id().to_string();
-        self.record_dispatch(config, monitor, &dispatch_id).await?;
-        self.send_dispatch_request(&dispatch_id, &config.org_id, monitor)
+        self.record_dispatch(config, &monitor, &dispatch_id).await?;
+        self.send_dispatch_request(&dispatch_id, &config.org_id, &monitor)
             .await
     }
 

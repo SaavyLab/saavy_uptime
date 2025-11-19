@@ -4,7 +4,7 @@ use crate::cloudflare::d1::AppDb;
 use crate::cloudflare::durable_objects::ticker::AppTicker;
 use crate::d1c::queries::monitors::{delete_monitor, get_monitor_by_id, get_monitors_by_org_id};
 use crate::monitors::service::{create_monitor_for_org, update_monitor_for_org};
-use crate::monitors::types::{CreateMonitor, Monitor, UpdateMonitor};
+use crate::monitors::types::{CreateMonitor, Monitor, MonitorError, UpdateMonitor};
 use axum::{extract::Path, http::StatusCode, response::Result, Json};
 use hb_auth::User;
 use worker::console_error;
@@ -23,7 +23,7 @@ pub async fn get_monitor_by_id_handler(
     let org_id = load_membership(&d1, auth.sub()).await?.organization_id;
 
     match get_monitor_by_id(&d1, &id, &org_id).await {
-        Ok(Some(monitor)) => Ok(Json(monitor.into())),
+        Ok(Some(row)) => Monitor::try_from(row).map(Json).map_err(StatusCode::from),
         Ok(None) => Err(StatusCode::NOT_FOUND),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
@@ -41,9 +41,12 @@ pub async fn get_monitors_handler(
 ) -> Result<Json<Vec<Monitor>>, StatusCode> {
     let org_id = load_membership(&d1, auth.sub()).await?.organization_id;
     match get_monitors_by_org_id(&d1, &org_id).await {
-        Ok(monitors) => Ok(Json(
-            monitors.into_iter().map(|monitor| monitor.into()).collect(),
-        )),
+        Ok(rows) => rows
+            .into_iter()
+            .map(Monitor::try_from)
+            .collect::<Result<Vec<_>, MonitorError>>()
+            .map(Json)
+            .map_err(StatusCode::from),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }

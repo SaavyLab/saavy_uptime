@@ -107,14 +107,13 @@ impl From<DispatchError> for axum::http::StatusCode {
     }
 }
 
-impl Into<String> for DispatchError {
-    fn into(self) -> String {
-        match self {
+impl From<DispatchError> for String {
+    fn from(err: DispatchError) -> Self {
+        match err {
             DispatchError::Database { context, source } => format!("{context}: {source:?}"),
             DispatchError::CheckFailed(result) => format!(
                 "dispatch.check.failed: status={} error={:?}",
-                result.status.to_string(),
-                result.error
+                result.status, result.error
             ),
             DispatchError::Heartbeat(err) => format!("dispatch.heartbeat: {err:?}"),
             DispatchError::Monitor(err) => err.into(),

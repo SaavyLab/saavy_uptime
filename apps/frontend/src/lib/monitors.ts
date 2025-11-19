@@ -3,14 +3,6 @@ import { withAccessHeader } from "./api";
 
 const apiBase = import.meta.env.VITE_API_URL;
 
-export const httpMonitorConfigSchema = z.object({
-	url: z.string(),
-	interval: z.number(),
-	timeout: z.number(),
-	verifyTls: z.boolean(),
-	followRedirects: z.boolean(),
-});
-
 export type HttpMonitorConfig = z.infer<typeof httpMonitorConfigSchema>;
 
 export const monitorStatusSchema = z
@@ -19,15 +11,35 @@ export const monitorStatusSchema = z
 
 export const monitorKindSchema = z.enum(["http", "tcp", "udp"]);
 
+export const monitorConfigResponseSchema = z.object({
+	url: z.string(),
+	interval: z.number(),
+	timeout: z.number(),
+	verify_tls: z.boolean(),
+	follow_redirects: z.boolean(),
+});
+
+export const httpMonitorConfigSchema = monitorConfigResponseSchema.transform(
+	(config) => ({
+		url: config.url,
+		interval: config.interval,
+		timeout: config.timeout,
+		verifyTls: config.verify_tls,
+		followRedirects: config.follow_redirects,
+	}),
+);
+
+export type MonitorConfigResponse = z.infer<typeof monitorConfigResponseSchema>;
+
 const monitorSchema = z.object({
 	id: z.string(),
 	orgId: z.string(),
 	name: z.string(),
 	kind: monitorKindSchema,
 	enabled: z.number(),
-	config: z
-		.string()
-		.transform((config) => JSON.parse(config) as HttpMonitorConfig),
+	config: monitorConfigResponseSchema.transform((config) =>
+		httpMonitorConfigSchema.parse(config),
+	),
 	status: z.string().transform((status) => status.toLowerCase()),
 	lastCheckedAt: z.number().nullable(),
 	lastFailedAt: z.number().nullable(),

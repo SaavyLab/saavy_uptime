@@ -1,6 +1,12 @@
 use std::result::Result;
 use std::str::FromStr;
-use worker::{console_error, console_log, Fetch, Method, Request, RequestInit, Response};
+use std::time::Duration;
+
+use futures::{future::select, future::Either, pin_mut};
+use worker::{
+    console_error, console_log, AbortController, Delay, Fetch, Method, Request, RequestInit,
+    Response,
+};
 use worker::{D1Database, Queue};
 
 use crate::d1c::queries::monitor_dispatches::{complete_dispatch, dispatch_monitor};
@@ -20,46 +26,63 @@ pub async fn handle_dispatch(
     dispatch_monitor(&d1, "running", start, &payload.dispatch_id).await?;
 
     let check = check_monitor(&payload, start).await;
+    let fallback_end = now_ms();
 
     let (end_ms, dispatch_status) = match &check {
         Ok(result) => (result.timestamp, "completed"),
         Err(DispatchError::CheckFailed(result)) => (result.timestamp, "failed"),
-        Err(_err) => (now_ms(), "failed"),
+        Err(_err) => (fallback_end, "failed"),
     };
 
     complete_dispatch(&d1, dispatch_status, end_ms, &payload.dispatch_id).await?;
 
     match check {
         Ok(result) => {
-            update_monitor_status_for_org(&d1, &result, &snapshot)
-                .await
-                .map_err(DispatchError::Monitor)?;
-            heartbeat_queue
-                .send(result)
-                .await
-                .map_err(DispatchError::Heartbeat)?;
+            persist_heartbeat_result(&d1, &heartbeat_queue, &snapshot, result).await?;
+        }
+        Err(DispatchError::CheckFailed(result)) => {
+            persist_heartbeat_result(&d1, &heartbeat_queue, &snapshot, result).await?;
         }
         Err(err) => {
-            update_monitor_status_for_org(
+            let failure_ts = fallback_end;
+            let latency_ms = failure_ts - start;
+            let error_message: String = err.into();
+            persist_heartbeat_result(
                 &d1,
-                &HeartbeatResult {
+                &heartbeat_queue,
+                &snapshot,
+                HeartbeatResult {
                     monitor_id: payload.monitor_id,
                     org_id: payload.org_id,
-                    timestamp: now_ms(),
+                    timestamp: failure_ts,
                     status: MonitorStatus::Down,
-                    latency_ms: now_ms() - start,
+                    latency_ms,
                     region: "unknown".to_string(), // todo
                     colo: "unknown".to_string(),
-                    error: Some(err.into()),
+                    error: Some(error_message),
                     code: None,
                 },
-                &snapshot,
             )
-            .await
-            .map_err(DispatchError::Monitor)?;
+            .await?;
         }
     }
 
+    Ok(())
+}
+
+async fn persist_heartbeat_result(
+    d1: &D1Database,
+    heartbeat_queue: &Queue,
+    snapshot: &MonitorStatusSnapshot,
+    result: HeartbeatResult,
+) -> Result<(), DispatchError> {
+    update_monitor_status_for_org(d1, &result, snapshot)
+        .await
+        .map_err(DispatchError::Monitor)?;
+    heartbeat_queue
+        .send(result)
+        .await
+        .map_err(DispatchError::Heartbeat)?;
     Ok(())
 }
 
@@ -82,19 +105,20 @@ async fn check_monitor(
     start: i64,
 ) -> Result<HeartbeatResult, DispatchError> {
     let check = match &payload.kind {
-        MonitorKind::Http => check_http_monitor(&payload, start).await,
-        MonitorKind::Tcp => check_tcp_monitor(&payload, start).await,
+        MonitorKind::Http => check_http_monitor(payload, start).await,
+        MonitorKind::Tcp => check_tcp_monitor(payload, start).await,
         MonitorKind::Udp => todo!("This will be handled by the container protocol adapter"),
     };
 
     let result = match check {
         Ok(res) => res,
         Err(err) => {
-            let rtt_ms = now_ms() - start;
+            let end = now_ms();
+            let rtt_ms = end - start;
             let failure = HeartbeatResult {
                 monitor_id: payload.monitor_id.clone(),
                 org_id: payload.org_id.clone(),
-                timestamp: now_ms(),
+                timestamp: end,
                 status: MonitorStatus::Down,
                 latency_ms: rtt_ms,
                 region: "unknown".to_string(), // todo
@@ -103,7 +127,7 @@ async fn check_monitor(
                 code: None,
             };
 
-            return Ok(failure);
+            return Err(DispatchError::CheckFailed(failure));
         }
     };
 
@@ -128,7 +152,7 @@ async fn check_http_monitor(
                 return Err(DispatchError::CheckFailed(HeartbeatResult {
                     monitor_id: payload.monitor_id.clone(),
                     org_id: payload.org_id.clone(),
-                    timestamp: now_ms(),
+                    timestamp: end,
                     status: MonitorStatus::Down,
                     latency_ms: end - start,
                     region: "unknown".to_string(), // todo
@@ -159,7 +183,7 @@ async fn check_http_monitor(
                 return Ok(HeartbeatResult {
                     monitor_id: payload.monitor_id.clone(),
                     org_id: payload.org_id.clone(),
-                    timestamp: now_ms(),
+                    timestamp: end,
                     status: MonitorStatus::Up,
                     latency_ms: end - start,
                     region: "unknown".to_string(), // todo
@@ -175,7 +199,7 @@ async fn check_http_monitor(
                         return Err(DispatchError::CheckFailed(HeartbeatResult {
                             monitor_id: payload.monitor_id.clone(),
                             org_id: payload.org_id.clone(),
-                            timestamp: now_ms(),
+                            timestamp: end,
                             status: MonitorStatus::Down,
                             latency_ms: end - start,
                             region: "unknown".to_string(), // todo
@@ -188,7 +212,7 @@ async fn check_http_monitor(
                         return Err(DispatchError::CheckFailed(HeartbeatResult {
                             monitor_id: payload.monitor_id.clone(),
                             org_id: payload.org_id.clone(),
-                            timestamp: now_ms(),
+                            timestamp: end,
                             status: MonitorStatus::Down,
                             latency_ms: end - start,
                             region: "unknown".to_string(), // todo
@@ -206,7 +230,7 @@ async fn check_http_monitor(
                 return Err(DispatchError::CheckFailed(HeartbeatResult {
                     monitor_id: payload.monitor_id.clone(),
                     org_id: payload.org_id.clone(),
-                    timestamp: now_ms(),
+                    timestamp: end,
                     status: MonitorStatus::Down,
                     latency_ms: end - start,
                     region: "unknown".to_string(), // todo
@@ -225,7 +249,7 @@ async fn check_http_monitor(
                 return Err(DispatchError::CheckFailed(HeartbeatResult {
                     monitor_id: payload.monitor_id.clone(),
                     org_id: payload.org_id.clone(),
-                    timestamp: now_ms(),
+                    timestamp: end,
                     status: MonitorStatus::Down,
                     latency_ms: end - start,
                     region: "unknown".to_string(), // todo
@@ -244,7 +268,7 @@ async fn check_http_monitor(
                 return Err(DispatchError::CheckFailed(HeartbeatResult {
                     monitor_id: payload.monitor_id.clone(),
                     org_id: payload.org_id.clone(),
-                    timestamp: now_ms(),
+                    timestamp: end,
                     status: MonitorStatus::Down,
                     latency_ms: end - start,
                     region: "unknown".to_string(), // todo
@@ -261,12 +285,13 @@ async fn check_http_monitor(
         MAX_REDIRECT_DEPTH,
         payload.monitor_id
     );
+    let end = now_ms();
     Err(DispatchError::CheckFailed(HeartbeatResult {
         monitor_id: payload.monitor_id.clone(),
         org_id: payload.org_id.clone(),
-        timestamp: now_ms(),
+        timestamp: end,
         status: MonitorStatus::Down,
-        latency_ms: now_ms() - start,
+        latency_ms: end - start,
         region: "unknown".to_string(), // todo
         colo: "unknown".to_string(),
         error: Some("Too many redirects".to_string()),
@@ -274,9 +299,11 @@ async fn check_http_monitor(
     }))
 }
 
+const DEFAULT_HTTP_TIMEOUT_MS: i64 = 30_000;
+
 async fn perform_fetch(
     url: &str,
-    _timeout_ms: i64,
+    timeout_ms: i64,
     _verify_tls: bool,
 ) -> Result<Response, DispatchError> {
     let mut init = RequestInit::new();
@@ -284,21 +311,35 @@ async fn perform_fetch(
 
     // todo(saavy): use timeout/verify_tls
 
-    let mut req =
-        Request::new_with_init(&url, &init).map_err(|err| DispatchError::Heartbeat(err))?;
-    let headers = req
-        .headers_mut()
-        .map_err(|err| DispatchError::Heartbeat(err))?;
+    let mut req = Request::new_with_init(url, &init).map_err(DispatchError::Heartbeat)?;
+    let headers = req.headers_mut().map_err(DispatchError::Heartbeat)?;
     headers
         .set("Content-Type", "application/json")
-        .map_err(|err| DispatchError::Heartbeat(err))?;
+        .map_err(DispatchError::Heartbeat)?;
 
-    let response = Fetch::Request(req)
-        .send()
-        .await
-        .map_err(|err| DispatchError::Heartbeat(err))?;
+    let controller = AbortController::default();
+    let signal = controller.signal();
 
-    Ok(response)
+    let fetch = Fetch::Request(req);
+    let fetch_future = fetch.send_with_signal(&signal);
+    let effective_timeout_ms = if timeout_ms <= 0 {
+        DEFAULT_HTTP_TIMEOUT_MS
+    } else {
+        timeout_ms
+    } as u64;
+    let timeout_future = Delay::from(Duration::from_millis(effective_timeout_ms));
+
+    pin_mut!(fetch_future, timeout_future);
+
+    match select(fetch_future, timeout_future).await {
+        Either::Left((result, _)) => result.map_err(DispatchError::Heartbeat),
+        Either::Right((_unit, _)) => {
+            controller.abort();
+            Err(DispatchError::Heartbeat(worker::Error::RustError(
+                "HTTP fetch timed out".to_string(),
+            )))
+        }
+    }
 }
 
 async fn check_tcp_monitor(
@@ -309,7 +350,7 @@ async fn check_tcp_monitor(
     Err(DispatchError::CheckFailed(HeartbeatResult {
         monitor_id: payload.monitor_id.clone(),
         org_id: payload.org_id.clone(),
-        timestamp: now_ms(),
+        timestamp: end,
         status: MonitorStatus::Down,
         latency_ms: end - start,
         region: "unknown".to_string(), // todo

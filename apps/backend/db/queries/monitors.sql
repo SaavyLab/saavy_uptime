@@ -36,10 +36,10 @@ SELECT * FROM monitors WHERE id = :id AND org_id = :org_id;
 -- name: get_monitors_by_org_id :many
 SELECT * FROM monitors WHERE org_id = :org_id ORDER BY created_at DESC;
 
--- name: list_due_monitors :many
--- params: org_id String
--- params: next_run_at Option<i64>
--- params: limit i64
++-- name: list_due_monitors :many
++-- params: org_id String
++-- params: next_run_at Option<i64>
++-- params: limit i64
 SELECT id, kind, config_json, status, first_checked_at, last_failed_at, next_run_at
 FROM monitors
 WHERE org_id = :org_id

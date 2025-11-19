@@ -22,7 +22,7 @@ pub async fn load_membership(
     d1: &D1Database,
     identity_id: &str,
 ) -> Result<Membership, MembershipError> {
-    match select_org_member(&d1, identity_id).await {
+    match select_org_member(d1, identity_id).await {
         Ok(Some(row)) => Ok(Membership {
             organization_id: row.organization_id,
             role: row.role,
