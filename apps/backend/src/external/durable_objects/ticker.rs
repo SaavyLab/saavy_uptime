@@ -14,6 +14,7 @@ use crate::{
     d1c::queries::{
         monitor_dispatches::create_dispatch,
         monitors::{list_due_monitors, update_monitor_next_run_at_stmt},
+        organizations::get_org_sample_rate,
     },
     internal::types::MonitorKind,
     monitors::types::HttpMonitorConfig,
@@ -99,9 +100,11 @@ impl Ticker {
         };
 
         let claimed = self.claim_due_monitors(&config).await?;
+        let sample_rate = self.load_sample_rate(&config.org_id).await?;
         let claimed_count = claimed.len();
 
-        self.dispatch_monitors(&config, claimed).await?;
+        self.dispatch_monitors(&config, claimed, sample_rate)
+            .await?;
 
         state.last_tick_ts = now_ms();
         state.consecutive_errors = 0;
@@ -185,6 +188,7 @@ impl Ticker {
         &self,
         config: &TickerConfig,
         monitors: Vec<MonitorDispatchRow>,
+        sample_rate: f64,
     ) -> std::result::Result<(), TickerError> {
         if monitors.is_empty() {
             return Ok(());
@@ -193,7 +197,7 @@ impl Ticker {
         let concurrency = config.batch_size.max(1).min(MAX_CONCURRENT_DISPATCHES);
 
         stream::iter(monitors.into_iter())
-            .map(|monitor| self.dispatch_monitor(config, monitor))
+            .map(|monitor| self.dispatch_monitor(config, monitor, sample_rate))
             .buffer_unordered(concurrency)
             .try_collect::<Vec<_>>()
             .await
@@ -204,10 +208,11 @@ impl Ticker {
         &self,
         config: &TickerConfig,
         monitor: MonitorDispatchRow,
+        sample_rate: f64,
     ) -> std::result::Result<(), TickerError> {
         let dispatch_id = create_id().to_string();
         self.record_dispatch(config, &monitor, &dispatch_id).await?;
-        self.send_dispatch_request(&dispatch_id, &config.org_id, &monitor)
+        self.send_dispatch_request(&dispatch_id, &config.org_id, &monitor, sample_rate)
             .await
     }
 
@@ -239,6 +244,7 @@ impl Ticker {
         dispatch_id: &str,
         org_id: &str,
         monitor: &MonitorDispatchRow,
+        sample_rate: f64,
     ) -> std::result::Result<(), TickerError> {
         let base_url = self
             .env
@@ -266,6 +272,7 @@ impl Ticker {
             status: monitor.status.clone(),
             first_checked_at: monitor.first_checked_at,
             last_failed_at: monitor.last_failed_at,
+            sample_rate,
         };
 
         let body = to_string(&payload).map_err(|err| {
@@ -303,6 +310,17 @@ impl Ticker {
         }
 
         Ok(())
+    }
+
+    async fn load_sample_rate(&self, org_id: &str) -> std::result::Result<f64, TickerError> {
+        let d1 = self.env.d1("DB")?;
+        let rate = get_org_sample_rate(&d1, org_id)
+            .await
+            .map_err(|err| TickerError::database("ticker.sample_rate.fetch", err))?
+            .map(|row| row.ae_sample_rate)
+            .unwrap_or(1.0)
+            .clamp(0.0, 1.0);
+        Ok(rate)
     }
 }
 

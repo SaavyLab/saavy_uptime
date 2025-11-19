@@ -42,6 +42,7 @@ pub struct DispatchPayload {
     pub status: String,
     pub first_checked_at: Option<i64>,
     pub last_failed_at: Option<i64>,
+    pub sample_rate: f64,
 }
 
 #[derive(Debug)]

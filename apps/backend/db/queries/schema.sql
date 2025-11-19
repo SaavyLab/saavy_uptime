@@ -85,7 +85,7 @@ CREATE TABLE organizations (
   slug TEXT NOT NULL UNIQUE,
   name TEXT NOT NULL, -- Display name
   created_at INTEGER NOT NULL
-, owner_id TEXT NOT NULL REFERENCES members(identity_id) ON DELETE CASCADE)
+, owner_id TEXT NOT NULL REFERENCES members(identity_id) ON DELETE CASCADE, ae_sample_rate REAL NOT NULL DEFAULT 1.0)
 
 CREATE TABLE settings (
   key TEXT PRIMARY KEY,

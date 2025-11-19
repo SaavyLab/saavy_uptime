@@ -308,6 +308,7 @@ pub struct HeartbeatResult {
     // Identity
     pub monitor_id: String,
     pub org_id: String,
+    pub dispatch_id: String,
 
     // Result
     pub timestamp: i64,
@@ -317,6 +318,7 @@ pub struct HeartbeatResult {
     pub latency_ms: i64,
     pub region: String,
     pub colo: String,
+    pub sample_rate: f64,
 
     pub error: Option<String>,
 

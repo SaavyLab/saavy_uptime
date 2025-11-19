@@ -3,8 +3,9 @@ use std::str::FromStr;
 use std::time::Duration;
 
 use futures::{future::select, future::Either, pin_mut};
+use js_sys::Math;
 use worker::{
-    console_error, console_log, AbortController, Delay, Fetch, Method, Request, RequestInit,
+    console_error, console_log, AbortController, Cf, Delay, Fetch, Method, Request, RequestInit,
     Response,
 };
 use worker::{D1Database, Queue};
@@ -19,13 +20,16 @@ pub async fn handle_dispatch(
     d1: D1Database,
     heartbeat_queue: Queue,
     payload: DispatchRequest,
+    cf: Cf,
 ) -> Result<(), DispatchError> {
     let start = now_ms();
     let snapshot = monitor_snapshot_from_payload(&payload);
+    let region: String = cf.region().unwrap_or("unknown".to_string());
+    let colo: String = cf.colo();
 
     dispatch_monitor(&d1, "running", start, &payload.dispatch_id).await?;
 
-    let check = check_monitor(&payload, start).await;
+    let check = check_monitor(&payload, start, &region, &colo).await;
     let fallback_end = now_ms();
 
     let (end_ms, dispatch_status) = match &check {
@@ -54,11 +58,13 @@ pub async fn handle_dispatch(
                 HeartbeatResult {
                     monitor_id: payload.monitor_id,
                     org_id: payload.org_id,
+                    dispatch_id: payload.dispatch_id,
                     timestamp: failure_ts,
                     status: MonitorStatus::Down,
                     latency_ms,
-                    region: "unknown".to_string(), // todo
-                    colo: "unknown".to_string(),
+                    region,
+                    colo,
+                    sample_rate: payload.sample_rate,
                     error: Some(error_message),
                     code: None,
                 },
@@ -79,11 +85,25 @@ async fn persist_heartbeat_result(
     update_monitor_status_for_org(d1, &result, snapshot)
         .await
         .map_err(DispatchError::Monitor)?;
-    heartbeat_queue
-        .send(result)
-        .await
-        .map_err(DispatchError::Heartbeat)?;
+    if should_enqueue(result.sample_rate) {
+        heartbeat_queue
+            .send(result)
+            .await
+            .map_err(DispatchError::Heartbeat)?;
+    }
     Ok(())
+}
+
+fn should_enqueue(sample_rate: f64) -> bool {
+    if sample_rate >= 1.0 {
+        return true;
+    }
+
+    if sample_rate <= 0.0 {
+        return false;
+    }
+
+    Math::random() < sample_rate
 }
 
 fn monitor_snapshot_from_payload(payload: &DispatchRequest) -> MonitorStatusSnapshot {
@@ -103,10 +123,12 @@ fn monitor_snapshot_from_payload(payload: &DispatchRequest) -> MonitorStatusSnap
 async fn check_monitor(
     payload: &DispatchRequest,
     start: i64,
+    region: &String,
+    colo: &String,
 ) -> Result<HeartbeatResult, DispatchError> {
     let check = match &payload.kind {
-        MonitorKind::Http => check_http_monitor(payload, start).await,
-        MonitorKind::Tcp => check_tcp_monitor(payload, start).await,
+        MonitorKind::Http => check_http_monitor(payload, start, region.clone(), colo.clone()).await,
+        MonitorKind::Tcp => check_tcp_monitor(payload, start, region.clone(), colo.clone()).await,
         MonitorKind::Udp => todo!("This will be handled by the container protocol adapter"),
     };
 
@@ -118,11 +140,13 @@ async fn check_monitor(
             let failure = HeartbeatResult {
                 monitor_id: payload.monitor_id.clone(),
                 org_id: payload.org_id.clone(),
+                dispatch_id: payload.dispatch_id.clone(),
                 timestamp: end,
                 status: MonitorStatus::Down,
                 latency_ms: rtt_ms,
-                region: "unknown".to_string(), // todo
-                colo: "unknown".to_string(),
+                region: region.to_string(),
+                colo: colo.to_string(),
+                sample_rate: payload.sample_rate,
                 error: Some(format!("{err:?}")),
                 code: None,
             };
@@ -139,6 +163,8 @@ const MAX_REDIRECT_DEPTH: u8 = 10;
 async fn check_http_monitor(
     payload: &DispatchRequest,
     start: i64,
+    region: String,
+    colo: String,
 ) -> Result<HeartbeatResult, DispatchError> {
     let mut next_url = payload.monitor_url.clone();
     let follow_redirects = payload.follow_redirects;
@@ -152,11 +178,13 @@ async fn check_http_monitor(
                 return Err(DispatchError::CheckFailed(HeartbeatResult {
                     monitor_id: payload.monitor_id.clone(),
                     org_id: payload.org_id.clone(),
+                    dispatch_id: payload.dispatch_id.clone(),
                     timestamp: end,
                     status: MonitorStatus::Down,
                     latency_ms: end - start,
-                    region: "unknown".to_string(), // todo
-                    colo: "unknown".to_string(),
+                    region,
+                    colo,
+                    sample_rate: payload.sample_rate,
                     error: Some(format!("HTTP fetch error: {err:?}")),
                     code: None,
                 }));
@@ -183,11 +211,13 @@ async fn check_http_monitor(
                 return Ok(HeartbeatResult {
                     monitor_id: payload.monitor_id.clone(),
                     org_id: payload.org_id.clone(),
+                    dispatch_id: payload.dispatch_id.clone(),
                     timestamp: end,
                     status: MonitorStatus::Up,
                     latency_ms: end - start,
-                    region: "unknown".to_string(), // todo
-                    colo: "unknown".to_string(),
+                    region,
+                    colo,
+                    sample_rate: payload.sample_rate,
                     error: None,
                     code: None,
                 });
@@ -199,11 +229,13 @@ async fn check_http_monitor(
                         return Err(DispatchError::CheckFailed(HeartbeatResult {
                             monitor_id: payload.monitor_id.clone(),
                             org_id: payload.org_id.clone(),
+                            dispatch_id: payload.dispatch_id.clone(),
                             timestamp: end,
                             status: MonitorStatus::Down,
                             latency_ms: end - start,
-                            region: "unknown".to_string(), // todo
-                            colo: "unknown".to_string(),
+                            region,
+                            colo,
+                            sample_rate: payload.sample_rate,
                             error: Some("Redirect location not found".to_string()),
                             code: Some(response.status_code() as u16),
                         }));
@@ -212,11 +244,13 @@ async fn check_http_monitor(
                         return Err(DispatchError::CheckFailed(HeartbeatResult {
                             monitor_id: payload.monitor_id.clone(),
                             org_id: payload.org_id.clone(),
+                            dispatch_id: payload.dispatch_id.clone(),
                             timestamp: end,
                             status: MonitorStatus::Down,
                             latency_ms: end - start,
-                            region: "unknown".to_string(), // todo
-                            colo: "unknown".to_string(),
+                            region,
+                            colo,
+                            sample_rate: payload.sample_rate,
                             error: Some(format!("Redirect location not found {err:?}")),
                             code: Some(response.status_code() as u16),
                         }));
@@ -230,11 +264,13 @@ async fn check_http_monitor(
                 return Err(DispatchError::CheckFailed(HeartbeatResult {
                     monitor_id: payload.monitor_id.clone(),
                     org_id: payload.org_id.clone(),
+                    dispatch_id: payload.dispatch_id.clone(),
                     timestamp: end,
                     status: MonitorStatus::Down,
                     latency_ms: end - start,
-                    region: "unknown".to_string(), // todo
-                    colo: "unknown".to_string(),
+                    region,
+                    colo,
+                    sample_rate: payload.sample_rate,
                     error: Some("Redirection not enabled".to_string()),
                     code: None,
                 }));
@@ -249,11 +285,13 @@ async fn check_http_monitor(
                 return Err(DispatchError::CheckFailed(HeartbeatResult {
                     monitor_id: payload.monitor_id.clone(),
                     org_id: payload.org_id.clone(),
+                    dispatch_id: payload.dispatch_id.clone(),
                     timestamp: end,
                     status: MonitorStatus::Down,
                     latency_ms: end - start,
-                    region: "unknown".to_string(), // todo
-                    colo: "unknown".to_string(),
+                    region,
+                    colo,
+                    sample_rate: payload.sample_rate,
                     error: Some("Client error".to_string()),
                     code: Some(response.status_code() as u16),
                 }));
@@ -268,11 +306,13 @@ async fn check_http_monitor(
                 return Err(DispatchError::CheckFailed(HeartbeatResult {
                     monitor_id: payload.monitor_id.clone(),
                     org_id: payload.org_id.clone(),
+                    dispatch_id: payload.dispatch_id.clone(),
                     timestamp: end,
                     status: MonitorStatus::Down,
                     latency_ms: end - start,
-                    region: "unknown".to_string(), // todo
-                    colo: "unknown".to_string(),
+                    region,
+                    colo,
+                    sample_rate: payload.sample_rate,
                     error: Some("Server error".to_string()),
                     code: Some(response.status_code() as u16),
                 }));
@@ -289,11 +329,13 @@ async fn check_http_monitor(
     Err(DispatchError::CheckFailed(HeartbeatResult {
         monitor_id: payload.monitor_id.clone(),
         org_id: payload.org_id.clone(),
+        dispatch_id: payload.dispatch_id.clone(),
         timestamp: end,
         status: MonitorStatus::Down,
         latency_ms: end - start,
-        region: "unknown".to_string(), // todo
-        colo: "unknown".to_string(),
+        region,
+        colo,
+        sample_rate: payload.sample_rate,
         error: Some("Too many redirects".to_string()),
         code: None,
     }))
@@ -345,16 +387,20 @@ async fn perform_fetch(
 async fn check_tcp_monitor(
     payload: &DispatchRequest,
     start: i64,
+    region: String,
+    colo: String,
 ) -> Result<HeartbeatResult, DispatchError> {
     let end = now_ms();
     Err(DispatchError::CheckFailed(HeartbeatResult {
         monitor_id: payload.monitor_id.clone(),
         org_id: payload.org_id.clone(),
+        dispatch_id: payload.dispatch_id.clone(),
         timestamp: end,
         status: MonitorStatus::Down,
         latency_ms: end - start,
-        region: "unknown".to_string(), // todo
-        colo: "unknown".to_string(),
+        region,
+        colo,
+        sample_rate: payload.sample_rate,
         error: Some("TCP check not implemented".to_string()),
         code: None,
     }))

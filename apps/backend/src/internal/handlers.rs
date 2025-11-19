@@ -3,6 +3,7 @@ use crate::bootstrap::ticker_bootstrap::ensure_all_tickers;
 use crate::cloudflare::d1::AppDb;
 use crate::cloudflare::durable_objects::ticker::AppTicker;
 use crate::cloudflare::queues::HeartbeatQueue;
+use crate::cloudflare::request::RequestCf;
 use crate::internal::dispatch::handle_dispatch;
 use crate::internal::types::{DispatchRequest, MonitorKind, ReconcileResponse};
 use crate::monitors::service::create_monitor_for_org;
@@ -35,15 +36,17 @@ pub async fn reconcile_tickers_handler(
 }
 
 #[worker::send]
+#[axum::debug_handler]
 pub async fn dispatch_handler(
     State(state): State<AppState>,
     AppDb(d1): AppDb,
     HeartbeatQueue(heartbeat_queue): HeartbeatQueue,
+    RequestCf(cf): RequestCf,
     headers: HeaderMap,
     Json(payload): Json<DispatchRequest>,
 ) -> Result<StatusCode, StatusCode> {
     validate_dispatch_token(&state, &headers)?;
-    handle_dispatch(d1, heartbeat_queue, payload).await?;
+    handle_dispatch(d1, heartbeat_queue, payload, cf).await?;
 
     Ok(StatusCode::ACCEPTED)
 }
