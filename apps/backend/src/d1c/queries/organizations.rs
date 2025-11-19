@@ -12,16 +12,13 @@ pub fn create_organization_stmt(
         .prepare(
             "INSERT INTO organizations (id, slug, name, owner_id, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
         );
-    let stmt = stmt
-        .bind(
-            &[
-                id.into(),
-                slug.into(),
-                name.into(),
-                owner_id.into(),
-                (created_at as f64).into(),
-            ],
-        )?;
+    let stmt = stmt.bind(&[
+        id.into(),
+        slug.into(),
+        name.into(),
+        owner_id.into(),
+        (created_at as f64).into(),
+    ])?;
     Ok(stmt)
 }
 #[tracing::instrument(name = "d1c.create_organization", skip(d1))]

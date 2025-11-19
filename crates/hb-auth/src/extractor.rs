@@ -5,7 +5,10 @@ use axum::{
 };
 use tracing::error;
 
-use crate::{config::AuthConfig, jwt::{verify_access_jwt, Claims}};
+use crate::{
+    config::AuthConfig,
+    jwt::{verify_access_jwt, Claims},
+};
 
 pub trait HasAuthConfig {
     fn auth_config(&self) -> &AuthConfig;
@@ -45,17 +48,18 @@ impl<R: RoleMapper> User<R> {
         &self.claims.sub
     }
 
-    pub async fn from_worker_request(req: &worker::Request, config: &AuthConfig) -> Result<Self, String> {
+    pub async fn from_worker_request(
+        req: &worker::Request,
+        config: &AuthConfig,
+    ) -> Result<Self, String> {
         let token = extract_token_worker(req)
             .or_else(|| extract_token_from_cookies_worker(req))
             .ok_or_else(|| "missing access token".to_string())?;
 
-        let claims = verify_access_jwt(&token, config)
-            .await
-            .map_err(|err| {
-                error!("JWT verification failed: {err:?}");
-                "invalid or expired token".to_string()
-            })?;
+        let claims = verify_access_jwt(&token, config).await.map_err(|err| {
+            error!("JWT verification failed: {err:?}");
+            "invalid or expired token".to_string()
+        })?;
 
         let roles = R::from_claims(&claims);
 
@@ -83,12 +87,13 @@ where
 
         let config = state.auth_config();
 
-        let claims = verify_access_jwt(&token, config)
-            .await
-            .map_err(|err| {
-                error!("JWT verification failed: {err:?}");
-                (StatusCode::UNAUTHORIZED, "invalid or expired token".to_string())
-            })?;
+        let claims = verify_access_jwt(&token, config).await.map_err(|err| {
+            error!("JWT verification failed: {err:?}");
+            (
+                StatusCode::UNAUTHORIZED,
+                "invalid or expired token".to_string(),
+            )
+        })?;
 
         let roles = R::from_claims(&claims);
 

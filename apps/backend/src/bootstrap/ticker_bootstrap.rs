@@ -1,5 +1,5 @@
 use crate::{bootstrap::types::BootstrapError, d1c::queries::organizations::select_all_org_ids};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::result::Result;
 use worker::{
     console_error, wasm_bindgen::JsValue, D1Database, Method, ObjectNamespace, Request, RequestInit,
@@ -29,11 +29,6 @@ pub async fn ensure_ticker_bootstrapped(
 
     stub.fetch_with_request(req).await?;
     Ok(())
-}
-
-#[derive(Deserialize)]
-struct OrgRow {
-    id: String,
 }
 
 #[derive(Debug, Serialize)]

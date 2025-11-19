@@ -34,14 +34,14 @@ function MonitorNewPage() {
 
 	return (
 		<div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight">New Monitor</h1>
-          <p className="text-muted-foreground">
-            Provision HTTP/HTTPS coverage with a URL, interval, and timeout.
-          </p>
-        </div>
-      </div>
+			<div className="flex items-center justify-between">
+				<div className="space-y-1">
+					<h1 className="text-2xl font-bold tracking-tight">New Monitor</h1>
+					<p className="text-muted-foreground">
+						Provision HTTP/HTTPS coverage with a URL, interval, and timeout.
+					</p>
+				</div>
+			</div>
 
 			<div className="grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.7fr)]">
 				<div className="rounded-xl border border-border bg-card p-6 shadow-sm sm:p-8">
@@ -98,9 +98,7 @@ function MonitorNewPage() {
 										name="interval"
 										validators={{
 											onBlur: ({ value }) =>
-												value >= 15
-													? undefined
-													: "Min interval is 15 seconds",
+												value >= 15 ? undefined : "Min interval is 15 seconds",
 										}}
 									>
 										{(field) => (
@@ -148,10 +146,7 @@ function MonitorNewPage() {
 							</div>
 
 							<div className="flex flex-col gap-3 sm:flex-row">
-								<form.SubmitButton
-									className="flex-1"
-									label="Create monitor"
-								/>
+								<form.SubmitButton className="flex-1" label="Create monitor" />
 								<Link to="/monitors" className="flex-1">
 									<Button variant="secondary" className="w-full">
 										Cancel
@@ -181,13 +176,15 @@ function MonitorNewPage() {
 					</div>
 
 					<div className="rounded-lg border border-border bg-muted/20 p-6">
-            <div className="flex items-center gap-2 mb-2">
-              <ShieldCheck size={18} className="text-emerald-500" />
-              <p className="text-sm font-medium text-foreground">Saavy control plane</p>
-            </div>
+						<div className="flex items-center gap-2 mb-2">
+							<ShieldCheck size={18} className="text-emerald-500" />
+							<p className="text-sm font-medium text-foreground">
+								Saavy control plane
+							</p>
+						</div>
 						<p className="text-sm text-muted-foreground">
-							Each monitor streams status back into the Monitors, Incidents,
-							and Status pages automatically—no extra wiring required.
+							Each monitor streams status back into the Monitors, Incidents, and
+							Status pages automatically—no extra wiring required.
 						</p>
 					</div>
 				</aside>

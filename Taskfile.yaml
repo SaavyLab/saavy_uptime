@@ -12,7 +12,7 @@ includes:
     dir: ./apps/backend
   d1c:
     taskfile: ./crates/hb-d1c/Taskfile.yaml
-    dir: ./crates/d1c
+    dir: ./crates/hb-d1c
   auth:
     taskfile: ./crates/hb-auth/Taskfile.yaml
     dir: ./crates/hb-auth
@@ -51,11 +51,13 @@ tasks:
       - task: frontend:deploy
       - task: backend:deploy
 
-  typecheck:
+  check:
     desc: "Type check all packages"
     cmds:
       - task: frontend:typecheck
       - task: backend:check
+      - task: auth:check
+      - task: d1c:check
 
   clean:
     desc: "Clean all build artifacts"
@@ -68,6 +70,8 @@ tasks:
     cmds:
       - task: frontend:format:fix
       - task: backend:format
+      - task: auth:format
+      - task: d1c:format
 
   db:shell:
     desc: "Open D1 shell"

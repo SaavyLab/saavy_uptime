@@ -218,7 +218,7 @@ pub fn parse_query_header(line: &str) -> Result<(String, Cardinality, bool)> {
         ":scalar" => Cardinality::Scalar,
         _ => anyhow::bail!("Invalid cardinality: {}", parts[1]),
     };
-    
+
     let gen_stmt = parts.len() >= 3 && parts[2] == ":stmt";
 
     Ok((name, cardinality, gen_stmt))

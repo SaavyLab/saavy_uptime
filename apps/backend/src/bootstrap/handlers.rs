@@ -1,16 +1,14 @@
 use crate::bootstrap::ticker_bootstrap::ensure_ticker_bootstrapped;
-use crate::cloudflare::d1::{get_d1, AppDb};
+use crate::cloudflare::d1::AppDb;
+use crate::cloudflare::durable_objects::ticker::AppTicker;
 use crate::d1c::queries::bootstrap::{create_member_stmt, create_organization_member_stmt};
 use crate::d1c::queries::organizations::{check_if_bootstrapped, create_organization_stmt};
 use crate::router::AppState;
 use crate::utils::date::now_ms;
-use crate::cloudflare::durable_objects::ticker::AppTicker;
 use axum::{extract::State, http::StatusCode, response::Result, Json};
 use cuid2::create_id;
 use hb_auth::{HasAuthConfig, User};
-use worker::{console_error, wasm_bindgen::JsValue};
-
-use crate::utils::wasm_types::js_number;
+use worker::console_error;
 
 use serde::{Deserialize, Serialize};
 
@@ -56,7 +54,6 @@ pub struct InitializePayload {
 
 #[worker::send]
 pub async fn initialize(
-    State(state): State<AppState>,
     AppTicker(ticker): AppTicker,
     AppDb(d1): AppDb,
     auth: User,
@@ -65,23 +62,40 @@ pub async fn initialize(
     let org_id = create_id().to_string();
     let now = now_ms();
 
-    let org_statement = create_organization_stmt(&d1, &org_id, &payload.slug, &payload.name, auth.sub(), now).map_err(|err| {
-        console_error!("bootstrap.initialize: create organization statement failed: {err:?}");
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
-    let member_statement = create_member_stmt(&d1, auth.sub(), auth.email(), 0, now, now).map_err(|err| {
-        console_error!("bootstrap.initialize: create member statement failed: {err:?}");
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
-    let organization_member_statement = create_organization_member_stmt(&d1, &org_id, auth.sub(), "admin", now, now).map_err(|err| {
-        console_error!("bootstrap.initialize: create organization member statement failed: {err:?}");
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    let org_statement =
+        create_organization_stmt(&d1, &org_id, &payload.slug, &payload.name, auth.sub(), now)
+            .map_err(|err| {
+                console_error!(
+                    "bootstrap.initialize: create organization statement failed: {err:?}"
+                );
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
+    let member_statement =
+        create_member_stmt(&d1, auth.sub(), auth.email(), 0, now, now).map_err(|err| {
+            console_error!("bootstrap.initialize: create member statement failed: {err:?}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+    let organization_member_statement =
+        create_organization_member_stmt(&d1, &org_id, auth.sub(), "admin", now, now).map_err(
+            |err| {
+                console_error!(
+                    "bootstrap.initialize: create organization member statement failed: {err:?}"
+                );
+                StatusCode::INTERNAL_SERVER_ERROR
+            },
+        )?;
 
-    let batch_results = d1.batch(vec![member_statement, org_statement, organization_member_statement]).await.map_err(|err| {
-        console_error!("bootstrap.initialize: batch execution failed: {err:?}");
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    let batch_results = d1
+        .batch(vec![
+            member_statement,
+            org_statement,
+            organization_member_statement,
+        ])
+        .await
+        .map_err(|err| {
+            console_error!("bootstrap.initialize: batch execution failed: {err:?}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
 
     if let Some(err) = batch_results.iter().find_map(|result| result.error()) {
         console_error!("bootstrap.initialize: statement failed: {err}");

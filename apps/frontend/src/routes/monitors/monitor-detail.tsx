@@ -84,11 +84,16 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 			<div className="space-y-8">
 				<div className="flex items-center justify-between">
 					<div className="flex items-center gap-2 text-sm text-muted-foreground">
-						<Link to="/monitors" className="hover:text-foreground transition-colors">
+						<Link
+							to="/monitors"
+							className="hover:text-foreground transition-colors"
+						>
 							Monitors
 						</Link>
 						<span>/</span>
-						<span className="text-foreground font-medium">{monitor?.name ?? "Loading..."}</span>
+						<span className="text-foreground font-medium">
+							{monitor?.name ?? "Loading..."}
+						</span>
 					</div>
 				</div>
 
@@ -111,10 +116,14 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 						<div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
 							<div className="space-y-1">
 								<div className="flex items-center gap-3">
-									<h1 className="text-2xl font-bold tracking-tight">{monitor.name}</h1>
+									<h1 className="text-2xl font-bold tracking-tight">
+										{monitor.name}
+									</h1>
 									<StatusPill status={monitor.currentStatus} />
 								</div>
-								<p className="text-muted-foreground font-mono text-sm">{monitor.url}</p>
+								<p className="text-muted-foreground font-mono text-sm">
+									{monitor.url}
+								</p>
 							</div>
 							<div className="flex items-center gap-2">
 								<Link to="/monitors/$monitorId/edit" params={{ monitorId }}>
@@ -134,19 +143,33 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 
 						<div className="grid gap-4 md:grid-cols-4">
 							<div className="rounded-xl border border-border bg-muted/20 p-4">
-								<div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Last Check</div>
-								<div className="mt-1 text-lg font-mono font-medium text-foreground">{formatTimestamp(monitor.lastCheckedAtTs)}</div>
+								<div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+									Last Check
+								</div>
+								<div className="mt-1 text-lg font-mono font-medium text-foreground">
+									{formatTimestamp(monitor.lastCheckedAtTs)}
+								</div>
 							</div>
 							<div className="rounded-xl border border-border bg-muted/20 p-4">
-								<div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Interval</div>
-								<div className="mt-1 text-lg font-mono font-medium text-foreground">{monitor.intervalS}s</div>
+								<div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+									Interval
+								</div>
+								<div className="mt-1 text-lg font-mono font-medium text-foreground">
+									{monitor.intervalS}s
+								</div>
 							</div>
 							<div className="rounded-xl border border-border bg-muted/20 p-4">
-								<div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Timeout</div>
-								<div className="mt-1 text-lg font-mono font-medium text-foreground">{monitor.timeoutMs}ms</div>
+								<div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+									Timeout
+								</div>
+								<div className="mt-1 text-lg font-mono font-medium text-foreground">
+									{monitor.timeoutMs}ms
+								</div>
 							</div>
 							<div className="rounded-xl border border-border bg-muted/20 p-4">
-								<div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Status Code</div>
+								<div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+									Status Code
+								</div>
 								<div className="mt-1 text-lg font-mono font-medium text-foreground">
 									{monitor.expectStatusLow && monitor.expectStatusHigh
 										? `${monitor.expectStatusLow}-${monitor.expectStatusHigh}`
@@ -160,19 +183,31 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 								<dl className="grid grid-cols-1 gap-4 text-sm text-muted-foreground">
 									<div className="flex justify-between border-b border-border pb-2">
 										<dt>Follow Redirects</dt>
-										<dd className="text-foreground font-medium">{monitor.followRedirects ? "Yes" : "No"}</dd>
+										<dd className="text-foreground font-medium">
+											{monitor.followRedirects ? "Yes" : "No"}
+										</dd>
 									</div>
 									<div className="flex justify-between border-b border-border pb-2">
 										<dt>Verify TLS</dt>
-										<dd className="text-foreground font-medium">{monitor.verifyTls ? "Yes" : "No"}</dd>
+										<dd className="text-foreground font-medium">
+											{monitor.verifyTls ? "Yes" : "No"}
+										</dd>
 									</div>
 									<div className="flex justify-between border-b border-border pb-2">
 										<dt>Created At</dt>
-										<dd className="text-foreground font-medium">{formatTimestamp(monitor.createdAt)}</dd>
+										<dd className="text-foreground font-medium">
+											{formatTimestamp(monitor.createdAt)}
+										</dd>
 									</div>
 									<div className="flex justify-between border-b border-border pb-2">
 										<dt>Enabled</dt>
-										<dd className={monitor.enabled ? "text-emerald-500 font-medium" : "text-muted-foreground font-medium"}>
+										<dd
+											className={
+												monitor.enabled
+													? "text-emerald-500 font-medium"
+													: "text-muted-foreground font-medium"
+											}
+										>
 											{monitor.enabled ? "Yes" : "No"}
 										</dd>
 									</div>

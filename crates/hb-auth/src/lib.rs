@@ -1,6 +1,6 @@
 pub mod config;
-pub mod jwt;
 pub mod extractor;
+pub mod jwt;
 
 pub use config::AuthConfig;
-pub use extractor::{User, RoleMapper, HasAuthConfig};
+pub use extractor::{HasAuthConfig, RoleMapper, User};

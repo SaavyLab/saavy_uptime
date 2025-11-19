@@ -1,16 +1,15 @@
 use crate::auth::membership::load_membership;
 use crate::cloudflare::d1::AppDb;
-use crate::utils::date::now_ms;
-use axum::{
-    http::StatusCode,
-    response::Result,
-    Json,
+use crate::d1c::queries::organizations::{
+    create_organization, get_organization_by_id, get_organization_members,
+    GetOrganizationMembersRow,
 };
-use cuid2::create_id;
-use worker::console_error;
-use crate::d1c::queries::organizations::{GetOrganizationMembersRow, create_organization, get_organization_by_id, get_organization_members};
 use crate::organizations::types::{CreateOrganization, Organization, OrganizationError};
+use crate::utils::date::now_ms;
+use axum::{http::StatusCode, response::Result, Json};
+use cuid2::create_id;
 use hb_auth::User;
+use worker::console_error;
 
 #[worker::send]
 pub async fn get_organization_by_membership_handler(
@@ -24,7 +23,7 @@ pub async fn get_organization_by_membership_handler(
         Err(err) => {
             console_error!("organizations.get_by_membership: {err:?}");
             Err(StatusCode::INTERNAL_SERVER_ERROR)
-        },
+        }
     }
 }
 
@@ -39,7 +38,7 @@ pub async fn get_organization_members_handler(
         Err(err) => {
             console_error!("organizations.get_members: {err:?}");
             Err(StatusCode::INTERNAL_SERVER_ERROR)
-        },
+        }
     }
 }
 

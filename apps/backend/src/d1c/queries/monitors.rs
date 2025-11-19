@@ -19,22 +19,19 @@ pub async fn create_monitor(
         .prepare(
             "INSERT INTO monitors (id, org_id, name, kind, url, interval_s, timeout_ms, follow_redirects, verify_tls, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
         );
-    let stmt = stmt
-        .bind(
-            &[
-                id.into(),
-                org_id.into(),
-                name.into(),
-                kind.into(),
-                url.into(),
-                (interval_s as f64).into(),
-                (timeout_ms as f64).into(),
-                (follow_redirects as f64).into(),
-                (verify_tls as f64).into(),
-                (created_at as f64).into(),
-                (updated_at as f64).into(),
-            ],
-        )?;
+    let stmt = stmt.bind(&[
+        id.into(),
+        org_id.into(),
+        name.into(),
+        kind.into(),
+        url.into(),
+        (interval_s as f64).into(),
+        (timeout_ms as f64).into(),
+        (follow_redirects as f64).into(),
+        (verify_tls as f64).into(),
+        (created_at as f64).into(),
+        (updated_at as f64).into(),
+    ])?;
     stmt.run().await?;
     Ok(())
 }
@@ -106,8 +103,7 @@ pub async fn get_monitors_by_org_id(
     d1: &D1Database,
     org_id: &str,
 ) -> Result<Vec<GetMonitorsByOrgIdRow>> {
-    let stmt = d1
-        .prepare("SELECT * FROM monitors WHERE org_id = ?1 ORDER BY created_at DESC");
+    let stmt = d1.prepare("SELECT * FROM monitors WHERE org_id = ?1 ORDER BY created_at DESC");
     let stmt = stmt.bind(&[org_id.into()])?;
     let result = stmt.all().await?;
     let rows = result.results::<GetMonitorsByOrgIdRow>()?;

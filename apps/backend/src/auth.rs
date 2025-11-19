@@ -1,4 +1,4 @@
-use hb_auth::{RoleMapper, User, jwt::Claims};
+use hb_auth::{jwt::Claims, RoleMapper};
 
 pub mod membership;
 

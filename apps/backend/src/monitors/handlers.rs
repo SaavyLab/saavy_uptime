@@ -1,12 +1,9 @@
-use crate::auth::Role;
 use crate::auth::membership::load_membership;
+use crate::auth::Role;
 use crate::cloudflare::d1::AppDb;
 use crate::cloudflare::durable_objects::ticker::AppTicker;
 use crate::d1c::queries::monitors::{delete_monitor, get_monitor_by_id, get_monitors_by_org_id};
-use crate::monitors::service::{
-    create_monitor_for_org,
-    update_monitor_for_org,
-};
+use crate::monitors::service::{create_monitor_for_org, update_monitor_for_org};
 use crate::monitors::types::{CreateMonitor, Monitor, UpdateMonitor};
 use axum::{extract::Path, http::StatusCode, response::Result, Json};
 use hb_auth::User;
@@ -44,7 +41,9 @@ pub async fn get_monitors_handler(
 ) -> Result<Json<Vec<Monitor>>, StatusCode> {
     let org_id = load_membership(&d1, auth.sub()).await?.organization_id;
     match get_monitors_by_org_id(&d1, &org_id).await {
-        Ok(monitors) => Ok(Json(monitors.into_iter().map(|monitor| monitor.into()).collect())),
+        Ok(monitors) => Ok(Json(
+            monitors.into_iter().map(|monitor| monitor.into()).collect(),
+        )),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }

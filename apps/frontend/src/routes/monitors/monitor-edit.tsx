@@ -241,10 +241,13 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 						<div className="rounded-lg border border-border bg-muted/20 p-6">
 							<div className="flex items-center gap-2 mb-2">
 								<Pencil size={18} className="text-primary" />
-								<p className="text-sm font-medium text-foreground">Live updates</p>
+								<p className="text-sm font-medium text-foreground">
+									Live updates
+								</p>
 							</div>
 							<p className="text-sm text-muted-foreground">
-								Changes apply instantly to the Durable Object scheduler. No worker restarts required.
+								Changes apply instantly to the Durable Object scheduler. No
+								worker restarts required.
 							</p>
 						</div>
 					</aside>
