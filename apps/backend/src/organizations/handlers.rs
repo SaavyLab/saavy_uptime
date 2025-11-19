@@ -1,5 +1,6 @@
 use crate::auth::membership::load_membership;
-use crate::{auth::current_user::CurrentUser, cloudflare::d1::AppDb};
+use crate::cloudflare::d1::AppDb;
+use crate::utils::date::now_ms;
 use axum::{
     http::StatusCode,
     response::Result,
@@ -9,13 +10,14 @@ use cuid2::create_id;
 use worker::console_error;
 use crate::d1c::queries::organizations::{GetOrganizationMembersRow, create_organization, get_organization_by_id, get_organization_members};
 use crate::organizations::types::{CreateOrganization, Organization, OrganizationError};
+use hb_auth::User;
 
 #[worker::send]
 pub async fn get_organization_by_membership_handler(
     AppDb(d1): AppDb,
-    CurrentUser { subject, .. }: CurrentUser,
+    auth: User,
 ) -> Result<Json<Organization>, StatusCode> {
-    let membership = load_membership(&d1, &subject).await?;
+    let membership = load_membership(&d1, auth.sub()).await?;
     match get_organization_by_id(&d1, &membership.organization_id).await {
         Ok(Some(organization)) => Ok(Json(organization.into())),
         Ok(None) => Err(StatusCode::NOT_FOUND),
@@ -29,9 +31,9 @@ pub async fn get_organization_by_membership_handler(
 #[worker::send]
 pub async fn get_organization_members_handler(
     AppDb(d1): AppDb,
-    CurrentUser { subject, .. }: CurrentUser,
+    auth: User,
 ) -> Result<Json<Vec<GetOrganizationMembersRow>>, StatusCode> {
-    let membership = load_membership(&d1, &subject).await?;
+    let membership = load_membership(&d1, auth.sub()).await?;
     match get_organization_members(&d1, &membership.organization_id).await {
         Ok(members) => Ok(Json(members)),
         Err(err) => {
@@ -44,15 +46,11 @@ pub async fn get_organization_members_handler(
 #[worker::send]
 pub async fn create_organization_handler(
     AppDb(d1): AppDb,
-    CurrentUser {
-        email: _,
-        subject: _,
-        claims: _,
-    }: CurrentUser,
+    auth: User,
     Json(payload): Json<CreateOrganization>,
 ) -> Result<Json<Organization>, StatusCode> {
     let id = create_id().to_string();
-    create_organization(&d1, &id, &payload.slug, &payload.name)
+    create_organization(&d1, &id, &payload.slug, &payload.name, auth.sub(), now_ms())
         .await
         .map_err(OrganizationError::DbRun)?;
 
