@@ -2,6 +2,13 @@
 name = "hb-auth"
 version = "0.1.0"
 edition = "2021"
+authors = ["SaavyLab LLC <jayson@saavylab.com"]
+description = "Identity and permissions for Cloudflare Workers."
+license = "MIT"
+homepage = "https://crates.io/crates/hb-auth"
+repository = "https://github.com/saavylab/hb-auth"
+documentation = "https://hb.saavylab.dev/docs/hb-auth"
+readme = "README.md"
 
 [features]
 default = ["axum"]

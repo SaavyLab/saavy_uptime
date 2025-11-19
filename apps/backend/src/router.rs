@@ -19,9 +19,9 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(env: Env, auth_config: AuthConfig) -> Self {
+    pub fn new(env: &Env, auth_config: AuthConfig) -> Self {
         Self {
-            env: SendWrapper::new(env),
+            env: SendWrapper::new(env.clone()),
             auth_config,
         }
     }
@@ -41,7 +41,7 @@ impl HasAuthConfig for AppState {
     }
 }
 
-pub fn create_router(env: Env) -> Router {
+pub fn create_router(env: &Env) -> Router {
     let team_domain = env
         .var("ACCESS_TEAM_DOMAIN")
         .expect("ACCESS_TEAM_DOMAIN binding missing")
@@ -52,7 +52,7 @@ pub fn create_router(env: Env) -> Router {
         .to_string();
 
     let auth_config = AuthConfig::new(team_domain, audience);
-    let app_state = AppState::new(env, auth_config);
+    let app_state = AppState::new(&env, auth_config);
 
     let cors = CorsLayer::new()
         .allow_methods(Any)
