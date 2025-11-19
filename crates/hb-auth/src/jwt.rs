@@ -1,14 +1,5 @@
-use std::{
-    collections::HashMap,
-    future::Future,
-    sync::{Arc, RwLock},
-};
+use std::{collections::HashMap, sync::RwLock};
 
-use crate::auth::current_user::CurrentUser;
-use axum::{
-    extract::FromRequestParts,
-    http::{header::COOKIE, request::Parts, HeaderMap, StatusCode},
-};
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine as _;
 use js_sys::Date;
@@ -20,53 +11,24 @@ use rsa::{
 };
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use sha2::Sha256;
-use worker::worker_sys::console_error;
 use worker::{Error, Fetch, Method, Request as WorkerRequest};
+
+use crate::config::AuthConfig;
 
 type WorkerResult<T> = worker::Result<T>;
 
-use crate::router::AppState;
-use crate::utils::date::now_s;
-
 const JWKS_CACHE_TTL_MS: f64 = 10.0 * 60.0 * 1000.0; // 10 minutes
 
-#[derive(Clone, Debug)]
-pub struct AccessConfig {
-    pub team_domain: Arc<String>,
-    pub audience: Arc<String>,
-}
-
-impl AccessConfig {
-    pub fn new(team_domain: String, audience: String) -> Self {
-        Self {
-            team_domain: Arc::new(team_domain),
-            audience: Arc::new(audience),
-        }
-    }
-
-    fn issuer(&self) -> String {
-        self.team_domain.to_string()
-    }
-
-    pub fn team_name(&self) -> String {
-        let domain = self
-            .team_domain
-            .strip_prefix("https://")
-            .or_else(|| self.team_domain.strip_prefix("http://"))
-            .unwrap_or(&self.team_domain);
-
-        domain.split('.').next().unwrap_or(domain).to_string()
-    }
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct CfAccessClaims {
+pub struct Claims {
     pub aud: Vec<String>,
     pub email: String,
     pub exp: i64,
     pub iss: String,
     pub sub: String,
     pub name: Option<String>,
+    #[serde(default)]
+    pub groups: Vec<String>,
 }
 
 #[derive(Clone, Deserialize)]
@@ -98,7 +60,7 @@ static JWKS_CACHE: Lazy<RwLock<HashMap<String, CachedKeys>>> =
     Lazy::new(|| RwLock::new(HashMap::new()));
 
 #[worker::send]
-pub async fn verify_access_jwt(token: &str, config: AccessConfig) -> WorkerResult<CfAccessClaims> {
+pub async fn verify_access_jwt(token: &str, config: &AuthConfig) -> WorkerResult<Claims> {
     let token = token.trim();
     let token = token.strip_prefix("Bearer ").unwrap_or(token);
     let (header_b64, payload_b64, signature_b64) = split_jwt(token)?;
@@ -108,75 +70,15 @@ pub async fn verify_access_jwt(token: &str, config: AccessConfig) -> WorkerResul
         return Err(auth_error("unsupported JWT algorithm"));
     }
 
-    let jwk = find_jwk(&config, &header.kid).await?;
+    let jwk = find_jwk(config, &header.kid).await?;
     verify_signature(header_b64, payload_b64, signature_b64, &jwk)?;
 
-    let claims: CfAccessClaims = decode_segment(payload_b64)?;
-    validate_claims(&claims, &config)?;
+    let claims: Claims = decode_segment(payload_b64)?;
+    validate_claims(&claims, config)?;
     Ok(claims)
 }
 
-impl FromRequestParts<AppState> for CurrentUser {
-    type Rejection = (StatusCode, &'static str);
-
-    fn from_request_parts<'a>(
-        parts: &'a mut Parts,
-        state: &AppState,
-    ) -> impl Future<Output = std::result::Result<Self, Self::Rejection>> + Send {
-        async move {
-            if let Some(existing) = parts.extensions.get::<CurrentUser>() {
-                return Ok(existing.clone());
-            }
-
-            let token = {
-                extract_token(&parts.headers)
-                    .or_else(|| extract_token_from_cookies(&parts.headers))
-                    .ok_or((StatusCode::UNAUTHORIZED, "missing access token"))?
-            };
-
-            let access_config = state.access_config().clone();
-
-            let claims = verify_access_jwt(&token, access_config)
-                .await
-                .map_err(|err| {
-                    console_error!("{err}");
-                    (StatusCode::UNAUTHORIZED, "invalid or expired token")
-                })?;
-
-            let user = CurrentUser::new(claims);
-            parts.extensions.insert(user.clone());
-            Ok(user)
-        }
-    }
-}
-
-fn extract_token(headers: &HeaderMap) -> Option<String> {
-    headers
-        .get("CF_Authorization")
-        .or_else(|| headers.get("Cf-Access-Jwt-Assertion"))
-        .and_then(|value| value.to_str().ok())
-        .map(|s| s.to_string())
-}
-
-fn extract_token_from_cookies(headers: &HeaderMap) -> Option<String> {
-    headers
-        .get(COOKIE)
-        .and_then(|value| value.to_str().ok())
-        .and_then(|cookie_header| {
-            cookie_header
-                .split(';')
-                .map(|kv| kv.trim())
-                .find_map(|pair| {
-                    let mut parts = pair.splitn(2, '=');
-                    match (parts.next(), parts.next()) {
-                        (Some("CF_Authorization"), Some(token)) => Some(token.to_string()),
-                        _ => None,
-                    }
-                })
-        })
-}
-
-fn validate_claims(claims: &CfAccessClaims, config: &AccessConfig) -> WorkerResult<()> {
+fn validate_claims(claims: &Claims, config: &AuthConfig) -> WorkerResult<()> {
     let aud_match = claims.aud.iter().any(|aud| aud == &*config.audience);
     if !aud_match {
         return Err(auth_error("audience mismatch"));
@@ -186,8 +88,8 @@ fn validate_claims(claims: &CfAccessClaims, config: &AccessConfig) -> WorkerResu
         return Err(auth_error("issuer mismatch"));
     }
 
-    let now = now_s();
-    if claims.exp <= now {
+    let now = Date::now() / 1000.0;
+    if (claims.exp as f64) <= now {
         return Err(auth_error("token expired"));
     }
 
@@ -214,7 +116,7 @@ fn verify_signature(
 }
 
 #[worker::send]
-async fn find_jwk(config: &AccessConfig, kid: &str) -> WorkerResult<Jwk> {
+async fn find_jwk(config: &AuthConfig, kid: &str) -> WorkerResult<Jwk> {
     let keys = load_jwks(config).await?;
     keys.into_iter()
         .find(|key| key.kid == kid)
@@ -222,7 +124,7 @@ async fn find_jwk(config: &AccessConfig, kid: &str) -> WorkerResult<Jwk> {
 }
 
 #[worker::send]
-async fn load_jwks(config: &AccessConfig) -> WorkerResult<Vec<Jwk>> {
+async fn load_jwks(config: &AuthConfig) -> WorkerResult<Vec<Jwk>> {
     {
         let cache = JWKS_CACHE
             .read()

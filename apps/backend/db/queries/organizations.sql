@@ -1,3 +1,11 @@
+-- name: create_organization :exec :stmt
+-- params: id String
+-- params: slug String
+-- params: name String
+-- params: owner_id String
+-- params: created_at i64
+INSERT INTO organizations (id, slug, name, owner_id, created_at) VALUES (:id, :slug, :name, :owner_id, :created_at);
+
 -- name: get_organization_by_id :one
 SELECT * FROM organizations WHERE id = :id;
 

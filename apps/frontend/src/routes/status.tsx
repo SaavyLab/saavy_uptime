@@ -15,18 +15,18 @@ function StatusPage() {
 
 	return (
 		<div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight">Status Pages</h1>
-          <p className="text-muted-foreground">
-            Public status page configuration and history.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="secondary">Subscribe</Button>
-          <Button variant="ghost">View History</Button>
-        </div>
-      </div>
+			<div className="flex items-center justify-between">
+				<div className="space-y-1">
+					<h1 className="text-2xl font-bold tracking-tight">Status Pages</h1>
+					<p className="text-muted-foreground">
+						Public status page configuration and history.
+					</p>
+				</div>
+				<div className="flex items-center gap-2">
+					<Button variant="secondary">Subscribe</Button>
+					<Button variant="ghost">View History</Button>
+				</div>
+			</div>
 
 			<SectionCard
 				title={

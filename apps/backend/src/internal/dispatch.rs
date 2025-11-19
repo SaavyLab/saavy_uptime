@@ -1,9 +1,6 @@
 use std::result::Result;
 use worker::D1Database;
-use worker::{
-    console_error, console_log, Fetch, Method, Request, RequestInit,
-    Response,
-};
+use worker::{console_error, console_log, Fetch, Method, Request, RequestInit, Response};
 
 use crate::d1c::queries::{
     heartbeats::write_heartbeat,
@@ -59,7 +56,8 @@ async fn check_monitor(
                 colo: String::new(),
                 extra: None,
             };
-            write_heartbeat_handler(&d1, &payload.dispatch_id, &payload.monitor_id, &failure).await?;
+            write_heartbeat_handler(&d1, &payload.dispatch_id, &payload.monitor_id, &failure)
+                .await?;
             return Err(DispatchError::CheckFailed(failure));
         }
     };
@@ -84,7 +82,8 @@ async fn write_heartbeat_handler(
         result.rtt_ms.unwrap_or(0) as i64,
         result.error_msg.clone().unwrap_or_default().as_str(),
         result.colo.clone().as_str(),
-    ).await?;
+    )
+    .await?;
 
     Ok(())
 }

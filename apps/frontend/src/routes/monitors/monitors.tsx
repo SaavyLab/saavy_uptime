@@ -3,34 +3,34 @@ import { useMemo, useState, useEffect } from "react";
 import type { Register, RootRoute } from "@tanstack/react-router";
 import { createRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
-  RefreshCcw,
-  Plus,
-  Search,
-  Wrench,
-  Database,
-  ChevronLeft,
-  ChevronRight,
-  Activity,
-  CheckCircle,
-  XCircle
+	RefreshCcw,
+	Plus,
+	Search,
+	Wrench,
+	Database,
+	ChevronLeft,
+	ChevronRight,
+	Activity,
+	CheckCircle,
+	XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
 } from "@/components/ui/table";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getMonitors, seedMonitors, type Monitor } from "@/lib/monitors";
@@ -39,309 +39,366 @@ import type { RouterContext } from "@/router-context";
 import { cn } from "@/lib/utils";
 
 function StatusBadge({ status }: { status?: string }) {
-  const colors = {
-    up: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-    down: "bg-red-500/15 text-red-600 dark:text-red-400",
-    maintenance: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-    unknown: "bg-slate-500/15 text-slate-600 dark:text-slate-400",
-  };
-  
-  const color = colors[status as keyof typeof colors] || colors.unknown;
-  
-  return (
-    <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ring-black/5 dark:ring-white/10", color)}>
-      {status?.toUpperCase() || "UNKNOWN"}
-    </span>
-  );
+	const colors = {
+		up: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+		down: "bg-red-500/15 text-red-600 dark:text-red-400",
+		maintenance: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+		unknown: "bg-slate-500/15 text-slate-600 dark:text-slate-400",
+	};
+
+	const color = colors[status as keyof typeof colors] || colors.unknown;
+
+	return (
+		<span
+			className={cn(
+				"inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ring-black/5 dark:ring-white/10",
+				color,
+			)}
+		>
+			{status?.toUpperCase() || "UNKNOWN"}
+		</span>
+	);
 }
 
 function MonitorsPage() {
-  const { data: monitors = [], isLoading, refetch } = useQuery<Monitor[]>({
-    queryKey: ["monitors"],
-    queryFn: () => getMonitors(),
-  });
+	const {
+		data: monitors = [],
+		isLoading,
+		refetch,
+	} = useQuery<Monitor[]>({
+		queryKey: ["monitors"],
+		queryFn: () => getMonitors(),
+	});
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [kindFilter, setKindFilter] = useState("all");
-  const [pageIndex, setPageIndex] = useState(0);
-  const [pageSize, setPageSize] = useState(20);
-  
-  const queryClient = useQueryClient();
-  const navigate = useNavigate();
+	const [searchTerm, setSearchTerm] = useState("");
+	const [kindFilter, setKindFilter] = useState("all");
+	const [pageIndex, setPageIndex] = useState(0);
+	const [pageSize, setPageSize] = useState(20);
 
-  const tickerAdminEnabled =
-    import.meta.env.DEV ||
-    ["1", "true"].includes(
-      (import.meta.env.VITE_ENABLE_TICKER_ADMIN ?? "").toLowerCase(),
-    );
+	const queryClient = useQueryClient();
+	const navigate = useNavigate();
 
-  const reconcileMutation = useMutation({
-    mutationFn: () => reconcileTickers(),
-    onSuccess: (summary) => {
-      toast.success("Ticker bootstrap complete", {
-        description: `Bootstrapped ${summary.bootstrapped}/${summary.organizations} orgs`,
-      });
-      void refetch();
-    },
-    onError: (err: unknown) => {
-      toast.error(err instanceof Error ? err.message : "Unable to reconcile tickers");
-    },
-  });
+	const tickerAdminEnabled =
+		import.meta.env.DEV ||
+		["1", "true"].includes(
+			(import.meta.env.VITE_ENABLE_TICKER_ADMIN ?? "").toLowerCase(),
+		);
 
-  const seedMutation = useMutation({
-    mutationFn: () => seedMonitors(),
-    onSuccess: ({ created, failed }) => {
-      const description = failed > 0
-        ? `Created ${created} monitors (${failed} failed)`
-        : `Created ${created} monitors`;
-      toast.success("Seed complete", { description });
-      queryClient.invalidateQueries({ queryKey: ["monitors"] });
-    },
-    onError: (err: unknown) => {
-      toast.error(err instanceof Error ? err.message : "Unable to seed monitors");
-    },
-  });
+	const reconcileMutation = useMutation({
+		mutationFn: () => reconcileTickers(),
+		onSuccess: (summary) => {
+			toast.success("Ticker bootstrap complete", {
+				description: `Bootstrapped ${summary.bootstrapped}/${summary.organizations} orgs`,
+			});
+			void refetch();
+		},
+		onError: (err: unknown) => {
+			toast.error(
+				err instanceof Error ? err.message : "Unable to reconcile tickers",
+			);
+		},
+	});
 
-  const monitorKinds = useMemo(() => {
+	const seedMutation = useMutation({
+		mutationFn: () => seedMonitors(),
+		onSuccess: ({ created, failed }) => {
+			const description =
+				failed > 0
+					? `Created ${created} monitors (${failed} failed)`
+					: `Created ${created} monitors`;
+			toast.success("Seed complete", { description });
+			queryClient.invalidateQueries({ queryKey: ["monitors"] });
+		},
+		onError: (err: unknown) => {
+			toast.error(
+				err instanceof Error ? err.message : "Unable to seed monitors",
+			);
+		},
+	});
+
+	const monitorKinds = useMemo(() => {
 		const kinds = Array.from(new Set(monitors.map((monitor) => monitor.kind)));
 		return kinds.sort((a, b) => a.localeCompare(b));
 	}, [monitors]);
 
-  const filteredMonitors = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLowerCase();
-    return monitors.filter((monitor) => {
-      const matchesKind = kindFilter === "all" ? true : monitor.kind === kindFilter;
-      const matchesSearch = normalizedSearch
-        ? [monitor.name, monitor.url].some((v) => v.toLowerCase().includes(normalizedSearch))
-        : true;
-      return matchesKind && matchesSearch;
-    });
-  }, [monitors, kindFilter, searchTerm]);
+	const filteredMonitors = useMemo(() => {
+		const normalizedSearch = searchTerm.trim().toLowerCase();
+		return monitors.filter((monitor) => {
+			const matchesKind =
+				kindFilter === "all" ? true : monitor.kind === kindFilter;
+			const matchesSearch = normalizedSearch
+				? [monitor.name, monitor.url].some((v) =>
+						v.toLowerCase().includes(normalizedSearch),
+					)
+				: true;
+			return matchesKind && matchesSearch;
+		});
+	}, [monitors, kindFilter, searchTerm]);
 
-  // Pagination logic
-  const totalPages = Math.ceil(filteredMonitors.length / pageSize) || 1;
-  const safePageIndex = Math.min(pageIndex, totalPages - 1);
-  const pageStart = safePageIndex * pageSize;
-  const pageEnd = Math.min(pageStart + pageSize, filteredMonitors.length);
-  const currentData = filteredMonitors.slice(pageStart, pageEnd);
+	// Pagination logic
+	const totalPages = Math.ceil(filteredMonitors.length / pageSize) || 1;
+	const safePageIndex = Math.min(pageIndex, totalPages - 1);
+	const pageStart = safePageIndex * pageSize;
+	const pageEnd = Math.min(pageStart + pageSize, filteredMonitors.length);
+	const currentData = filteredMonitors.slice(pageStart, pageEnd);
 
-  // Reset page when filters change
-  useEffect(() => {
-    setPageIndex(0);
-  }, [searchTerm, kindFilter, pageSize]);
+	// Reset page when filters change
+	useEffect(() => {
+		setPageIndex(0);
+	}, [searchTerm, kindFilter, pageSize]);
 
-  // Fleet Stats
-  const totalCount = monitors.length;
-  const upCount = monitors.filter(m => m.currentStatus === 'up').length;
-  const downCount = monitors.filter(m => m.currentStatus === 'down').length;
+	// Fleet Stats
+	const totalCount = monitors.length;
+	const upCount = monitors.filter((m) => m.currentStatus === "up").length;
+	const downCount = monitors.filter((m) => m.currentStatus === "down").length;
 
-  return (
-    <div className="space-y-8">
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight">Monitor Inventory</h1>
-          <p className="text-muted-foreground">
-            Manage configuration and view health status for all deployed checks.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-           {tickerAdminEnabled && (
-              <>
-                <Button 
-                  variant="outline" 
-                  onClick={() => reconcileMutation.mutate()} 
-                  disabled={reconcileMutation.isPending}
-                  className="gap-2"
-                >
-                   <Wrench className={cn("h-4 w-4", reconcileMutation.isPending && "animate-spin")} />
-                   Warm Ticker
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => seedMutation.mutate()} 
-                  disabled={seedMutation.isPending}
-                  className="gap-2"
-                >
-                   <Database className={cn("h-4 w-4", seedMutation.isPending && "animate-spin")} />
-                   Seed Data
-                </Button>
-              </>
-           )}
-           <Button variant="secondary" onClick={() => refetch()} className="gap-2">
-             <RefreshCcw className={cn("h-4 w-4", isLoading && "animate-spin")} />
-             Refresh
-           </Button>
-           <Link to="/monitors/new">
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              New Monitor
-            </Button>
-           </Link>
-        </div>
-      </div>
+	return (
+		<div className="space-y-8">
+			<div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+				<div className="space-y-1">
+					<h1 className="text-2xl font-bold tracking-tight">
+						Monitor Inventory
+					</h1>
+					<p className="text-muted-foreground">
+						Manage configuration and view health status for all deployed checks.
+					</p>
+				</div>
+				<div className="flex items-center gap-2">
+					{tickerAdminEnabled && (
+						<>
+							<Button
+								variant="outline"
+								onClick={() => reconcileMutation.mutate()}
+								disabled={reconcileMutation.isPending}
+								className="gap-2"
+							>
+								<Wrench
+									className={cn(
+										"h-4 w-4",
+										reconcileMutation.isPending && "animate-spin",
+									)}
+								/>
+								Warm Ticker
+							</Button>
+							<Button
+								variant="outline"
+								onClick={() => seedMutation.mutate()}
+								disabled={seedMutation.isPending}
+								className="gap-2"
+							>
+								<Database
+									className={cn(
+										"h-4 w-4",
+										seedMutation.isPending && "animate-spin",
+									)}
+								/>
+								Seed Data
+							</Button>
+						</>
+					)}
+					<Button
+						variant="secondary"
+						onClick={() => refetch()}
+						className="gap-2"
+					>
+						<RefreshCcw
+							className={cn("h-4 w-4", isLoading && "animate-spin")}
+						/>
+						Refresh
+					</Button>
+					<Link to="/monitors/new">
+						<Button className="gap-2">
+							<Plus className="h-4 w-4" />
+							New Monitor
+						</Button>
+					</Link>
+				</div>
+			</div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Monitors</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalCount}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Healthy</CardTitle>
-            <CheckCircle className="h-4 w-4 text-emerald-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{upCount}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Down</CardTitle>
-            <XCircle className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{downCount}</div>
-          </CardContent>
-        </Card>
-      </div>
+			<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+				<Card>
+					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+						<CardTitle className="text-sm font-medium">
+							Total Monitors
+						</CardTitle>
+						<Activity className="h-4 w-4 text-muted-foreground" />
+					</CardHeader>
+					<CardContent>
+						<div className="text-2xl font-bold">{totalCount}</div>
+					</CardContent>
+				</Card>
+				<Card>
+					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+						<CardTitle className="text-sm font-medium">Healthy</CardTitle>
+						<CheckCircle className="h-4 w-4 text-emerald-500" />
+					</CardHeader>
+					<CardContent>
+						<div className="text-2xl font-bold">{upCount}</div>
+					</CardContent>
+				</Card>
+				<Card>
+					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+						<CardTitle className="text-sm font-medium">Down</CardTitle>
+						<XCircle className="h-4 w-4 text-red-500" />
+					</CardHeader>
+					<CardContent>
+						<div className="text-2xl font-bold">{downCount}</div>
+					</CardContent>
+				</Card>
+			</div>
 
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center gap-4">
-          <div className="relative flex-1 max-w-sm">
-             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-             <Input 
-                placeholder="Search monitors..." 
-                className="pl-9 bg-background"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-             />
-          </div>
-          <Select value={kindFilter} onValueChange={setKindFilter}>
-            <SelectTrigger className="w-[180px] bg-background">
-              <SelectValue placeholder="Filter by type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              {monitorKinds.map(k => (
-                 <SelectItem key={k} value={k}>{k.toUpperCase()}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+			<div className="flex flex-col gap-4">
+				<div className="flex items-center gap-4">
+					<div className="relative flex-1 max-w-sm">
+						<Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+						<Input
+							placeholder="Search monitors..."
+							className="pl-9 bg-background"
+							value={searchTerm}
+							onChange={(e) => setSearchTerm(e.target.value)}
+						/>
+					</div>
+					<Select value={kindFilter} onValueChange={setKindFilter}>
+						<SelectTrigger className="w-[180px] bg-background">
+							<SelectValue placeholder="Filter by type" />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="all">All Types</SelectItem>
+							{monitorKinds.map((k) => (
+								<SelectItem key={k} value={k}>
+									{k.toUpperCase()}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				</div>
 
-        <div className="rounded-md border bg-card">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[300px]">Name</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Interval</TableHead>
-                <TableHead>Last Check</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
-                    Loading monitors...
-                  </TableCell>
-                </TableRow>
-              ) : currentData.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                    No monitors found.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                currentData.map((monitor) => (
-                  <TableRow 
-                    key={monitor.id} 
-                    className="cursor-pointer"
-                    onClick={() => navigate({ to: "/monitors/$monitorId", params: { monitorId: monitor.id } })}
-                  >
-                    <TableCell>
-                      <div className="font-medium">{monitor.name}</div>
-                      <div className="text-xs text-muted-foreground truncate max-w-[280px]" title={monitor.url}>
-                        {monitor.url}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={monitor.currentStatus} />
-                    </TableCell>
-                    <TableCell>{monitor.intervalS}s</TableCell>
-                    <TableCell>
-                      {monitor.lastCheckedAtTs 
-                        ? new Date(monitor.lastCheckedAtTs * 1000).toLocaleString() 
-                        : "Never"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                       <Button variant="ghost" size="sm">
-                         Details
-                       </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-        
-        <div className="flex items-center justify-between px-2">
-          <div className="text-xs text-muted-foreground">
-            Showing {currentData.length > 0 ? pageStart + 1 : 0}-{pageEnd} of {filteredMonitors.length} monitors
-          </div>
-          
-          <div className="flex items-center gap-2">
-             <div className="flex items-center gap-2 mr-4">
-                <span className="text-xs text-muted-foreground">Rows per page</span>
-                <Select
-                  value={pageSize.toString()}
-                  onValueChange={(val) => setPageSize(Number(val))}
-                >
-                  <SelectTrigger className="h-8 w-[70px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="20">20</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                    <SelectItem value="100">100</SelectItem>
-                  </SelectContent>
-                </Select>
-             </div>
-             
-             <Button
-               variant="outline"
-               size="icon"
-               className="h-8 w-8"
-               onClick={() => setPageIndex(p => Math.max(0, p - 1))}
-               disabled={safePageIndex === 0}
-             >
-               <ChevronLeft className="h-4 w-4" />
-             </Button>
-             <div className="text-xs font-medium">
-               Page {safePageIndex + 1} of {totalPages}
-             </div>
-             <Button
-               variant="outline"
-               size="icon"
-               className="h-8 w-8"
-               onClick={() => setPageIndex(p => Math.min(totalPages - 1, p + 1))}
-               disabled={safePageIndex >= totalPages - 1}
-             >
-               <ChevronRight className="h-4 w-4" />
-             </Button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+				<div className="rounded-md border bg-card">
+					<Table>
+						<TableHeader>
+							<TableRow>
+								<TableHead className="w-[300px]">Name</TableHead>
+								<TableHead>Status</TableHead>
+								<TableHead>Interval</TableHead>
+								<TableHead>Last Check</TableHead>
+								<TableHead className="text-right">Actions</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{isLoading ? (
+								<TableRow>
+									<TableCell colSpan={5} className="h-24 text-center">
+										Loading monitors...
+									</TableCell>
+								</TableRow>
+							) : currentData.length === 0 ? (
+								<TableRow>
+									<TableCell
+										colSpan={5}
+										className="h-24 text-center text-muted-foreground"
+									>
+										No monitors found.
+									</TableCell>
+								</TableRow>
+							) : (
+								currentData.map((monitor) => (
+									<TableRow
+										key={monitor.id}
+										className="cursor-pointer"
+										onClick={() =>
+											navigate({
+												to: "/monitors/$monitorId",
+												params: { monitorId: monitor.id },
+											})
+										}
+									>
+										<TableCell>
+											<div className="font-medium">{monitor.name}</div>
+											<div
+												className="text-xs text-muted-foreground truncate max-w-[280px]"
+												title={monitor.url}
+											>
+												{monitor.url}
+											</div>
+										</TableCell>
+										<TableCell>
+											<StatusBadge status={monitor.currentStatus} />
+										</TableCell>
+										<TableCell>{monitor.intervalS}s</TableCell>
+										<TableCell>
+											{monitor.lastCheckedAtTs
+												? new Date(
+														monitor.lastCheckedAtTs * 1000,
+													).toLocaleString()
+												: "Never"}
+										</TableCell>
+										<TableCell className="text-right">
+											<Button variant="ghost" size="sm">
+												Details
+											</Button>
+										</TableCell>
+									</TableRow>
+								))
+							)}
+						</TableBody>
+					</Table>
+				</div>
+
+				<div className="flex items-center justify-between px-2">
+					<div className="text-xs text-muted-foreground">
+						Showing {currentData.length > 0 ? pageStart + 1 : 0}-{pageEnd} of{" "}
+						{filteredMonitors.length} monitors
+					</div>
+
+					<div className="flex items-center gap-2">
+						<div className="flex items-center gap-2 mr-4">
+							<span className="text-xs text-muted-foreground">
+								Rows per page
+							</span>
+							<Select
+								value={pageSize.toString()}
+								onValueChange={(val) => setPageSize(Number(val))}
+							>
+								<SelectTrigger className="h-8 w-[70px]">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="10">10</SelectItem>
+									<SelectItem value="20">20</SelectItem>
+									<SelectItem value="50">50</SelectItem>
+									<SelectItem value="100">100</SelectItem>
+								</SelectContent>
+							</Select>
+						</div>
+
+						<Button
+							variant="outline"
+							size="icon"
+							className="h-8 w-8"
+							onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
+							disabled={safePageIndex === 0}
+						>
+							<ChevronLeft className="h-4 w-4" />
+						</Button>
+						<div className="text-xs font-medium">
+							Page {safePageIndex + 1} of {totalPages}
+						</div>
+						<Button
+							variant="outline"
+							size="icon"
+							className="h-8 w-8"
+							onClick={() =>
+								setPageIndex((p) => Math.min(totalPages - 1, p + 1))
+							}
+							disabled={safePageIndex >= totalPages - 1}
+						>
+							<ChevronRight className="h-4 w-4" />
+						</Button>
+					</div>
+				</div>
+			</div>
+		</div>
+	);
 }
 
 export default (parentRoute: RootRoute<Register, undefined, RouterContext>) =>

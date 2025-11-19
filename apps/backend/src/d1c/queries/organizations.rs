@@ -1,5 +1,39 @@
 use worker::D1Database;
 use worker::Result;
+pub fn create_organization_stmt(
+    d1: &D1Database,
+    id: &str,
+    slug: &str,
+    name: &str,
+    owner_id: &str,
+    created_at: i64,
+) -> Result<worker::D1PreparedStatement> {
+    let stmt = d1
+        .prepare(
+            "INSERT INTO organizations (id, slug, name, owner_id, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+        );
+    let stmt = stmt.bind(&[
+        id.into(),
+        slug.into(),
+        name.into(),
+        owner_id.into(),
+        (created_at as f64).into(),
+    ])?;
+    Ok(stmt)
+}
+#[tracing::instrument(name = "d1c.create_organization", skip(d1))]
+pub async fn create_organization(
+    d1: &D1Database,
+    id: &str,
+    slug: &str,
+    name: &str,
+    owner_id: &str,
+    created_at: i64,
+) -> Result<()> {
+    let stmt = create_organization_stmt(d1, id, slug, name, owner_id, created_at)?;
+    stmt.run().await?;
+    Ok(())
+}
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct GetOrganizationByIdRow {
     pub id: Option<String>,

@@ -1,4 +1,4 @@
-use crate::{auth::jwt::AccessConfig, bootstrap, heartbeats, internal, monitors, organizations};
+use crate::{bootstrap, heartbeats, internal, monitors, organizations};
 use axum::{
     body::Body,
     http::Request,
@@ -6,6 +6,7 @@ use axum::{
     routing::get,
     Router,
 };
+use hb_auth::{AuthConfig, HasAuthConfig};
 use js_sys::Date;
 use tower_http::cors::{Any, CorsLayer};
 use tracing::field;
@@ -14,14 +15,14 @@ use worker::{send::SendWrapper, Env};
 #[derive(Clone)]
 pub struct AppState {
     env: SendWrapper<Env>,
-    access_config: AccessConfig,
+    auth_config: AuthConfig,
 }
 
 impl AppState {
-    pub fn new(env: Env, access_config: AccessConfig) -> Self {
+    pub fn new(env: Env, auth_config: AuthConfig) -> Self {
         Self {
             env: SendWrapper::new(env),
-            access_config,
+            auth_config,
         }
     }
 
@@ -29,8 +30,14 @@ impl AppState {
         (*self.env).clone()
     }
 
-    pub fn access_config(&self) -> &AccessConfig {
-        &self.access_config
+    pub fn access_config(&self) -> &AuthConfig {
+        &self.auth_config
+    }
+}
+
+impl HasAuthConfig for AppState {
+    fn auth_config(&self) -> &AuthConfig {
+        &self.auth_config
     }
 }
 
@@ -44,8 +51,8 @@ pub fn create_router(env: Env) -> Router {
         .expect("ACCESS_AUD binding missing")
         .to_string();
 
-    let access_config = AccessConfig::new(team_domain, audience);
-    let app_state = AppState::new(env, access_config);
+    let auth_config = AuthConfig::new(team_domain, audience);
+    let app_state = AppState::new(env, auth_config);
 
     let cors = CorsLayer::new()
         .allow_methods(Any)

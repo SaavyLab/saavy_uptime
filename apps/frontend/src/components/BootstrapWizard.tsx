@@ -80,10 +80,8 @@ export default function BootstrapWizard({
 					</h1>
 					<p className="text-muted-foreground">
 						You’re signed in as{" "}
-						<span className="font-medium text-foreground">
-							{email}
-						</span>
-						. Create your first organization to unlock monitors, incidents, and
+						<span className="font-medium text-foreground">{email}</span>. Create
+						your first organization to unlock monitors, incidents, and
 						dashboards.
 					</p>
 				</div>

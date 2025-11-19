@@ -1,4 +1,4 @@
-use crate::auth::{current_user::CurrentUser, membership::load_membership};
+use crate::auth::membership::load_membership;
 use crate::bootstrap::ticker_bootstrap::ensure_all_tickers;
 use crate::cloudflare::d1::AppDb;
 use crate::cloudflare::durable_objects::ticker::AppTicker;
@@ -13,6 +13,7 @@ use axum::{
     response::Result,
     Json,
 };
+use hb_auth::User;
 use serde::{Deserialize, Serialize};
 use worker::console_error;
 
@@ -20,7 +21,7 @@ use worker::console_error;
 pub async fn reconcile_tickers_handler(
     AppTicker(ticker): AppTicker,
     AppDb(d1): AppDb,
-    _user: CurrentUser,
+    _user: User,
 ) -> Result<Json<ReconcileResponse>, StatusCode> {
     match ensure_all_tickers(&ticker, &d1).await {
         Ok(summary) => Ok(Json(ReconcileResponse {
@@ -76,10 +77,10 @@ pub struct SeedResponse {
 pub async fn seed_monitors_handler(
     AppTicker(ticker): AppTicker,
     AppDb(d1): AppDb,
-    CurrentUser { subject, .. }: CurrentUser,
+    auth: User,
     Json(_payload): Json<SeedRequest>,
 ) -> Result<Json<SeedResponse>, StatusCode> {
-    let membership = load_membership(&d1, &subject)
+    let membership = load_membership(&d1, auth.sub())
         .await
         .map_err(|err| StatusCode::from(err))?;
     let templates = seed_definitions();

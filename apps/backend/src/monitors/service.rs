@@ -21,9 +21,22 @@ pub async fn create_monitor_for_org(
     monitor: CreateMonitor,
 ) -> Result<Monitor, MonitorError> {
     let id = create_id().to_string();
-    create_monitor(&d1, &id, &org_id, &monitor.name.as_str(), "http", &monitor.url.as_str(), monitor.interval, monitor.timeout, monitor.follow_redirects as i64, monitor.verify_tls as i64, now_ms(), now_ms())
-        .await
-        .map_err(MonitorError::DbRun)?;
+    create_monitor(
+        &d1,
+        &id,
+        &org_id,
+        &monitor.name.as_str(),
+        "http",
+        &monitor.url.as_str(),
+        monitor.interval,
+        monitor.timeout,
+        monitor.follow_redirects as i64,
+        monitor.verify_tls as i64,
+        now_ms(),
+        now_ms(),
+    )
+    .await
+    .map_err(MonitorError::DbRun)?;
 
     ensure_ticker_bootstrapped(ticker, org_id)
         .await
@@ -32,7 +45,9 @@ pub async fn create_monitor_for_org(
     match get_monitor_by_id(&d1, &id, &org_id).await {
         Ok(Some(monitor)) => Ok(monitor.into()),
         Ok(None) => Err(MonitorError::NotFound),
-        Err(_) => Err(MonitorError::DbRun(worker::Error::RustError("Failed to get monitor".to_string()))),
+        Err(_) => Err(MonitorError::DbRun(worker::Error::RustError(
+            "Failed to get monitor".to_string(),
+        ))),
     }
 }
 

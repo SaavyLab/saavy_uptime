@@ -386,69 +386,73 @@ function DAGVisualizerPage() {
 
 	return (
 		<div className="space-y-8">
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight">DAG Execution</h1>
-          <p className="text-muted-foreground">
-            Visualize real-time health check dispatch and execution flow.
-          </p>
-        </div>
-        <Button
-          type="button"
-          onClick={isSimulating ? stopSimulation : startSimulation}
-          className="gap-2"
-        >
-          {isSimulating ? (
-            <>
-              <XCircle size={16} />
-              Stop Simulation
-            </>
-          ) : (
-            <>
-              <Play size={16} />
-              Start Simulation
-            </>
-          )}
-        </Button>
-      </div>
+			<div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+				<div className="space-y-1">
+					<h1 className="text-2xl font-bold tracking-tight">DAG Execution</h1>
+					<p className="text-muted-foreground">
+						Visualize real-time health check dispatch and execution flow.
+					</p>
+				</div>
+				<Button
+					type="button"
+					onClick={isSimulating ? stopSimulation : startSimulation}
+					className="gap-2"
+				>
+					{isSimulating ? (
+						<>
+							<XCircle size={16} />
+							Stop Simulation
+						</>
+					) : (
+						<>
+							<Play size={16} />
+							Start Simulation
+						</>
+					)}
+				</Button>
+			</div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-xl border border-border bg-muted/20 p-4">
-          <div className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Ticker Stats
-          </div>
-          <div className="space-y-2 font-mono text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Alarm Cycles</span>
-              <span className="text-foreground font-medium">{tickCount}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Active Jobs</span>
-              <span className="text-primary font-medium">{activeJobs.length}</span>
-            </div>
-          </div>
-        </div>
+			<div className="grid gap-4 md:grid-cols-2">
+				<div className="rounded-xl border border-border bg-muted/20 p-4">
+					<div className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+						Ticker Stats
+					</div>
+					<div className="space-y-2 font-mono text-sm">
+						<div className="flex justify-between">
+							<span className="text-muted-foreground">Alarm Cycles</span>
+							<span className="text-foreground font-medium">{tickCount}</span>
+						</div>
+						<div className="flex justify-between">
+							<span className="text-muted-foreground">Active Jobs</span>
+							<span className="text-primary font-medium">
+								{activeJobs.length}
+							</span>
+						</div>
+					</div>
+				</div>
 
-        <div className="rounded-xl border border-border bg-muted/20 p-4">
-          <div className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Check Results
-          </div>
-          <div className="space-y-2 font-mono text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Total</span>
-              <span className="text-foreground font-medium">{stats.total}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Success</span>
-              <span className="text-emerald-500 font-medium">{stats.success}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Failed</span>
-              <span className="text-red-500 font-medium">{stats.failed}</span>
-            </div>
-          </div>
-        </div>
-      </div>
+				<div className="rounded-xl border border-border bg-muted/20 p-4">
+					<div className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+						Check Results
+					</div>
+					<div className="space-y-2 font-mono text-sm">
+						<div className="flex justify-between">
+							<span className="text-muted-foreground">Total</span>
+							<span className="text-foreground font-medium">{stats.total}</span>
+						</div>
+						<div className="flex justify-between">
+							<span className="text-muted-foreground">Success</span>
+							<span className="text-emerald-500 font-medium">
+								{stats.success}
+							</span>
+						</div>
+						<div className="flex justify-between">
+							<span className="text-muted-foreground">Failed</span>
+							<span className="text-red-500 font-medium">{stats.failed}</span>
+						</div>
+					</div>
+				</div>
+			</div>
 
 			<SectionCard
 				title="Architecture Flow"
@@ -508,9 +512,7 @@ function DAGVisualizerPage() {
 						</h3>
 						<div className="space-y-3 text-sm text-muted-foreground">
 							<div>
-								<strong className="text-foreground">
-									Ticker DO alarm:
-								</strong>{" "}
+								<strong className="text-foreground">Ticker DO alarm:</strong>{" "}
 								Fires every 2 seconds, queries D1 for monitors due, and
 								dispatches 2-4 checks per cycle.
 							</div>
@@ -522,9 +524,7 @@ function DAGVisualizerPage() {
 								NRT), execute the check, then disappear after writing results.
 							</div>
 							<div>
-								<strong className="text-foreground">
-									Check lifecycle:
-								</strong>{" "}
+								<strong className="text-foreground">Check lifecycle:</strong>{" "}
 								Dispatch (0.5s) → Execute (1s) → Write to D1/AE (0.5s) →
 								Complete. Green edges indicate success, red edges indicate
 								failures.

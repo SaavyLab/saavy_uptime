@@ -666,6 +666,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "hb-auth"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "base64 0.21.7",
+ "js-sys",
+ "once_cell",
+ "rsa",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tracing",
+ "worker",
+]
+
+[[package]]
 name = "heck"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1474,17 +1490,15 @@ name = "saavy_uptime"
 version = "0.1.0"
 dependencies = [
  "axum",
- "base64 0.21.7",
  "console_error_panic_hook",
  "cuid2",
  "getrandom 0.3.4",
+ "hb-auth",
  "js-sys",
  "jwt",
  "once_cell",
- "rsa",
  "serde",
  "serde_json",
- "sha2",
  "tower-http",
  "tower-service",
  "tracing",
