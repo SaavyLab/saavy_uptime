@@ -1,3 +1,9 @@
+CREATE INDEX idx_monitors_org_enabled_next_run
+  ON monitors (org_id, enabled, next_run_at)
+
+CREATE INDEX idx_monitors_status
+  ON monitors (status)
+
 CREATE INDEX idx_notifications_monitor_kind
   ON notifications (monitor_id, kind)
 
@@ -35,34 +41,21 @@ CREATE TABLE monitor_dispatches (
   created_at INTEGER NOT NULL
 )
 
-CREATE TABLE monitors (
-  -- Identity & Ownership
+CREATE TABLE "monitors" (
   id TEXT PRIMARY KEY,
   org_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-  
-  -- Core Config (Queryable)
   name TEXT NOT NULL,
-  kind TEXT NOT NULL DEFAULT 'http', -- 'http', 'tcp', 'udp'
+  kind TEXT NOT NULL DEFAULT 'http',
   enabled INTEGER NOT NULL DEFAULT 1,
-  
-  -- Execution Config (The "How")
-  -- Stores: url, interval, timeout, headers, expect_status, etc.
-  -- Why: The Dispatcher just grabs this JSON and passes it to the runner.
-  config_json TEXT NOT NULL, 
-
-  -- The "Hot State" (Updated by Consumer)
-  status TEXT NOT NULL DEFAULT 'PENDING', -- 'UP', 'DOWN', 'DEGRADED'
-  last_checked_at INTEGER,     -- timestamp ms
-  last_failed_at INTEGER,      -- timestamp ms (The Anchor for streaks)
-  first_checked_at INTEGER,    -- timestamp ms (The Anchor for uptime)
-  rt_ms INTEGER,               -- Latest latency
-  region TEXT,                 -- Latest colo/region
-  last_error TEXT,             -- Human readable error for tooltip
-  
-  -- Scheduling
-  next_run_at INTEGER,         -- Used by Ticker DO
-
-  -- Meta
+  config_json TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  last_checked_at INTEGER,
+  last_failed_at INTEGER,
+  first_checked_at INTEGER,
+  rt_ms INTEGER,
+  region TEXT,
+  last_error TEXT,
+  next_run_at INTEGER,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 )

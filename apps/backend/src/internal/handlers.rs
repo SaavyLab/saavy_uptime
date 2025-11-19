@@ -4,7 +4,7 @@ use crate::cloudflare::d1::AppDb;
 use crate::cloudflare::durable_objects::ticker::AppTicker;
 use crate::cloudflare::queues::HeartbeatQueue;
 use crate::internal::dispatch::handle_dispatch;
-use crate::internal::types::{DispatchRequest, ReconcileResponse};
+use crate::internal::types::{DispatchRequest, MonitorKind, ReconcileResponse};
 use crate::monitors::service::create_monitor_for_org;
 use crate::monitors::types::{CreateMonitor, HttpMonitorConfig};
 use crate::router::AppState;
@@ -116,7 +116,8 @@ fn seed_definitions() -> Vec<CreateMonitor> {
             let config = HttpMonitorConfig::new(url, 60, 7000, true, follow_redirects);
             let monitor = CreateMonitor {
                 name: format!("{prefix} #{:03}", idx + 1),
-                config: serde_json::to_string(&config).unwrap_or_default(),
+                kind: MonitorKind::Http,
+                config,
             };
 
             list.push(monitor);

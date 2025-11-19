@@ -60,6 +60,8 @@ function StatusBadge({ status }: { status?: string }) {
 	);
 }
 
+type SortColumn = "name" | "status" | "interval" | "lastCheckedAt";
+
 function MonitorsPage() {
 	const {
 		data: monitors = [],
@@ -67,13 +69,17 @@ function MonitorsPage() {
 		refetch,
 	} = useQuery<Monitor[]>({
 		queryKey: ["monitors"],
+		staleTime: 1000 * 60 * 5,
 		queryFn: () => getMonitors(),
 	});
 
 	const [searchTerm, setSearchTerm] = useState("");
 	const [kindFilter, setKindFilter] = useState("all");
+	const [statusFilter, setStatusFilter] = useState("all");
 	const [pageIndex, setPageIndex] = useState(0);
 	const [pageSize, setPageSize] = useState(20);
+	const [sortColumn, setSortColumn] = useState<SortColumn>("name");
+	const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
@@ -121,31 +127,86 @@ function MonitorsPage() {
 		return kinds.sort((a, b) => a.localeCompare(b));
 	}, [monitors]);
 
+	const monitorStatuses = useMemo(() => {
+		const statuses = Array.from(new Set(monitors.map((monitor) => monitor.status)));
+		return statuses.sort((a, b) => a.localeCompare(b));
+	}, [monitors]);
+
 	const filteredMonitors = useMemo(() => {
 		const normalizedSearch = searchTerm.trim().toLowerCase();
 		return monitors.filter((monitor) => {
 			const matchesKind =
 				kindFilter === "all" ? true : monitor.kind === kindFilter;
+			const matchesStatus =
+				statusFilter === "all" ? true : monitor.status === statusFilter;
 			const matchesSearch = normalizedSearch
 				? [monitor.name, monitor.config.url].some((v) =>
 						v.toLowerCase().includes(normalizedSearch),
 					)
 				: true;
-			return matchesKind && matchesSearch;
+			return matchesKind && matchesStatus && matchesSearch;
 		});
-	}, [monitors, kindFilter, searchTerm]);
+	}, [monitors, kindFilter, statusFilter, searchTerm]);
+
+	const sortedMonitors = useMemo(() => {
+		const data = [...filteredMonitors];
+		const direction = sortDirection === "asc" ? 1 : -1;
+		data.sort((a, b) => {
+			const compare = (valueA: string | number | null, valueB: string | number | null) => {
+				if (valueA == null && valueB == null) return 0;
+				if (valueA == null) return -1;
+				if (valueB == null) return 1;
+				if (typeof valueA === "number" && typeof valueB === "number") {
+					return valueA - valueB;
+				}
+				return valueA.toString().localeCompare(valueB.toString());
+			};
+
+			switch (sortColumn) {
+				case "status":
+					return direction * compare(a.status, b.status);
+				case "interval":
+					return direction * compare(a.config.interval, b.config.interval);
+				case "lastCheckedAt":
+					return direction * compare(a.lastCheckedAt ?? null, b.lastCheckedAt ?? null);
+				default:
+					return direction * compare(a.name, b.name);
+			}
+		});
+		return data;
+	}, [filteredMonitors, sortColumn, sortDirection]);
 
 	// Pagination logic
-	const totalPages = Math.ceil(filteredMonitors.length / pageSize) || 1;
+	const totalPages = Math.ceil(sortedMonitors.length / pageSize) || 1;
 	const safePageIndex = Math.min(pageIndex, totalPages - 1);
 	const pageStart = safePageIndex * pageSize;
-	const pageEnd = Math.min(pageStart + pageSize, filteredMonitors.length);
-	const currentData = filteredMonitors.slice(pageStart, pageEnd);
+	const pageEnd = Math.min(pageStart + pageSize, sortedMonitors.length);
+	const currentData = sortedMonitors.slice(pageStart, pageEnd);
 
 	// Reset page when filters change
 	useEffect(() => {
+		// Explicitly reference dependencies so Biome understands the effect is tied to them.
+		void searchTerm;
+		void kindFilter;
+		void statusFilter;
+		void pageSize;
 		setPageIndex(0);
-	}, [searchTerm, kindFilter, pageSize]);
+	}, [searchTerm, kindFilter, statusFilter, pageSize]);
+
+	const toggleSort = (column: SortColumn) => {
+		setPageIndex(0);
+		if (sortColumn === column) {
+			setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+			return;
+		}
+		setSortColumn(column);
+		setSortDirection("asc");
+	};
+
+	const sortIndicator = (column: SortColumn) => {
+		if (sortColumn !== column) return null;
+		return sortDirection === "asc" ? "↑" : "↓";
+	};
 
 	// Fleet Stats
 	const totalCount = monitors.length;
@@ -248,7 +309,7 @@ function MonitorsPage() {
 			</div>
 
 			<div className="flex flex-col gap-4">
-				<div className="flex items-center gap-4">
+		<div className="flex items-center gap-4">
 					<div className="relative flex-1 max-w-sm">
 						<Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
 						<Input
@@ -271,19 +332,64 @@ function MonitorsPage() {
 							))}
 						</SelectContent>
 					</Select>
+			<Select value={statusFilter} onValueChange={setStatusFilter}>
+				<SelectTrigger className="w-[180px] bg-background">
+					<SelectValue placeholder="Filter by status" />
+				</SelectTrigger>
+				<SelectContent>
+					<SelectItem value="all">All Statuses</SelectItem>
+					{monitorStatuses.map((status) => (
+						<SelectItem key={status} value={status}>
+							{status.toUpperCase()}
+						</SelectItem>
+					))}
+				</SelectContent>
+			</Select>
 				</div>
 
 				<div className="rounded-md border bg-card">
 					<Table>
-						<TableHeader>
-							<TableRow>
-								<TableHead className="w-[300px]">Name</TableHead>
-								<TableHead>Status</TableHead>
-								<TableHead>Interval</TableHead>
-								<TableHead>Last Check</TableHead>
-								<TableHead className="text-right">Actions</TableHead>
-							</TableRow>
-						</TableHeader>
+				<TableHeader>
+					<TableRow>
+						<TableHead className="w-[300px]">
+							<button
+								type="button"
+								className="flex items-center gap-1"
+								onClick={() => toggleSort("name")}
+							>
+								Name {sortIndicator("name")}
+							</button>
+						</TableHead>
+						<TableHead>
+							<button
+								type="button"
+								className="flex items-center gap-1"
+								onClick={() => toggleSort("status")}
+							>
+								Status {sortIndicator("status")}
+							</button>
+						</TableHead>
+						<TableHead>
+							<button
+								type="button"
+								className="flex items-center gap-1"
+								onClick={() => toggleSort("interval")}
+							>
+								Interval {sortIndicator("interval")}
+							</button>
+						</TableHead>
+						<TableHead>
+							<button
+								type="button"
+								className="flex items-center gap-1"
+								onClick={() => toggleSort("lastCheckedAt")}
+							>
+								Last Check {sortIndicator("lastCheckedAt")}
+							</button>
+						</TableHead>
+						<TableHead className="text-right">Actions</TableHead>
+					</TableRow>
+				</TableHeader>
 						<TableBody>
 							{isLoading ? (
 								<TableRow>
