@@ -18,19 +18,6 @@ pub async fn get_organization_by_id(
     let result = stmt.first::<GetOrganizationByIdRow>(None).await?;
     Ok(result)
 }
-#[tracing::instrument(name = "d1c.create_organization", skip(d1, name))]
-pub async fn create_organization(
-    d1: &D1Database,
-    id: &str,
-    slug: &str,
-    name: &str,
-) -> Result<()> {
-    let stmt = d1
-        .prepare("INSERT INTO organizations (id, slug, name) VALUES (?1, ?2, ?3)");
-    let stmt = stmt.bind(&[id.into(), slug.into(), name.into()])?;
-    stmt.run().await?;
-    Ok(())
-}
 #[tracing::instrument(name = "d1c.check_if_bootstrapped", skip(d1))]
 pub async fn check_if_bootstrapped(d1: &D1Database) -> Result<Option<i64>> {
     let stmt = d1.prepare("SELECT COUNT(*) AS count FROM organizations");

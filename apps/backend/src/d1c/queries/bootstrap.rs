@@ -47,7 +47,7 @@ pub fn create_member_stmt(
 ) -> Result<worker::D1PreparedStatement> {
     let stmt = d1
         .prepare(
-            "INSERT INTO members (identity_id, email, is_workspace_admin, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+            "INSERT INTO members (identity_id, email, is_workspace_admin, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT(identity_id) DO UPDATE SET email = excluded.email, updated_at = excluded.updated_at",
         );
     let stmt = stmt
         .bind(

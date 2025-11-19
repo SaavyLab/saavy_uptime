@@ -83,7 +83,7 @@ pub async fn initialize(
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    let batch_results = d1.batch(vec![org_statement, member_statement, organization_member_statement]).await.map_err(|err| {
+    let batch_results = d1.batch(vec![member_statement, org_statement, organization_member_statement]).await.map_err(|err| {
         console_error!("bootstrap.initialize: batch execution failed: {err:?}");
         StatusCode::INTERNAL_SERVER_ERROR
     })?;

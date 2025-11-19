@@ -70,7 +70,7 @@ INSERT INTO users (id, email) VALUES (:id, :email) RETURNING *;
 - `:scalar` -> Returns `Result<Option<T>>` (single primitive value)
 
 **Batch Operations:**
-Apppend `:stmt` to the header (e.g. `-- name: CreateUser :exec :stmt`) to generate a `{name}_stmt` function that returns a prepared statement for use with `d1.batch()`.
+Append `:stmt` to the header (e.g. `-- name: CreateUser :exec :stmt`) to generate a `{name}_stmt` function that returns a prepared statement for use with `d1.batch()`.
 
 ### Step 3c: Generate Code
 Run the generator:
