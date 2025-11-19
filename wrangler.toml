@@ -94,3 +94,13 @@ dataset = "saavy_uptime"
 [[env.production.r2_buckets]]
 binding = "ARCHIVE_BUCKET"
 bucket_name = "saavy-uptime"
+
+
+[[env.production.queues.producers]]
+queue = "traces"
+binding = "TRACE_QUEUE"
+
+[[env.production.queues.consumers]]
+queue = "traces"
+max_batch_size = 100
+max_batch_timeout = 5

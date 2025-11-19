@@ -67,4 +67,13 @@ impl Visit for FieldRecorder {
             serde_json::Value::Number(value.into()),
         );
     }
+
+    fn record_f64(&mut self, field: &Field, value: f64) {
+        self.fields.insert(
+            field.name().to_string(),
+            serde_json::Number::from_f64(value)
+                .map(serde_json::Value::Number)
+                .unwrap_or(serde_json::Value::Null)
+        );
+    }
 }

@@ -37,14 +37,9 @@ Add the components you need to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-hb-d1c = "0.1"
 hb-tracing = "0.1"
 hb-auth = "0.1"
 ```
-
-## Meaning
-
-Publicly, **hb** stands for **Host Boundary**—the critical layer between your origin logic and the client. It also answers to **High Bandwidth**, reflecting the performance characteristics of the edge.
 
 ---
 

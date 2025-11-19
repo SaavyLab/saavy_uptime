@@ -1,17 +1,21 @@
 use crate::{FieldRecorder, span_event::SpanEvent};
-use std::{cell::RefCell, rc::Rc};
+use std::sync::{Arc, Mutex};
 use tracing::{Subscriber, span::{Attributes, Id}};
 use tracing_subscriber::{Layer, layer::Context, registry::LookupSpan};
 use worker::{Date, Result};
 
 #[derive(Clone)]
 pub struct BufferLayer {
-    buffer: Rc<RefCell<Vec<SpanEvent>>>
+    /// The buffer of SpanEvents.
+    /// 
+    /// Since workers are single-threaded this should never be contended.
+    /// The tracing library requires us to satisfy Send + Sync
+    buffer: Arc<Mutex<Vec<SpanEvent>>>
 }
 
 
 pub struct FlushGuard {
-    buffer: Rc<RefCell<Vec<SpanEvent>>>
+    buffer: Arc<Mutex<Vec<SpanEvent>>>
 }
 
 /// Creates a new tracing layer and a flush guard.
@@ -19,7 +23,7 @@ pub struct FlushGuard {
 /// The layer collects spans into a thread-local buffer.
 /// The guard must be used to flush these spans to a Queue at the end of the request.
 pub fn buffer_layer() -> (BufferLayer, FlushGuard) {
-    let buffer = Rc::new(RefCell::new(Vec::new()));
+    let buffer = Arc::new(Mutex::new(Vec::new()));
     (BufferLayer { buffer: buffer.clone() }, FlushGuard { buffer })
 }
 
@@ -28,13 +32,21 @@ impl FlushGuard {
     /// 
     /// You should call this inside `ctx.wait_until` to avoid delaying the response.
     pub async fn flush(self, queue: &worker::Queue) -> Result<()> {
-        let events = self.buffer.take();
+        let events = {
+            let mut buffer = match self.buffer.lock() {
+                Ok(guard) => guard,
+                Err(e) => {
+                    worker::console_error!("hb-tracing: buffer lock poisoned during flush: {:?}", e);
+                    e.into_inner()
+                }
+            };
+            std::mem::take(&mut *buffer)
+        };
+
         if events.is_empty() {
             return Ok(());
         }
 
-
-        // Cloudflare Queues support batch sending
         queue.send_batch(&events).await?;
         Ok(())
     }
@@ -117,7 +129,12 @@ where
                     fields: pending.fields.to_json(),
                 };
 
-                self.buffer.borrow_mut().push(event);
+                match self.buffer.lock() {
+                    Ok(mut guard) => guard.push(event),
+                    Err(e) => {
+                        worker::console_error!("hb-tracing: buffer lock poisoned during flush: {:?}", e);
+                    }
+                }
             }
         }
     }
