@@ -1,5 +1,7 @@
 use crate::monitors::types::HeartbeatResult;
-use worker::{AnalyticsEngineDataPointBuilder, AnalyticsEngineDataset, Context, Env, MessageBatch, Result};
+use worker::{
+    AnalyticsEngineDataPointBuilder, AnalyticsEngineDataset, Context, Env, MessageBatch, Result,
+};
 
 pub async fn process_batch(
     batch: &MessageBatch<serde_json::Value>,
@@ -23,12 +25,8 @@ pub async fn process_batch(
     Ok(())
 }
 
-fn handle_slice(
-    events: &[HeartbeatResult],
-    dataset: &AnalyticsEngineDataset,
-) -> Result<()> {
+fn handle_slice(events: &[HeartbeatResult], dataset: &AnalyticsEngineDataset) -> Result<()> {
     for event in events {
-
         let builder = AnalyticsEngineDataPointBuilder::new()
             .indexes(vec![event.monitor_id.as_str(), event.org_id.as_str()])
             .add_double(event.timestamp as f64)

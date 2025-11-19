@@ -1,5 +1,8 @@
-use axum::{extract::FromRequestParts, http::{StatusCode, request::Parts}};
-use worker::{Queue, console_error};
+use axum::{
+    extract::FromRequestParts,
+    http::{request::Parts, StatusCode},
+};
+use worker::{console_error, Queue};
 
 use crate::router::AppState;
 

@@ -1,13 +1,12 @@
 use std::result::Result;
-use worker::{D1Database, Queue};
+use std::str::FromStr;
 use worker::{console_error, console_log, Fetch, Method, Request, RequestInit, Response};
+use worker::{D1Database, Queue};
 
-use crate::d1c::queries::{
-    monitor_dispatches::{complete_dispatch, dispatch_monitor},
-};
+use crate::d1c::queries::monitor_dispatches::{complete_dispatch, dispatch_monitor};
 use crate::internal::types::{DispatchError, DispatchRequest, MonitorKind};
 use crate::monitors::service::update_monitor_status_for_org;
-use crate::monitors::types::{MonitorStatus, HeartbeatResult};
+use crate::monitors::types::{HeartbeatResult, MonitorStatus, MonitorStatusSnapshot};
 use crate::utils::date::now_ms;
 
 pub async fn handle_dispatch(
@@ -16,6 +15,7 @@ pub async fn handle_dispatch(
     payload: DispatchRequest,
 ) -> Result<(), DispatchError> {
     let start = now_ms();
+    let snapshot = monitor_snapshot_from_payload(&payload);
 
     dispatch_monitor(&d1, "running", start, &payload.dispatch_id).await?;
 
@@ -31,15 +31,17 @@ pub async fn handle_dispatch(
 
     match check {
         Ok(result) => {
-            update_monitor_status_for_org(
-                &d1, 
-                &result,
-            ).await.map_err(DispatchError::Monitor)?;
-            heartbeat_queue.send(result).await.map_err(DispatchError::Heartbeat)?;
+            update_monitor_status_for_org(&d1, &result, &snapshot)
+                .await
+                .map_err(DispatchError::Monitor)?;
+            heartbeat_queue
+                .send(result)
+                .await
+                .map_err(DispatchError::Heartbeat)?;
         }
         Err(err) => {
             update_monitor_status_for_org(
-                &d1, 
+                &d1,
                 &HeartbeatResult {
                     monitor_id: payload.monitor_id,
                     org_id: payload.org_id,
@@ -51,11 +53,28 @@ pub async fn handle_dispatch(
                     error: Some(err.into()),
                     code: None,
                 },
-            ).await.map_err(DispatchError::Monitor)?;
+                &snapshot,
+            )
+            .await
+            .map_err(DispatchError::Monitor)?;
         }
     }
 
     Ok(())
+}
+
+fn monitor_snapshot_from_payload(payload: &DispatchRequest) -> MonitorStatusSnapshot {
+    let status = payload
+        .status
+        .as_deref()
+        .and_then(|raw| MonitorStatus::from_str(raw).ok())
+        .unwrap_or(MonitorStatus::Pending);
+
+    MonitorStatusSnapshot {
+        status,
+        first_checked_at: payload.first_checked_at,
+        last_failed_at: payload.last_failed_at,
+    }
 }
 
 async fn check_monitor(

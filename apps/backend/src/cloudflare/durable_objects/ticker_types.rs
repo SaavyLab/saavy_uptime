@@ -17,17 +17,14 @@ pub struct TickerState {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MonitorRow {
-    pub id: String,
-    pub kind: MonitorKind,
-    pub config_json: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MonitorDispatchRow {
     pub id: String,
     pub kind: MonitorKind,
     pub config: HttpMonitorConfig,
+    pub scheduled_for_ts: i64,
+    pub status: String,
+    pub first_checked_at: Option<i64>,
+    pub last_failed_at: Option<i64>,
 }
 
 #[derive(Serialize)]
@@ -37,7 +34,14 @@ pub struct DispatchPayload {
     pub monitor_id: String,
     pub org_id: String,
     pub kind: MonitorKind,
-    pub config: HttpMonitorConfig,
+    pub monitor_url: String,
+    pub timeout_ms: i64,
+    pub follow_redirects: bool,
+    pub verify_tls: bool,
+    pub scheduled_for_ts: i64,
+    pub status: String,
+    pub first_checked_at: Option<i64>,
+    pub last_failed_at: Option<i64>,
 }
 
 // impl From<(MonitorRow, i64)> for MonitorDispatch {
@@ -100,7 +104,7 @@ impl TickerError {
     pub fn response_status(context: &'static str, status: u16) -> Self {
         TickerError::ResponseStatus { context, status }
     }
-    pub fn unsupported_monitor_kind(context: &'static str, kind: MonitorKind) -> Self {
+    pub fn unsupported_monitor_kind(_context: &'static str, kind: MonitorKind) -> Self {
         TickerError::UnsupportedMonitorKind(kind)
     }
 }
@@ -129,7 +133,9 @@ impl From<TickerError> for worker::Error {
                 worker::Error::RustError(format!("{context}: {source:?}"))
             }
             TickerError::Alarm(source) => worker::Error::RustError(format!("alarm: {source:?}")),
-            TickerError::UnsupportedMonitorKind(kind) => worker::Error::RustError(format!("unsupported monitor kind: {kind}")),
+            TickerError::UnsupportedMonitorKind(kind) => {
+                worker::Error::RustError(format!("unsupported monitor kind: {kind}"))
+            }
         }
     }
 }

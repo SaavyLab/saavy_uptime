@@ -1,7 +1,7 @@
 // generate/renderer.rs
 use anyhow::{bail, Result};
 use heck::{ToPascalCase, ToSnakeCase};
-use proc_macro2::TokenStream;
+use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 
 use crate::commands::generate::types::{Cardinality, Query};
@@ -18,6 +18,68 @@ pub fn render_module(queries: &[Query], instrument: bool) -> Result<TokenStream>
 
         #(#blocks)*
     })
+}
+
+fn split_option_type(rust_type: &str) -> (bool, String) {
+    let trimmed = rust_type.trim();
+    if let Some(inner) = trimmed
+        .strip_prefix("Option<")
+        .and_then(|rest| rest.strip_suffix('>'))
+    {
+        (true, inner.trim().to_string())
+    } else {
+        (false, trimmed.to_string())
+    }
+}
+
+fn argument_type_tokens(base: &str, is_option: bool) -> TokenStream {
+    match base {
+        "String" => {
+            if is_option {
+                quote! { Option<&str> }
+            } else {
+                quote! { &str }
+            }
+        }
+        "Vec<u8>" => {
+            if is_option {
+                quote! { Option<&[u8]> }
+            } else {
+                quote! { &[u8] }
+            }
+        }
+        _ => {
+            let ty = format_ident!("{}", base);
+            if is_option {
+                quote! { Option<#ty> }
+            } else {
+                quote! { #ty }
+            }
+        }
+    }
+}
+
+fn build_binding_expr(base: &str, is_option: bool, param_name: &Ident) -> TokenStream {
+    if is_option {
+        let inner_expr = base_binding_expr(base, quote! { value });
+        quote! {
+            match #param_name {
+                Some(value) => {
+                    #inner_expr
+                }
+                None => worker::wasm_bindgen::JsValue::NULL,
+            }
+        }
+    } else {
+        base_binding_expr(base, quote! { #param_name })
+    }
+}
+
+fn base_binding_expr(base: &str, value: TokenStream) -> TokenStream {
+    match base {
+        "i64" => quote! { (#value as f64).into() },
+        _ => quote! { #value.into() },
+    }
 }
 
 fn render_query_block(query: &Query, instrument: bool) -> Result<TokenStream> {
@@ -144,25 +206,10 @@ fn render_function(query: &Query, instrument: bool) -> Result<TokenStream> {
     if let Some(params) = &query.params {
         for param in params {
             let param_name = format_ident!("{}", param.name.to_snake_case());
-            let rust_type_str = param.rust_type.as_str();
+            let (is_option, base_type) = split_option_type(param.rust_type.as_str());
 
-            // Smart argument types:
-            // - If it's "String", take "&str"
-            // - If it's "Vec<u8>", take "&[u8]"
-            // - Else (i64, bool, f64), take by value
-            let arg_type = match rust_type_str {
-                "String" => quote! { &str },
-                "Vec<u8>" => quote! { &[u8] },
-                _ => {
-                    let t = format_ident!("{}", rust_type_str);
-                    quote! { #t }
-                }
-            };
-
-            let binding_expr = match rust_type_str {
-                "i64" => quote! { (#param_name as f64).into() },
-                _ => quote! { #param_name.into() },
-            };
+            let arg_type = argument_type_tokens(&base_type, is_option);
+            let binding_expr = build_binding_expr(&base_type, is_option, &param_name);
 
             func_args.push(quote! { #param_name: #arg_type });
             bind_args.push(binding_expr);

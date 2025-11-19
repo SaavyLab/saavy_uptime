@@ -118,7 +118,7 @@ fn seed_definitions() -> Vec<CreateMonitor> {
                 config: HttpMonitorConfig::new(url, 60, 7000, true, follow_redirects).into(),
             });
         }
-    }    
+    }
     let httpstat = [
         "https://httpstat.us/200",
         "https://httpstat.us/404",

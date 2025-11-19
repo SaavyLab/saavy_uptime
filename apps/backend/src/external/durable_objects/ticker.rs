@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{str::FromStr, time::Duration};
 
 use cuid2::create_id;
 use js_sys::wasm_bindgen::JsValue;
@@ -8,8 +8,12 @@ use worker::*;
 
 use crate::{
     cloudflare::durable_objects::ticker_types::{
-        DispatchPayload, MonitorDispatchRow, MonitorRow, TickerConfig, TickerError, TickerState,
-    }, d1c::queries::monitor_dispatches::create_dispatch, internal::types::MonitorKind, monitors::types::HttpMonitorConfig, utils::{date::now_ms, wasm_types::js_number}
+        DispatchPayload, MonitorDispatchRow, TickerConfig, TickerError, TickerState,
+    },
+    d1c::queries::{monitor_dispatches::create_dispatch, monitors::{list_due_monitors, update_monitor_next_run_at_stmt}},
+    internal::types::MonitorKind,
+    monitors::types::HttpMonitorConfig,
+    utils::date::now_ms,
 };
 
 const DEFAULT_TICK_INTERVAL_MS: u64 = 15_000;
@@ -115,32 +119,9 @@ impl Ticker {
         let d1 = self.env.d1("DB")?;
         let now = now_ms();
 
-        let select_statement = d1.prepare(
-            "
-            SELECT id, kind, config_json
-            FROM monitors
-            WHERE org_id = ?1
-              AND enabled = 1
-              AND (next_run_at_ts IS NULL OR next_run_at_ts <= ?2)
-            ORDER BY COALESCE(next_run_at_ts, 0) ASC
-            LIMIT ?3
-            ",
-        );
-
-        let select_query = select_statement
-            .bind(&[
-                JsValue::from_str(&config.org_id),
-                js_number(now),
-                js_number(config.batch_size as i64),
-            ])
-            .map_err(|err| TickerError::database("ticker.claim.bind", err))?;
-
-        let rows = select_query
-            .all()
+        let rows = list_due_monitors(&d1, &config.org_id, Some(now), config.batch_size as i64)
             .await
-            .map_err(|err| TickerError::database("ticker.claim.select", err))?
-            .results::<MonitorRow>()
-            .map_err(|err| TickerError::database("ticker.claim.results", err))?;
+            .map_err(|err| TickerError::database("ticker.claim.list_due", err))?;
 
         if rows.is_empty() {
             return Ok(Vec::new());
@@ -148,35 +129,44 @@ impl Ticker {
 
         let mut statements = Vec::with_capacity(rows.len());
         let mut claimed = Vec::with_capacity(rows.len());
-
         for row in rows {
-            if row.kind != MonitorKind::Http {
-                return Err(TickerError::unsupported_monitor_kind("ticker.claim.unsupported_kind", row.kind));
+            let monitor_id = row.id.clone().unwrap_or_default();
+            let kind = MonitorKind::from_str(&row.kind)
+                .map_err(|_| TickerError::unknown("ticker.claim.kind_parse", row.kind.clone()))?;
+
+            if kind != MonitorKind::Http {
+                return Err(TickerError::unsupported_monitor_kind(
+                    "ticker.claim.unsupported_kind",
+                    kind,
+                ));
             }
             let next_run_at = now + config.tick_interval_ms as i64 * 1000;
-            let update_statement = d1.prepare(
-                "
-                UPDATE monitors
-                SET last_checked_at_ts = ?1,
-                    next_run_at_ts = ?2,
-                    updated_at = ?1
-                WHERE id = ?3
-                ",
-            );
+            let update_statement = update_monitor_next_run_at_stmt(
+                &d1, 
+                next_run_at, 
+                now, 
+                now, 
+                &monitor_id, 
+                &config.org_id,
+            )?;
 
-            let update_query = update_statement
-                .bind(&[
-                    js_number(now),
-                    js_number(next_run_at),
-                    JsValue::from_str(&row.id),
-                ])
-                .map_err(|err| TickerError::database("ticker.claim.update_bind", err))?;
+            statements.push(update_statement);
 
-            statements.push(update_query);
+            let config: HttpMonitorConfig =
+                serde_json::from_str(&row.config_json).map_err(|err| {
+                    TickerError::unknown("ticker.claim.config_parse", err.to_string())
+                })?;
+
+            let scheduled_for_ts = row.next_run_at.unwrap_or(now);
+
             claimed.push(MonitorDispatchRow {
-                id: row.id,
-                kind: row.kind,
-                config: serde_json::from_str(&row.config_json).unwrap(),
+                id: monitor_id,
+                kind,
+                config,
+                scheduled_for_ts,
+                status: row.status,
+                first_checked_at: row.first_checked_at,
+                last_failed_at: row.last_failed_at,
             });
         }
 
@@ -194,7 +184,8 @@ impl Ticker {
     ) -> std::result::Result<(), TickerError> {
         let dispatch_id = create_id().to_string();
         self.record_dispatch(config, monitor, &dispatch_id).await?;
-        self.send_dispatch_request(&dispatch_id, &config.org_id, monitor).await
+        self.send_dispatch_request(&dispatch_id, &config.org_id, monitor)
+            .await
     }
 
     async fn record_dispatch(
@@ -206,7 +197,16 @@ impl Ticker {
         let d1 = self.env.d1("DB")?;
         let now = now_ms();
 
-        create_dispatch(&d1, dispatch_id, &monitor.id, &config.org_id, "pending", now, now).await?;
+        create_dispatch(
+            &d1,
+            dispatch_id,
+            &monitor.id,
+            &config.org_id,
+            "pending",
+            monitor.scheduled_for_ts,
+            now,
+        )
+        .await?;
 
         Ok(())
     }
@@ -234,12 +234,15 @@ impl Ticker {
             dispatch_id: dispatch_id.to_string(),
             monitor_id: monitor.id.clone(),
             org_id: org_id.to_string(),
-            monitor_url: monitor.url.clone(),
+            monitor_url: monitor.config.url.clone(),
             kind: monitor.kind.clone(),
             scheduled_for_ts: monitor.scheduled_for_ts,
-            timeout_ms: monitor.timeout_ms,
-            follow_redirects: monitor.follow_redirects,
-            verify_tls: monitor.verify_tls,
+            timeout_ms: monitor.config.timeout,
+            follow_redirects: monitor.config.follow_redirects,
+            verify_tls: monitor.config.verify_tls,
+            status: monitor.status.clone(),
+            first_checked_at: monitor.first_checked_at,
+            last_failed_at: monitor.last_failed_at,
         };
 
         let body = to_string(&payload).map_err(|err| {

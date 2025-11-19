@@ -1,7 +1,6 @@
-
-use strum::{Display, EnumString};
 use serde::{Deserialize, Serialize};
-use worker::{BlobType, console_error};
+use strum::{Display, EnumString};
+use worker::{console_error, BlobType};
 
 use crate::{
     auth::membership::MembershipError, bootstrap::types::BootstrapError,
@@ -18,7 +17,13 @@ pub struct HttpMonitorConfig {
 }
 
 impl HttpMonitorConfig {
-    pub fn new(url: &str, interval: i64, timeout: i64, verify_tls: bool, follow_redirects: bool) -> Self {
+    pub fn new(
+        url: &str,
+        interval: i64,
+        timeout: i64,
+        verify_tls: bool,
+        follow_redirects: bool,
+    ) -> Self {
         Self {
             url: url.to_string(),
             interval,
@@ -42,7 +47,9 @@ pub struct CreateMonitor {
     pub config: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, Display, PartialEq, PartialOrd, Eq, EnumString)]
+#[derive(
+    Debug, Serialize, Deserialize, Clone, Copy, Display, PartialEq, PartialOrd, Eq, EnumString,
+)]
 #[strum(serialize_all = "snake_case", ascii_case_insensitive)]
 #[serde(rename_all(deserialize = "snake_case"))]
 pub enum MonitorStatus {
@@ -240,7 +247,7 @@ pub struct HeartbeatResult {
     pub timestamp: i64,
     pub status: MonitorStatus,
 
-    // Metrics 
+    // Metrics
     pub latency_ms: i64,
     pub region: String,
     pub colo: String,
@@ -248,4 +255,11 @@ pub struct HeartbeatResult {
     pub error: Option<String>,
 
     pub code: Option<u16>,
+}
+
+#[derive(Debug, Clone)]
+pub struct MonitorStatusSnapshot {
+    pub status: MonitorStatus,
+    pub first_checked_at: Option<i64>,
+    pub last_failed_at: Option<i64>,
 }

@@ -5,7 +5,9 @@ use worker::{console_log, D1Database, ObjectNamespace};
 
 use crate::bootstrap::ticker_bootstrap::ensure_ticker_bootstrapped;
 use crate::d1c::queries::monitors::{create_monitor, get_monitor_by_id, update_monitor_status};
-use crate::monitors::types::{CreateMonitor, Monitor, MonitorError, MonitorStatus, UpdateMonitor, HeartbeatResult};
+use crate::monitors::types::{
+    CreateMonitor, HeartbeatResult, Monitor, MonitorError, MonitorStatusSnapshot, UpdateMonitor,
+};
 use crate::utils::date::now_ms;
 use crate::utils::wasm_types::js_number;
 
@@ -165,18 +167,23 @@ pub async fn update_monitor_for_org(
 pub async fn update_monitor_status_for_org(
     d1: &D1Database,
     heartbeat: &HeartbeatResult,
+    snapshot: &MonitorStatusSnapshot,
 ) -> Result<(), MonitorError> {
-    let curr = get_monitor_by_id(&d1, &heartbeat.monitor_id, &heartbeat.org_id).await?.unwrap();
+    let now = now_ms();
+    let first_checked_at = snapshot.first_checked_at.unwrap_or(now);
+    let mut last_failed_at = snapshot.last_failed_at.unwrap_or_default();
 
-    let first_checked_at = curr.first_checked_at.unwrap_or(now_ms());
-    let mut last_failed_at = curr.last_failed_at.unwrap_or_default();
-    let updated_at = now_ms();
-
-    if heartbeat.status.is_down() {
-        if curr.status.parse().unwrap_or(MonitorStatus::Pending).is_down() {
-            last_failed_at = now_ms();
-        }
+    if heartbeat.status.is_down() && snapshot.status.is_down() {
+        last_failed_at = now;
     }
+
+    let last_error = heartbeat.error.clone().unwrap_or_else(|| {
+        if heartbeat.status.is_down() {
+            "Health check failed".to_string()
+        } else {
+            String::new()
+        }
+    });
 
     update_monitor_status(
         &d1,
@@ -185,11 +192,13 @@ pub async fn update_monitor_status_for_org(
         last_failed_at,
         first_checked_at,
         heartbeat.latency_ms,
-        "Health check failed",
-        updated_at,
+        last_error.as_str(),
+        now,
         &heartbeat.monitor_id,
         &heartbeat.org_id,
-    ).await.map_err(MonitorError::DbRun)?;
+    )
+    .await
+    .map_err(MonitorError::DbRun)?;
 
     Ok(())
 }

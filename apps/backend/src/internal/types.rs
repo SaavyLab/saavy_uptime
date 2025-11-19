@@ -1,9 +1,9 @@
-use std::fmt::Display;
+use std::{fmt::Display, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 use worker::console_error;
 
-use crate::monitors::types::{MonitorError, HeartbeatResult};
+use crate::monitors::types::{HeartbeatResult, MonitorError};
 
 #[derive(Serialize)]
 pub struct ReconcileResponse {
@@ -30,6 +30,19 @@ impl Display for MonitorKind {
     }
 }
 
+impl FromStr for MonitorKind {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_lowercase().as_str() {
+            "http" => Ok(MonitorKind::Http),
+            "tcp" => Ok(MonitorKind::Tcp),
+            "udp" => Ok(MonitorKind::Udp),
+            _ => Err(()),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DispatchRequest {
@@ -42,6 +55,9 @@ pub struct DispatchRequest {
     pub timeout_ms: i64,
     pub follow_redirects: bool,
     pub verify_tls: bool,
+    pub status: Option<String>,
+    pub first_checked_at: Option<i64>,
+    pub last_failed_at: Option<i64>,
 }
 
 #[derive(Debug)]
@@ -95,7 +111,11 @@ impl Into<String> for DispatchError {
     fn into(self) -> String {
         match self {
             DispatchError::Database { context, source } => format!("{context}: {source:?}"),
-            DispatchError::CheckFailed(result) => format!("dispatch.check.failed: status={} error={:?}", result.status.to_string(), result.error),
+            DispatchError::CheckFailed(result) => format!(
+                "dispatch.check.failed: status={} error={:?}",
+                result.status.to_string(),
+                result.error
+            ),
             DispatchError::Heartbeat(err) => format!("dispatch.heartbeat: {err:?}"),
             DispatchError::Monitor(err) => err.into(),
         }

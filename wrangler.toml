@@ -32,7 +32,7 @@ invocation_logs = true
 binding = "DB"
 database_name = "saavy_uptime_dev"
 database_id = "00000000-0000-0000-0000-000000000000"
-migrations_dir = "db/migrations"
+migrations_dir = "apps/backend/db/migrations"
 migrations_table = "d1_migrations"
 
 [[analytics_engine_datasets]]
@@ -84,7 +84,7 @@ script_name = "saavy-uptime"
 binding = "DB"
 database_name = "saavy_uptime"
 database_id = "8d1a587f-92b7-419c-8eec-b6850e3d7d62"
-migrations_dir = "db/migrations"
+migrations_dir = "apps/backend/db/migrations"
 migrations_table = "d1_migrations"
 
 [[env.production.analytics_engine_datasets]]

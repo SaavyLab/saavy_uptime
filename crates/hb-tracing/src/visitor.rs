@@ -48,10 +48,8 @@ impl Visit for FieldRecorder {
     }
 
     fn record_bool(&mut self, field: &Field, value: bool) {
-        self.fields.insert(
-            field.name().to_string(),
-            serde_json::Value::Bool(value),
-        );
+        self.fields
+            .insert(field.name().to_string(), serde_json::Value::Bool(value));
     }
 
     fn record_i64(&mut self, field: &Field, value: i64) {
@@ -73,7 +71,7 @@ impl Visit for FieldRecorder {
             field.name().to_string(),
             serde_json::Number::from_f64(value)
                 .map(serde_json::Value::Number)
-                .unwrap_or(serde_json::Value::Null)
+                .unwrap_or(serde_json::Value::Null),
         );
     }
 }
