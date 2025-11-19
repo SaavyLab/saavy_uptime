@@ -1,14 +1,11 @@
-use worker::*;
 use crate::span_event::SpanEvent;
+use worker::*;
 
 /// Handles a slice of span events by writing them to the Analytics Engine dataset.
 ///
 /// This function is synchronous because the underlying `write` operation
 /// to Analytics Engine is a non-blocking, fire-and-forget binding call.
-pub fn handle_slice(
-    events: &[SpanEvent],
-    dataset: &AnalyticsEngineDataset,
-) -> Result<()> {
+pub fn handle_slice(events: &[SpanEvent], dataset: &AnalyticsEngineDataset) -> Result<()> {
     for event in events {
         let builder = AnalyticsEngineDataPointBuilder::new()
             .indexes(vec![event.trace_id.as_str()])
@@ -41,13 +38,11 @@ pub fn handle_batch(
 ) -> Result<()> {
     let events: Vec<SpanEvent> = batch
         .iter()
-        .filter_map(|msg_result| {
-            match msg_result {
-                Ok(msg) => Some(msg.body().clone()),
-                Err(e) => {
-                    worker::console_error!("hb-tracing: failed to deserialize queue message: {:?}", e);
-                    None
-                }
+        .filter_map(|msg_result| match msg_result {
+            Ok(msg) => Some(msg.body().clone()),
+            Err(e) => {
+                worker::console_error!("hb-tracing: failed to deserialize queue message: {:?}", e);
+                None
             }
         })
         .collect();
@@ -66,14 +61,13 @@ pub fn handle_json_batch(
     batch: &MessageBatch<serde_json::Value>,
     dataset: &AnalyticsEngineDataset,
 ) -> Result<()> {
-    let spans: Vec<SpanEvent> = batch.iter()
-        .filter_map(|msg_result| {
-            match msg_result {
-                Ok(msg) => serde_json::from_value::<SpanEvent>(msg.body().clone()).ok(),
-                Err(e) => {
-                    worker::console_error!("hb-tracing: failed to deserialize queue message: {:?}", e);
-                    None
-                }
+    let spans: Vec<SpanEvent> = batch
+        .iter()
+        .filter_map(|msg_result| match msg_result {
+            Ok(msg) => serde_json::from_value::<SpanEvent>(msg.body().clone()).ok(),
+            Err(e) => {
+                worker::console_error!("hb-tracing: failed to deserialize queue message: {:?}", e);
+                None
             }
         })
         .collect();

@@ -45,11 +45,11 @@ dataset = "observability_prod"
 
 # The Queue (Producer & Consumer)
 [[queues.producers]]
-queue = "tracing-spans"
-binding = "TRACE_QUEUE"
+queue = "trace-queue"
+binding = "trace-queue"
 
 [[queues.consumers]]
-queue = "tracing-spans"
+queue = "trace-queue"
 max_batch_size = 100
 max_batch_timeout = 5
 ```

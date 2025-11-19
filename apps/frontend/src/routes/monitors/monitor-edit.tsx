@@ -7,7 +7,12 @@ import { toast } from "sonner";
 import { useAppForm } from "@/components/form/useAppForm";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { getMonitor, updateMonitor, type Monitor } from "@/lib/monitors";
+import {
+	getMonitor,
+	httpMonitorConfigSchema,
+	updateMonitor,
+	type Monitor,
+} from "@/lib/monitors";
 import type { RouterContext } from "@/router-context";
 import {
 	defaultMonitorFormValues,
@@ -35,11 +40,7 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 			mutationFn: (values: MonitorFormValues) =>
 				updateMonitor(monitorId, {
 					name: values.name,
-					url: values.url,
-					interval: values.interval,
-					timeout: values.timeout,
-					followRedirects: values.followRedirects,
-					verifyTls: values.verifyTls,
+					config: values.config,
 				}),
 			onSuccess: async (monitor) => {
 				toast.success("Monitor updated", {
@@ -138,7 +139,7 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 										</form.AppField>
 
 										<form.AppField
-											name="url"
+											name="config.url"
 											validators={{
 												onBlur: ({ value }) => {
 													if (!value?.trim()) {
@@ -163,7 +164,7 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 
 										<div className="grid gap-6 md:grid-cols-2">
 											<form.AppField
-												name="interval"
+												name="config.interval"
 												validators={{
 													onBlur: ({ value }) =>
 														value >= 15
@@ -180,7 +181,7 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 												)}
 											</form.AppField>
 											<form.AppField
-												name="timeout"
+												name="config.timeout"
 												validators={{
 													onBlur: ({ value }) =>
 														value >= 1000
@@ -203,12 +204,12 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 												Advanced options
 											</p>
 											<div className="mt-4 space-y-4">
-												<form.AppField name="followRedirects">
+												<form.AppField name="config.followRedirects">
 													{(field) => (
 														<field.BooleanSwitchField label="Follow redirects" />
 													)}
 												</form.AppField>
-												<form.AppField name="verifyTls">
+												<form.AppField name="config.verifyTls">
 													{(field) => (
 														<field.BooleanSwitchField label="Verify TLS certificate" />
 													)}
@@ -261,9 +262,5 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 
 const mapMonitorToFormValues = (monitor: Monitor): MonitorFormValues => ({
 	name: monitor.name,
-	url: monitor.url,
-	interval: monitor.intervalS,
-	timeout: monitor.timeoutMs,
-	followRedirects: Boolean(monitor.followRedirects),
-	verifyTls: Boolean(monitor.verifyTls),
+	config: httpMonitorConfigSchema.parse(monitor.config),
 });

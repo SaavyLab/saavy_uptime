@@ -9,11 +9,11 @@ This document tracks the major components, data flows, and runtime responsibilit
 | **Access (Cloudflare Zero Trust)** | Authenticates every request to the API/frontend via CF Access JWTs. | Axum extractors verify `CF_Authorization` headers against Access JWKS. |
 | **API Worker (Axum)** | Frontend/API entry point. Hosts CRUD routes, internal admin endpoints, and exposes helper APIs to the Durable Object/dispatch runner. | Stateless; runs in a fresh isolate per request. |
 | **Ticker Durable Object** | Statefully schedules monitors via `alarm()`; resolves membership and claims due monitors. | Stores per-org cadence, error counters, and writes `monitor_dispatches` rows. |
-| **Dispatch Runner (internal Axum route)** | Executes individual monitor checks. Receives DO fan-out requests via `POST /api/internal/dispatch/run`. | Today stubbed; later performs HTTP/TCP checks, writes heartbeats, updates incidents. |
-| **D1 (SQLite)** | Hot relational store for orgs, monitors, dispatch metadata, incidents, heartbeats (rolling 30 d). | Accessed via workers-rs D1 bindings. |
-| **Analytics Engine (AE)** | High-volume metrics store (uptime %, latency percentiles, player counts). | Populated via queue consumer Worker that batches heartbeat summaries. |
-| **Workers Queues** | Reliable pipeline between dispatch runner and AE consumer. | Queue producer lives in the Worker; consumer Worker flushes to AE with retries. |
-| **R2** | Cold storage for archived heartbeats and replay payloads. | Phase 2+ once archival cron ships. |
+| **Dispatch Runner (internal Axum route)** | Executes individual monitor checks. Receives DO fan-out requests via `POST /api/internal/dispatch/run`. | Updates D1 hot state, emits heartbeat events, manages incidents. |
+| **D1 (SQLite)** | Hot relational store for orgs, monitors, dispatch metadata, and incident state. | Stores only the current monitor “hot state”—no raw heartbeat log—so writes stay cheap. |
+| **Analytics Engine (AE)** | High-volume metrics store (uptime %, latency percentiles, player counts). | Fed asynchronously by a queue consumer that batches heartbeats before writing. |
+| **Workers Queues** | Reliable pipeline between dispatch runner and AE consumer. | Runner enqueues every heartbeat immediately; consumer Worker flushes to AE with retries. |
+| **R2** | Cold storage for future replay payloads/archives. | Optional; no longer required for heartbeat rotation now that AE owns historical data. |
 | **Frontend (Vite/React)** | Dashboard + bootstrap flow. Uses TanStack Router/Query + shadcn UI. | Dev-only controls (e.g., “Warm ticker”) hit internal APIs. |
 
 ## Repo layout (backend)
@@ -58,17 +58,17 @@ flowchart LR
     DO -->|POST dispatch payload<br/>X-Dispatch-Token| Runner
     
     Runner -->|HTTP/TCP Check| Target
-    Runner -->|INSERT heartbeat| D1
-    Runner -->|Write metrics| AE
-    Runner -->|Archive old data| R2
+    Runner -->|Update hot state| D1
+    Runner -->|Enqueue heartbeat| Queue
+    Queue -->|Batch write| AE
     Runner -->|UPDATE dispatch status| D1
 ```
 
 1. **User action** (bootstrap org, create monitor) hits the API Worker and persists config to D1.
 2. **Ticker DO** wakes via `alarm()`, loads org cadence, queries D1 for due monitors, and writes `monitor_dispatches` rows.
 3. For each due monitor, the DO POSTs to `/api/internal/dispatch/run` (authenticated via `X-Dispatch-Token`). Each request spins up a fresh Worker isolate (same script).
-4. **Dispatch runner** executes the check (HTTP/TCP/game protocol), writes a heartbeat row, pushes metrics to AE, updates incidents, and marks the dispatch row completed.
-5. **Frontend/API** read from D1/AE for dashboards, incidents, and future visualizations (DAG, geo map, etc.). R2 archiving handles long-term storage.
+4. **Dispatch runner** executes the check (HTTP/TCP/game protocol), updates the monitor’s hot state in D1, publishes a heartbeat message to the queue, and marks the dispatch row completed.
+5. **Queue consumer** drains heartbeat messages, batches them, and writes to AE so analytics stay off the dispatch hot path. Frontend/API read from D1/AE for dashboards, incidents, and future visualizations (DAG, geo map, etc.).
 
 ## Future Visual Hooks
 
@@ -81,7 +81,7 @@ flowchart LR
   2. A **queue consumer Worker** (see `apps/backend/src/external/queues/heartbeat_summaries.rs`) receives batches of messages, attaches metadata (`sample_rate`, dataset name), and writes them to AE via the REST API.
   3. If AE writes fail, the queue retries; we only `ack` after a successful flush so no heartbeats are lost.
   4. Future analytics datasets (incident context, cost telemetry) can either share this queue (with a `type` field) or use dedicated queues if we need different batching.
-- D1 → R2 archival will likely use a scheduled Worker or Durable Object cron (not a queue for now).
+- R2 is optional now that AE holds historical data, but remains available for future replay payloads or cold archives if requirements change.
 
 ## Protocol Adapter Container (UDP/ICMP/Game checks)
 

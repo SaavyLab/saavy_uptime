@@ -1,35 +1,3 @@
-CREATE TABLE heartbeats (
-  monitor_id TEXT NOT NULL REFERENCES monitors(id) ON DELETE CASCADE,
-  ts INTEGER NOT NULL,
-  ok INTEGER NOT NULL,
-  code INTEGER,
-  rtt_ms INTEGER,
-  err TEXT,
-  region TEXT, dispatch_id TEXT REFERENCES monitor_dispatches(id) ON DELETE SET NULL,
-  PRIMARY KEY (monitor_id, ts)
-)
-
-CREATE INDEX idx_heartbeats_monitor_ts
-  ON heartbeats (monitor_id, ts DESC)
-
-CREATE INDEX idx_heartbeats_ts_only
-  ON heartbeats (ts DESC)
-
-CREATE INDEX idx_incidents_monitor_opened
-  ON incidents (monitor_id, opened_ts DESC)
-
-CREATE INDEX idx_incidents_status
-  ON incidents (status, monitor_id) WHERE status = 'open'
-
-CREATE INDEX idx_monitor_dispatches_monitor
-  ON monitor_dispatches (monitor_id, created_at DESC)
-
-CREATE INDEX idx_monitors_current_status
-  ON monitors (current_status)
-
-CREATE INDEX idx_monitors_org_enabled_next_run
-  ON monitors (org_id, enabled, next_run_at_ts)
-
 CREATE INDEX idx_notifications_monitor_kind
   ON notifications (monitor_id, kind)
 
@@ -68,29 +36,33 @@ CREATE TABLE monitor_dispatches (
 )
 
 CREATE TABLE monitors (
+  -- Identity & Ownership
   id TEXT PRIMARY KEY,
   org_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  
+  -- Core Config (Queryable)
   name TEXT NOT NULL,
-  kind TEXT NOT NULL DEFAULT 'http',
-  url TEXT NOT NULL,
-  interval_s INTEGER NOT NULL,
-  timeout_ms INTEGER NOT NULL,
-  follow_redirects INTEGER NOT NULL DEFAULT 1,
-  verify_tls INTEGER NOT NULL DEFAULT 1,
-  expect_status_low INTEGER,
-  expect_status_high INTEGER,
-  expect_substring TEXT,
-  headers_json TEXT,
-  tags_json TEXT,
+  kind TEXT NOT NULL DEFAULT 'http', -- 'http', 'tcp', 'udp'
   enabled INTEGER NOT NULL DEFAULT 1,
-  last_checked_at_ts INTEGER,
-  next_run_at_ts INTEGER,
+  
+  -- Execution Config (The "How")
+  -- Stores: url, interval, timeout, headers, expect_status, etc.
+  -- Why: The Dispatcher just grabs this JSON and passes it to the runner.
+  config_json TEXT NOT NULL, 
 
-  current_status TEXT NOT NULL DEFAULT 'unknown', -- up, down, degraded, maintenance, unknown
-  last_ok INTEGER NOT NULL DEFAULT 1, -- 1 = last check was ok, 0 = last check was not ok
-  consecutive_failures INTEGER NOT NULL DEFAULT 0, -- number of consecutive failures
-  current_incident_id TEXT REFERENCES incidents(id) ON DELETE SET NULL,
+  -- The "Hot State" (Updated by Consumer)
+  status TEXT NOT NULL DEFAULT 'PENDING', -- 'UP', 'DOWN', 'DEGRADED'
+  last_checked_at INTEGER,     -- timestamp ms
+  last_failed_at INTEGER,      -- timestamp ms (The Anchor for streaks)
+  first_checked_at INTEGER,    -- timestamp ms (The Anchor for uptime)
+  rt_ms INTEGER,               -- Latest latency
+  region TEXT,                 -- Latest colo/region
+  last_error TEXT,             -- Human readable error for tooltip
+  
+  -- Scheduling
+  next_run_at INTEGER,         -- Used by Ticker DO
 
+  -- Meta
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 )

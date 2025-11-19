@@ -1,4 +1,4 @@
-use crate::external::queues::{heartbeat_summaries, traces};
+use crate::external::queues::{heartbeat_results, traces};
 use worker::{event, Env, MessageBatch, Result};
 
 #[event(queue)]
@@ -9,7 +9,7 @@ pub async fn queue_router(
 ) -> Result<()> {
     match batch.queue().as_str() {
         "traces" => traces::process_batch(&batch, env, ctx).await?,
-        "heartbeat_summaries" => heartbeat_summaries::process_batch(&batch, env, ctx).await?,
+        "heartbeat_summaries" => heartbeat_results::process_batch(&batch, env, ctx).await?,
         name => worker::console_log!("Unknown queue: {}", name),
     }
     batch.ack_all();

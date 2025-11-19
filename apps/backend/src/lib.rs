@@ -5,7 +5,6 @@ use console_error_panic_hook::set_once as set_panic_hook;
 use hb_tracing::ConsoleLayer;
 use tower_service::Service;
 use tracing_subscriber::{layer::SubscriberExt, registry, util::SubscriberInitExt};
-use tracing::subscriber::set_global_default;
 use worker::{Context, Env, HttpRequest, Result};
 use worker_macros::event;
 
@@ -14,7 +13,6 @@ pub mod bootstrap;
 pub mod cloudflare;
 pub mod d1c;
 pub mod external;
-pub mod heartbeats;
 pub mod internal;
 pub mod monitors;
 pub mod organizations;
@@ -39,9 +37,9 @@ pub async fn main(req: HttpRequest, env: Env, ctx: Context) -> Result<AxumRespon
 
     let response = router.call(request).await?;
 
-    let queue = env.queue("TRACE_QUEUE")?;
+    let trace_queue = env.queue("trace-queue")?;
     ctx.wait_until(async move {
-        if let Err(e) = guard.flush(&queue).await {
+        if let Err(e) = guard.flush(&trace_queue).await {
             worker::console_error!("Error flushing traces: {:?}", e);
         }
     });
