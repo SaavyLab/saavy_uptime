@@ -63,18 +63,24 @@ export default function BootstrapWizard({
 	});
 
 	return (
-		<main className="min-h-screen bg-[var(--surface)] px-4 py-10 text-[var(--text-primary)] lg:px-8">
-			<div className="mx-auto flex max-w-5xl flex-col gap-6">
-				<div className="space-y-3">
-					<p className="text-sm font-medium uppercase tracking-wide text-[var(--text-muted)]">
+		<main className="min-h-screen bg-background px-4 py-10 text-foreground flex items-center justify-center lg:px-8 relative">
+			{/* Background Flavor */}
+			<div className="fixed inset-0 z-0 pointer-events-none">
+				<div className="absolute top-0 right-0 -mt-20 -mr-20 w-96 h-96 rounded-full bg-primary/5 blur-3xl" />
+				<div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-96 h-96 rounded-full bg-primary/5 blur-3xl" />
+			</div>
+
+			<div className="w-full max-w-lg space-y-8 relative z-10">
+				<div className="text-center space-y-2">
+					<p className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
 						Onboarding
 					</p>
-					<h1 className="text-3xl font-semibold tracking-tight">
+					<h1 className="text-3xl font-bold tracking-tight">
 						Welcome to Saavy Uptime
 					</h1>
-					<p className="text-base text-[var(--text-muted)]">
+					<p className="text-muted-foreground">
 						You’re signed in as{" "}
-						<span className="font-semibold text-[var(--text-primary)]">
+						<span className="font-medium text-foreground">
 							{email}
 						</span>
 						. Create your first organization to unlock monitors, incidents, and
@@ -82,9 +88,9 @@ export default function BootstrapWizard({
 					</p>
 				</div>
 
-				<Card className="border-[var(--border-subtle)] bg-[var(--surface-strong)]">
+				<Card className="border-border bg-card">
 					<CardHeader>
-						<CardTitle className="text-2xl">Create your organization</CardTitle>
+						<CardTitle className="text-xl">Create your organization</CardTitle>
 						<CardDescription>
 							We suggest a slug based on your Access team. You can update the
 							name, slug, and other settings later.
@@ -110,25 +116,31 @@ export default function BootstrapWizard({
 										},
 									}}
 								>
-									{(field) => <field.TextField label="Organization name" />}
+									{(field) => (
+										<field.TextField
+											label="Organization Name"
+											placeholder="My Organization"
+										/>
+									)}
 								</form.AppField>
 								<form.AppField name="slug">
 									{(field) => (
 										<field.TextField
-											label="Organization slug"
+											label="Slug"
+											placeholder="my-org"
 											description="Used in URLs and status pages"
 										/>
 									)}
 								</form.AppField>
-								<div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+								<div className="flex flex-col gap-4 pt-2">
 									<Button
 										type="submit"
-										className="w-full sm:w-auto"
+										className="w-full"
 										disabled={mutation.isPending}
 									>
 										{mutation.isPending ? "Creating..." : "Create organization"}
 									</Button>
-									<p className="text-sm text-[var(--text-muted)]">
+									<p className="text-xs text-center text-muted-foreground">
 										We’ll automatically redirect you to the dashboard
 										afterwards.
 									</p>

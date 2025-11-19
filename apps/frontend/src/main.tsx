@@ -3,14 +3,12 @@ import type { Register, RootRoute } from "@tanstack/react-router";
 import {
 	createRootRoute,
 	createRouter,
-	Outlet,
 	RouterProvider,
 } from "@tanstack/react-router";
-import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { StrictMode } from "react";
 import ReactDOM from "react-dom/client";
-import Header from "@/components/Header";
 import BootstrapGate from "@/components/BootstrapGate";
+import Layout from "@/components/Layout";
 import * as TanStackQueryProvider from "@/integrations/tanstack-query/root-provider.tsx";
 import DashboardRoute from "@/routes/dashboard.tsx";
 import DAGRoute from "@/routes/dag.tsx";
@@ -31,9 +29,7 @@ interface RouterContext {
 const rootRoute = createRootRoute<RouterContext>({
 	component: () => (
 		<BootstrapGate>
-			<Header />
-			<Outlet />
-			<TanStackRouterDevtools />
+			<Layout />
 		</BootstrapGate>
 	),
 });

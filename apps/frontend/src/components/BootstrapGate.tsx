@@ -17,10 +17,10 @@ function FullScreenMessage({
 	action?: ReactNode;
 }) {
 	return (
-		<div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-900 text-slate-50">
+		<div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background text-foreground p-4">
 			<div className="text-center">
 				<h1 className="text-2xl font-semibold">{title}</h1>
-				{body ? <p className="mt-2 text-slate-300">{body}</p> : null}
+				{body ? <p className="mt-2 text-muted-foreground">{body}</p> : null}
 			</div>
 			{action}
 		</div>

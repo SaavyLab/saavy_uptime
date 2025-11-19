@@ -285,3 +285,22 @@ pub async fn select_org_member(
     let result = stmt.first::<SelectOrgMemberRow>(None).await?;
     Ok(result)
 }
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct GetOrganizationMembersRow {
+    pub email: String,
+    pub role: String,
+}
+#[tracing::instrument(name = "d1c.get_organization_members", skip(d1))]
+pub async fn get_organization_members(
+    d1: &D1Database,
+    organization_id: &str,
+) -> Result<Vec<GetOrganizationMembersRow>> {
+    let stmt = d1
+        .prepare(
+            "SELECT m.email, om.role FROM members AS m JOIN organization_members AS om ON m.identity_id = om.identity_id WHERE om.organization_id = ?1",
+        );
+    let stmt = stmt.bind(&[organization_id.into()])?;
+    let result = stmt.all().await?;
+    let rows = result.results::<GetOrganizationMembersRow>()?;
+    Ok(rows)
+}
