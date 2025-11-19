@@ -1,6 +1,6 @@
 # Saavy Uptime
 
-Cloudflare-native uptime and incident monitoring: Rust Workers + Durable Objects for sub‑minute scheduling, D1 for hot configuration/heartbeats, Analytics Engine for aggregates, R2 for archival, and a Vite/React dashboard served via Cloudflare Pages. Everything in this repo is open source and deploys into your own Cloudflare account so you control the knobs *and* the bill. Running entirely on Cloudflare’s global edge means no servers, no cron VMs, no regional outages, and sub-50ms cold starts for every check.
+Cloudflare-native uptime and incident monitoring: Rust Workers + Durable Objects for sub‑minute scheduling, D1 for hot configuration/state, Analytics Engine for historical aggregates, and a Vite/React dashboard served via Cloudflare Pages. Everything in this repo is open source and deploys into your own Cloudflare account so you control the knobs *and* the bill. Running entirely on Cloudflare’s global edge means no servers, no cron VMs, no regional outages, and sub-50ms cold starts for every check.
 
 > **Status:** Actively in development. Phase 1/2 of the implementation plan (monitor CRUD + scheduler + HTTP checks) is underway—expect APIs and UI to evolve quickly.
 
@@ -22,7 +22,7 @@ Instead of buying uptime from someone else, you deploy this Worker + Durable Obj
 ## Highlights
 
 - **Sub-minute scheduling** – Durable Object alarms claim due monitors in batches and dispatch immediately, no cron drift or VM orchestration.
-- **Cloudflare-first architecture** – Axum Worker secured by Access, DO ticker for stateful scheduling, D1 for config + heartbeats, Analytics Engine for aggregates, R2 for cold storage.
+- **Cloudflare-first architecture** – Axum Worker secured by Access, DO ticker for stateful scheduling, D1 for config + monitor hot state, Analytics Engine for aggregates written via queues.
 - **Bring-your-own cost model** – tweak intervals, retention, and aggregation to match your budget; you pay Cloudflare directly.
 - **One-click deploy** – Wrangler + Pages handle everything; no extra infrastructure to babysit.
 - **Stretch goals** – real-time execution DAG, geographic POP map, predictive cost dashboard, R2 time-travel incident replay, collaborative incident timelines (`docs/highlight-features.md`).
@@ -83,10 +83,10 @@ curl -X POST http://localhost:8787/api/internal/seed \
 
 1. **Foundations** – Wrangler config, Access, D1 schema, CI (done).
 2. **Monitor CRUD + ticker** – API/UI + Durable Object scheduler (in progress).
-3. **HTTP execution & storage** – Real checks, D1 heartbeats, AE metrics, incident skeleton.
+3. **HTTP execution & storage** – Real checks, D1 hot-state updates, queue → AE metrics, incident skeleton.
 4. **Dashboard & status pages** – AE-backed aggregates, public `/status/<slug>`.
 5. **Notifications** – Webhook/email policies, retries, delivery logs.
-6. **Lifecycle & polish** – R2 archival cron, import/export, service tokens, “wow” visualizations.
+6. **Lifecycle & polish** – Queue/AE tuning, import/export, service tokens, “wow” visualizations.
 
 Full phase details live in `docs/implementation-plan.md`.
 
