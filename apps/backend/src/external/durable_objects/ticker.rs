@@ -12,10 +12,10 @@ use crate::{
         DispatchPayload, MonitorDispatchRow, TickerConfig, TickerError, TickerState,
     },
     d1c::queries::{
-        monitor_dispatches::create_dispatch,
         monitors::{list_due_monitors, update_monitor_next_run_at_stmt},
         organizations::get_org_sample_rate,
     },
+    dispatch_state::record_pending_dispatch,
     internal::types::MonitorKind,
     monitors::types::HttpMonitorConfig,
     utils::date::now_ms,
@@ -211,32 +211,30 @@ impl Ticker {
         sample_rate: f64,
     ) -> std::result::Result<(), TickerError> {
         let dispatch_id = create_id().to_string();
-        self.record_dispatch(config, &monitor, &dispatch_id).await?;
+        self.record_pending_dispatch(&config.org_id, &monitor, &dispatch_id)
+            .await?;
         self.send_dispatch_request(&dispatch_id, &config.org_id, &monitor, sample_rate)
             .await
     }
 
-    async fn record_dispatch(
+    async fn record_pending_dispatch(
         &self,
-        config: &TickerConfig,
+        org_id: &str,
         monitor: &MonitorDispatchRow,
         dispatch_id: &str,
     ) -> std::result::Result<(), TickerError> {
         let d1 = self.env.d1("DB")?;
         let now = now_ms();
-
-        create_dispatch(
+        record_pending_dispatch(
             &d1,
-            dispatch_id,
             &monitor.id,
-            &config.org_id,
-            "pending",
+            org_id,
+            dispatch_id,
             monitor.scheduled_for_ts,
             now,
         )
-        .await?;
-
-        Ok(())
+        .await
+        .map_err(|err| TickerError::database("ticker.dispatch.hot", err))
     }
 
     async fn send_dispatch_request(

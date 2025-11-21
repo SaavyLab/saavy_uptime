@@ -16,7 +16,7 @@ tasks:
   dev:
     desc: "Run Wrangler dev server"
     cmds:
-      - wrangler dev
+      - wrangler dev {{.CLI_ARGS}}
     
   test-env:
     cmds:
@@ -87,7 +87,7 @@ tasks:
     desc: "Deploy worker to Cloudflare"
     deps: [build]
     cmds:
-      - wrangler deploy
+      - wrangler deploy {{.CLI_ARGS}}
 
   clean:
     desc: "Clean build artifacts"

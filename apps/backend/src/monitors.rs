@@ -10,6 +10,10 @@ pub mod types;
 
 pub fn router() -> Router<AppState> {
     Router::new()
+        .route(
+            "/{id}/heartbeats",
+            get(handlers::get_monitor_heartbeats_handler),
+        )
         .route("/{id}", get(handlers::get_monitor_by_id_handler))
         .route("/", get(handlers::get_monitors_handler))
         .route("/", post(handlers::create_monitor_handler))

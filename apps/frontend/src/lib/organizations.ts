@@ -1,7 +1,5 @@
 import { z } from "zod";
-import { withAccessHeader } from "./api";
-
-const apiBase = import.meta.env.VITE_API_URL;
+import { apiBase, withAccessHeader } from "./api";
 
 const createOrganizationSchema = z.object({
 	slug: z.string(),

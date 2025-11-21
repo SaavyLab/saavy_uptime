@@ -10,7 +10,7 @@ use worker::{
 };
 use worker::{D1Database, Queue};
 
-use crate::d1c::queries::monitor_dispatches::{complete_dispatch, dispatch_monitor};
+use crate::dispatch_state::{finalize_dispatch, mark_dispatch_running};
 use crate::internal::types::{DispatchError, DispatchRequest, MonitorKind};
 use crate::monitors::service::update_monitor_status_for_org;
 use crate::monitors::types::{HeartbeatResult, MonitorStatus, MonitorStatusSnapshot};
@@ -27,38 +27,52 @@ pub async fn handle_dispatch(
     let region: String = cf.region().unwrap_or("unknown".to_string());
     let colo: String = cf.colo();
 
-    dispatch_monitor(&d1, "running", start, &payload.dispatch_id).await?;
+    mark_dispatch_running(
+        &d1,
+        &payload.monitor_id,
+        &payload.dispatch_id,
+        Some(&colo),
+        start,
+    )
+    .await
+    .map_err(|err| DispatchError::database("dispatch.hot.running", err))?;
 
     let check = check_monitor(&payload, start, &region, &colo).await;
     let fallback_end = now_ms();
+    let mut dispatch_status = "completed";
+    let mut dispatch_error: Option<String> = None;
 
-    let (end_ms, dispatch_status) = match &check {
-        Ok(result) => (result.timestamp, "completed"),
-        Err(DispatchError::CheckFailed(result)) => (result.timestamp, "failed"),
-        Err(_err) => (fallback_end, "failed"),
-    };
-
-    complete_dispatch(&d1, dispatch_status, end_ms, &payload.dispatch_id).await?;
-
-    match check {
+    let completion_ts = match check {
         Ok(result) => {
+            let ts = result.timestamp;
             persist_heartbeat_result(&d1, &heartbeat_queue, &snapshot, result).await?;
+            ts
         }
         Err(DispatchError::CheckFailed(result)) => {
+            let ts = result.timestamp;
+            let error_text = result
+                .error
+                .clone()
+                .unwrap_or_else(|| "check failed".to_string());
+            dispatch_status = "failed";
+            dispatch_error = Some(error_text);
             persist_heartbeat_result(&d1, &heartbeat_queue, &snapshot, result).await?;
+            ts
         }
         Err(err) => {
             let failure_ts = fallback_end;
             let latency_ms = failure_ts - start;
             let error_message: String = err.into();
+            dispatch_status = "failed";
+            dispatch_error = Some(error_message.clone());
             persist_heartbeat_result(
                 &d1,
                 &heartbeat_queue,
                 &snapshot,
                 HeartbeatResult {
-                    monitor_id: payload.monitor_id,
-                    org_id: payload.org_id,
-                    dispatch_id: payload.dispatch_id,
+                    monitor_id: payload.monitor_id.clone(),
+                    org_id: payload.org_id.clone(),
+                    dispatch_id: payload.dispatch_id.clone(),
                     timestamp: failure_ts,
                     status: MonitorStatus::Down,
                     latency_ms,
@@ -70,8 +84,20 @@ pub async fn handle_dispatch(
                 },
             )
             .await?;
+            failure_ts
         }
-    }
+    };
+
+    finalize_dispatch(
+        &d1,
+        &payload.monitor_id,
+        &payload.dispatch_id,
+        dispatch_status,
+        completion_ts,
+        dispatch_error.as_deref(),
+    )
+    .await
+    .map_err(|err| DispatchError::database("dispatch.hot.complete", err))?;
 
     Ok(())
 }

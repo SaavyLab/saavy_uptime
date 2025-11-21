@@ -11,7 +11,7 @@ import {
 	deleteMonitor,
 	getMonitor,
 	getMonitorHeartbeats,
-	type Heartbeat,
+	type HeartbeatSample,
 } from "@/lib/monitors";
 import type { RouterContext } from "@/router-context";
 
@@ -44,11 +44,15 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 			queryFn: () => getMonitor(monitorId),
 		});
 
-		const heartbeatQuery = useQuery({
-			enabled: Boolean(monitorQuery.data),
-			queryKey: ["monitor", monitorId, "heartbeats"],
-			queryFn: () => getMonitorHeartbeats(monitorId, 50),
-		});
+	const heartbeatQuery = useQuery({
+		enabled: Boolean(monitorQuery.data),
+		queryKey: ["monitor", monitorId, "heartbeats"],
+		queryFn: () =>
+			getMonitorHeartbeats(monitorId, {
+				limit: 100,
+				windowHours: 24,
+			}),
+	});
 
 		const deleteMutation = useMutation({
 			mutationFn: () => deleteMonitor(monitorId),
@@ -78,7 +82,9 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 		};
 
 		const monitor = monitorQuery.data;
-		const heartbeats = heartbeatQuery.data ?? [];
+		const heartbeatResponse = heartbeatQuery.data;
+		const heartbeats = heartbeatResponse?.items ?? [];
+		const heartbeatWindow = heartbeatResponse?.window;
 
 		return (
 			<div className="space-y-8">
@@ -213,10 +219,15 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 									</div>
 								</dl>
 							</SectionCard>
-							<SectionCard
+					<SectionCard
 								title="Recent heartbeats"
 								description="Latest executions streamed from the worker ticker"
 							>
+						{heartbeatWindow && (
+							<p className="text-xs text-muted-foreground font-mono mb-2">
+								Observing last {heartbeatWindow.hours}h · {new Date(heartbeatWindow.sinceMs).toLocaleString()} → {new Date(heartbeatWindow.untilMs).toLocaleString()}
+							</p>
+						)}
 								{heartbeatQuery.isLoading ? (
 									<div className="space-y-3">
 										<Skeleton className="h-12" />
@@ -243,12 +254,12 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 									</p>
 								) : (
 									<div className="space-y-3">
-										{heartbeats.map((heartbeat) => (
-											<HeartbeatRow
-												key={`${heartbeat.monitorId}-${heartbeat.ts}`}
-												heartbeat={heartbeat}
-											/>
-										))}
+							{heartbeats.map((heartbeat) => (
+								<HeartbeatRow
+									key={`${heartbeat.dispatchId ?? "unknown"}-${heartbeat.timestampMs}`}
+									heartbeat={heartbeat}
+								/>
+							))}
 									</div>
 								)}
 							</SectionCard>
@@ -262,8 +273,9 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 	return route;
 };
 
-function HeartbeatRow({ heartbeat }: { heartbeat: Heartbeat }) {
-	const ok = heartbeat.ok === 1;
+function HeartbeatRow({ heartbeat }: { heartbeat: HeartbeatSample }) {
+	const ok = heartbeat.status === "up";
+	const region = heartbeat.region ?? heartbeat.colo ?? "Unknown POP";
 	return (
 		<div className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm">
 			<div className="flex flex-wrap items-center justify-between gap-3">
@@ -279,11 +291,11 @@ function HeartbeatRow({ heartbeat }: { heartbeat: Heartbeat }) {
 						{ok ? "OK" : "FAIL"}
 					</p>
 					<p className="font-mono text-xs text-[var(--text-muted)]">
-						{heartbeat.region ?? "Unknown POP"}
+						{region}
 					</p>
 				</div>
 				<p className="font-mono text-xs text-[var(--text-muted)]">
-					{formatHeartbeatTimestamp(heartbeat.ts)}
+					{formatHeartbeatTimestamp(heartbeat.timestampMs)}
 				</p>
 			</div>
 			<div className="mt-2 grid grid-cols-2 gap-3 text-xs font-mono text-[var(--text-muted)] md:grid-cols-4">
@@ -298,7 +310,7 @@ function HeartbeatRow({ heartbeat }: { heartbeat: Heartbeat }) {
 						RTT
 					</p>
 					<p className="text-[var(--text-primary)]">
-						{heartbeat.rttMs ? `${heartbeat.rttMs}ms` : "—"}
+						{heartbeat.latencyMs ? `${heartbeat.latencyMs}ms` : "—"}
 					</p>
 				</div>
 				<div className="md:col-span-2">
@@ -306,7 +318,7 @@ function HeartbeatRow({ heartbeat }: { heartbeat: Heartbeat }) {
 						Error
 					</p>
 					<p className="text-[var(--text-primary)] break-all">
-						{heartbeat.err ?? "—"}
+						{heartbeat.error ?? "—"}
 					</p>
 				</div>
 			</div>
