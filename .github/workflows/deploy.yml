@@ -1,2 +1,83 @@
-# this is where my massive deploy script would live
-# if i had a massive deploy script
+name: Deploy (Cloudflare)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Wrangler environment to deploy"
+        type: choice
+        default: preview
+        options:
+          - preview
+          - production
+      apply_migrations:
+        description: "Run D1 migrations before deploying the backend"
+        type: boolean
+        default: true
+      pages_project:
+        description: "Cloudflare Pages project name"
+        type: string
+        default: saavy-uptime
+      pages_branch:
+        description: "Branch name to map to the Pages environment"
+        type: string
+        default: preview
+
+concurrency:
+  group: deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: read
+      deployments: write
+    env:
+      WRANGLER_ENV: ${{ inputs.environment }}
+      D1_DATABASE_NAME: ${{ inputs.environment == 'production' && 'saavy_uptime' || 'saavy_uptime_preview' }}
+      PAGES_PROJECT_NAME: ${{ inputs.pages_project }}
+      PAGES_BRANCH: ${{ inputs.pages_branch }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CARGO_TERM_COLOR: always
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wrangler
+        run: npm install -g wrangler@3
+
+      - name: Install frontend dependencies
+        working-directory: apps/frontend
+        run: bun install --frozen-lockfile
+
+      - name: Build frontend
+        working-directory: apps/frontend
+        run: bun run build
+
+      - name: Deploy frontend to Pages
+        working-directory: apps/frontend
+        run: wrangler pages deploy dist --project-name="${PAGES_PROJECT_NAME}" --branch="${PAGES_BRANCH}"
+
+      - name: Apply D1 migrations
+        if: ${{ inputs.apply_migrations == true }}
+        working-directory: apps/backend
+        run: wrangler d1 migrations apply "${D1_DATABASE_NAME}" --env "${WRANGLER_ENV}"
+
+      - name: Deploy backend Worker
+        working-directory: apps/backend
+        run: wrangler deploy --env "${WRANGLER_ENV}"
