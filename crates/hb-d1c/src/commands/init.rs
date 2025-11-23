@@ -187,8 +187,7 @@ pub fn run(conn: &Connection, args: &InitArgs) -> Result<(), Error> {
     )
     .with_help_message(
         "Adds #[tracing::instrument] to generated functions. Requires `tracing` crate dependency. \
-             Intended for use with saavylab/cf-tracing to send query spans to \
-             Workers Queues -> Analytics Enginer -> Grafana",
+         Works with Cloudflare Workers Observability when traces/logs are enabled.",
     )
     .with_default(false)
     .prompt()?;

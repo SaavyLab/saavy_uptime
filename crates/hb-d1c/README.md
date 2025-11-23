@@ -197,9 +197,9 @@ SELECT balance FROM accounts WHERE user_id = :user_id AND currency = :currency;
 
 ---
 
-## Observability with cf-tracing
+## Observability
 
-d1c integrates with [**cf-tracing**](../cf-tracing) to give you automatic observability into every database query. When enabled, generated functions are instrumented with `#[tracing::instrument]`, so you can see query durations, parameters, and row counts in Analytics Engine—without manual logging.
+d1c can add `#[tracing::instrument]` to generated functions so database spans flow into whatever telemetry backend you use (Cloudflare Workers Observability picks them up automatically when traces/logs are enabled).
 
 **Enable during setup:**
 ```bash
@@ -215,7 +215,7 @@ instrument_by_default = true
 **What you get:**
 - Automatic span tracking for every query (`d1c.list_users`, `d1c.get_monitor`, etc.)
 - Query parameters logged by default (except sensitive fields)
-- Integration with Grafana dashboards for performance analysis
+- Works with built-in Workers tracing/logging (no extra crate required)
 
 **Hide sensitive parameters:**
 ```sql
@@ -229,8 +229,6 @@ This generates:
 #[tracing::instrument(name = "d1c.login_user", skip(d1, password_hash))]
 pub async fn login_user(d1: &D1Database, email: &str, password_hash: &str) { ... }
 ```
-
-**See [cf-tracing](../cf-tracing) for full setup** (Analytics Engine + Grafana dashboards).
 
 ---
 

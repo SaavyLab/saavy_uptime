@@ -2,6 +2,8 @@
 
 We treat observability as a product feature, not an ops afterthought. The same instrumentation that keeps Saavy Uptime healthy powers the end‑user experience (execution DAG, geo map, cost dashboard, incident replay).
 
+> Update: Cloudflare Workers Observability now provides built-in tracing/logging across fetch/bindings/handlers (`observability.traces` / `observability.logs` in `wrangler.toml`). The AE-first approach below is kept for legacy notes and product telemetry experiments.
+
 ## Architecture
 
 ```

@@ -7,7 +7,6 @@ Guidance for AI agents (and future contributors) working in this repo.
 We are building `hb`, a collection of sharp, single-purpose Rust crates for Cloudflare Workers (see `crates/hb-README.md`).
 Current components:
 - `hb-d1c`: Type-safe SQL generation.
-- `hb-tracing`: Distributed tracing to Analytics Engine.
 - `hb-auth`: Access JWT validation & permission DSL.
 - `hb-sync`: Distributed primitives (Mutex, RWLock) for Durable Objects.
 
@@ -57,4 +56,3 @@ Be on the lookout for:
 - **Feature Flags:** We need a strongly-typed flag system backed by KV/D1.
 - **Secrets:** A compile-time validated secret loader to prevent runtime panics.
 - **Rate Limiting:** Distributed rate limiters for DOs.
-

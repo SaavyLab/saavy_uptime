@@ -7,7 +7,7 @@ Living runbook for getting Saavy Uptime into any Cloudflare environment today wh
 Cloudflare’s Deploy Buttons remove most of the manual toil:
 
 1. Click the **Deploy to Cloudflare** badge in `README.md` (or visit `https://deploy.workers.cloudflare.com/?url=https://github.com/SaavyLab/saavy_uptime`). Cloudflare will clone the repo into your GitHub/GitLab account.
-2. Accept or edit the default resource names for the Worker, Durable Object namespace, D1 database, Analytics Engine datasets (heartbeats + traces), R2 bucket, queues, and Secrets Store. The placeholders in `wrangler.toml` are intentionally generic so the button can provision fresh resources.
+2. Accept or edit the default resource names for the Worker, Durable Object namespace, D1 database, Analytics Engine dataset (heartbeats), R2 bucket, queues, and Secrets Store. The placeholders in `wrangler.toml` are intentionally generic so the button can provision fresh resources.
 3. Fill in the environment variable + secret prompts (Access team domain/audience, dispatch token/base URL, AE account ID, etc.). The descriptions defined in `package.json` surface here.
 4. Confirm the build/deploy commands. The generated scripts run the frontend build, apply migrations via `wrangler d1 migrations apply DB`, then deploy the Worker. After the workflow completes you’ll have a fully provisioned stack (plus a fork you own).
 5. Manual follow-ups: create/adjust your Cloudflare Access application to protect the Worker + Pages domain, add any custom domains/DNS, and backfill demo data if desired.
@@ -56,7 +56,6 @@ Set the `database_id`, AE dataset, and R2 bucket identifiers per environment ins
 6. **Queues**
     ```
     npx wrangler queues create heartbeat-queue
-    npx wrangler queues create trace-queue
     ```
 6. **Pages project** (one-time):
    ```bash
@@ -114,7 +113,7 @@ wrangler pages deploy dist --project-name=saavy-uptime --branch=preview
 2. **Bootstrap** – Confirm `/api/bootstrap/status|initialize` work on preview DB.
 3. **Monitor CRUD** – Create/update monitors via UI, verify D1 rows.
 4. **Ticker + dispatch** – Tail logs to ensure DO alarms dispatch monitors and runner writes to `heartbeats`.
-5. **AE ingest** – Check Analytics Engine dataset receives traces (use `wrangler analytics-engine query` once bindings exist).
+5. **AE ingest** – Check the Analytics Engine dataset receives heartbeat summaries (use `wrangler analytics-engine query` once bindings exist).
 6. **Status page** – Hit `/status/<slug>` (still Access-protected for now).
 
 ## 9. Demo Data (optional)

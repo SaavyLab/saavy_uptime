@@ -119,7 +119,7 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
 Now that you have d1c set up, check out:
 
 - **[QUERY_FORMAT.md](QUERY_FORMAT.md)** – Complete reference for query syntax, cardinalities, and headers
-- **[README.md#observability-with-cf-tracing](README.md#observability-with-cf-tracing)** – Enable automatic tracing for database queries
+- **[README.md#observability](README.md#observability)** – Enable automatic tracing for database queries
 - **`d1c watch`** – Run in a separate terminal to auto-regenerate on file changes
 
 ### Tips for Success

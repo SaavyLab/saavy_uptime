@@ -29,9 +29,6 @@
       "AE_ACCOUNT_ID": {
         "description": "Analytics Engine account ID (from Cloudflare dashboard → Analytics Engine)."
       },
-      "AE_TRACES_DATASET": {
-        "description": "Dataset name for distributed tracing spans written by the trace queue consumer."
-      },
       "AE_HEARTBEATS_DATASET": {
         "description": "Dataset name for heartbeat summaries written by the heartbeat queue consumer."
       },
@@ -41,9 +38,6 @@
       "DB": {
         "description": "Primary D1 database binding that stores orgs, monitors, schedules, and incidents."
       },
-      "AE_TRACES": {
-        "description": "Analytics Engine dataset binding for tracing spans (auto-provisioned by Deploy Button)."
-      },
       "AE_HEARTBEATS": {
         "description": "Analytics Engine dataset binding for monitor heartbeat metrics."
       },
@@ -52,9 +46,6 @@
       },
       "heartbeat-queue": {
         "description": "Workers Queue that carries heartbeat summaries from runners to the AE writer."
-      },
-      "trace-queue": {
-        "description": "Workers Queue that carries tracing spans to the Analytics Engine writer."
       },
       "TICKER": {
         "description": "Durable Object namespace backing the global ticker that schedules monitor execution."
