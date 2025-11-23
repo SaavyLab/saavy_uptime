@@ -13,7 +13,7 @@ pub use console_layer::ConsoleLayer;
 static INITIALIZED: OnceCell<()> = OnceCell::new();
 
 pub fn init(env: &Env) {
-    INITIALIZED.get_or_init(|| match env.analytics_engine("AE") {
+    INITIALIZED.get_or_init(|| match env.analytics_engine("AE_TRACES") {
         Ok(dataset) => {
             console_log!("observability: analytics engine enabled");
             let subscriber = Registry::default()

@@ -19,7 +19,7 @@ pub async fn process_batch(
         })
         .collect();
 
-    let dataset = env.analytics_engine("AE")?;
+    let dataset = env.analytics_engine("AE_HEARTBEATS")?;
     handle_slice(&summaries, &dataset)?;
     batch.ack_all();
     Ok(())

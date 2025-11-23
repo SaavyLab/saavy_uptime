@@ -13,7 +13,7 @@ pub struct AeQueryClient {
 impl AeQueryClient {
     pub async fn from_env(env: &Env) -> Result<Self> {
         let account_id = env.var("AE_ACCOUNT_ID")?.to_string();
-        let dataset = env.var("AE_DATASET")?.to_string();
+        let dataset = env.var("AE_HEARTBEATS_DATASET")?.to_string();
         let api_token = load_api_token(env).await?;
 
         let endpoint = format!(
