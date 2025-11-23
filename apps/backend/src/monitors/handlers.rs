@@ -1,3 +1,5 @@
+use crate::analytics::extractor::AppAeClient;
+use crate::analytics::monitor_health::{recent_heartbeats, HeartbeatSample, TimeWindow};
 use crate::auth::membership::load_membership;
 use crate::auth::Role;
 use crate::cloudflare::d1::AppDb;
@@ -5,8 +7,15 @@ use crate::cloudflare::durable_objects::ticker::AppTicker;
 use crate::d1c::queries::monitors::{delete_monitor, get_monitor_by_id, get_monitors_by_org_id};
 use crate::monitors::service::{create_monitor_for_org, update_monitor_for_org};
 use crate::monitors::types::{CreateMonitor, Monitor, MonitorError, UpdateMonitor};
-use axum::{extract::Path, http::StatusCode, response::Result, Json};
+use crate::utils::date::now_ms;
+use axum::{
+    extract::{Path, Query},
+    http::StatusCode,
+    response::Result,
+    Json,
+};
 use hb_auth::User;
+use serde::{Deserialize, Serialize};
 use worker::console_error;
 
 #[worker::send]
@@ -111,4 +120,73 @@ pub async fn delete_monitor_handler(
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MonitorHeartbeatsQuery {
+    pub limit: Option<usize>,
+    pub window_hours: Option<i64>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MonitorHeartbeatsResponse {
+    pub monitor_id: String,
+    pub window: WindowSummary,
+    pub items: Vec<HeartbeatSample>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WindowSummary {
+    pub since_ms: i64,
+    pub until_ms: i64,
+    pub hours: i64,
+}
+
+#[worker::send]
+#[tracing::instrument(
+    name = "monitors.http.heartbeats",
+    skip(d1, ae_client),
+    fields(monitor_id = %id)
+)]
+pub async fn get_monitor_heartbeats_handler(
+    Path(id): Path<String>,
+    AppDb(d1): AppDb,
+    AppAeClient(ae_client): AppAeClient,
+    Query(params): Query<MonitorHeartbeatsQuery>,
+    auth: User,
+) -> Result<Json<MonitorHeartbeatsResponse>, StatusCode> {
+    let membership = load_membership(&d1, auth.sub()).await?;
+    let org_id = membership.organization_id;
+
+    match get_monitor_by_id(&d1, &id, &org_id).await {
+        Ok(Some(_)) => {}
+        Ok(None) => return Err(StatusCode::NOT_FOUND),
+        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+
+    let limit = params.limit.unwrap_or(100).clamp(1, 500);
+    let hours = params.window_hours.unwrap_or(24).clamp(1, 720);
+    let window = TimeWindow::last_hours(hours, now_ms());
+
+    let items = recent_heartbeats(&ae_client, &id, &org_id, &window, limit)
+        .await
+        .map_err(|err| {
+            console_error!("monitors.heartbeats.ae: {err:?}");
+            StatusCode::BAD_GATEWAY
+        })?;
+
+    let response = MonitorHeartbeatsResponse {
+        monitor_id: id,
+        window: WindowSummary {
+            since_ms: window.since_ms,
+            until_ms: window.until_ms,
+            hours,
+        },
+        items,
+    };
+
+    Ok(Json(response))
 }

@@ -17,6 +17,7 @@ pub struct Organization {
     pub name: String,
     pub created_at: i64,
     pub owner_id: String,
+    pub ae_sample_rate: f64,
 }
 
 impl From<GetOrganizationByIdRow> for Organization {
@@ -27,6 +28,7 @@ impl From<GetOrganizationByIdRow> for Organization {
             name: row.name,
             created_at: row.created_at,
             owner_id: row.owner_id,
+            ae_sample_rate: row.ae_sample_rate,
         }
     }
 }

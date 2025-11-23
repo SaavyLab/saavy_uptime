@@ -20,3 +20,5 @@ export const withAccessHeader = (headers: Record<string, string> = {}) => {
 		"Cf-Access-Jwt-Assertion": accessToken,
 	};
 };
+
+export const apiBase = "http://localhost:8787";

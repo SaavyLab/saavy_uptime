@@ -55,9 +55,15 @@ pub struct DispatchRequest {
     pub timeout_ms: i64,
     pub follow_redirects: bool,
     pub verify_tls: bool,
+    #[serde(default = "default_sample_rate")]
+    pub sample_rate: f64,
     pub status: Option<String>,
     pub first_checked_at: Option<i64>,
     pub last_failed_at: Option<i64>,
+}
+
+const fn default_sample_rate() -> f64 {
+    1.0
 }
 
 #[derive(Debug)]

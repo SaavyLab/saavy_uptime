@@ -1,13 +1,11 @@
 import type { QueryClient } from "@tanstack/react-query";
-import { withAccessHeader } from "./api";
+import { apiBase, withAccessHeader } from "./api";
 
 export type BootstrapStatus = {
 	isBootstrapped: boolean;
 	suggestedSlug: string;
 	email: string;
 };
-
-const apiBase = import.meta.env.VITE_API_URL;
 
 export const fetchBootstrapStatus = async (): Promise<BootstrapStatus> => {
 	const response = await fetch(`${apiBase}/api/bootstrap/status`, {

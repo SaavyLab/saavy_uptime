@@ -1,7 +1,5 @@
 import { z } from "zod";
-import { withAccessHeader } from "./api";
-
-const apiBase = import.meta.env.VITE_API_URL;
+import { apiBase, withAccessHeader } from "./api";
 
 export type HttpMonitorConfig = z.infer<typeof httpMonitorConfigSchema>;
 
@@ -62,18 +60,32 @@ const createMonitorSchema = z.object({
 export type CreateMonitorInput = z.infer<typeof createMonitorSchema>;
 export type UpdateMonitorInput = z.infer<typeof createMonitorSchema>;
 
-const heartbeatSchema = z.object({
-	monitorId: z.string(),
-	dispatchId: z.string().nullable().optional(),
-	ts: z.number(),
-	ok: z.number(),
-	code: z.number().nullable(),
-	rttMs: z.number().nullable(),
-	err: z.string().nullable(),
+const heartbeatSampleSchema = z.object({
+	timestampMs: z.number(),
+	status: z.string(),
+	latencyMs: z.number(),
 	region: z.string().nullable(),
+	colo: z.string().nullable(),
+	error: z.string().nullable(),
+	code: z.number().nullable(),
+	sampleRate: z.number(),
+	dispatchId: z.string().nullable(),
 });
 
-export type Heartbeat = z.infer<typeof heartbeatSchema>;
+const monitorHeartbeatsResponseSchema = z.object({
+	monitorId: z.string(),
+	window: z.object({
+		sinceMs: z.number(),
+		untilMs: z.number(),
+		hours: z.number(),
+	}),
+	items: z.array(heartbeatSampleSchema),
+});
+
+export type HeartbeatSample = z.infer<typeof heartbeatSampleSchema>;
+export type MonitorHeartbeatsResponse = z.infer<
+	typeof monitorHeartbeatsResponseSchema
+>;
 
 const seedResponseSchema = z.object({
 	created: z.number(),
@@ -175,10 +187,16 @@ export const seedMonitors = async (): Promise<SeedResponse> => {
 
 export const getMonitorHeartbeats = async (
 	monitorId: string,
-	limit = 50,
-): Promise<Heartbeat[]> => {
+	options?: { limit?: number; windowHours?: number },
+): Promise<MonitorHeartbeatsResponse> => {
+	const params = new URLSearchParams();
+	const limit = options?.limit ?? 50;
+	const windowHours = options?.windowHours ?? 24;
+	params.set("limit", limit.toString());
+	params.set("windowHours", windowHours.toString());
+
 	const response = await fetch(
-		`${apiBase}/api/monitors/${monitorId}/heartbeats?limit=${limit}`,
+		`${apiBase}/api/monitors/${monitorId}/heartbeats?${params.toString()}`,
 		{
 			headers: withAccessHeader(),
 		},
@@ -188,5 +206,5 @@ export const getMonitorHeartbeats = async (
 		throw new Error(`Unable to load monitor heartbeats (${response.status})`);
 	}
 
-	return heartbeatSchema.array().parse(await response.json());
+	return monitorHeartbeatsResponseSchema.parse(await response.json());
 };

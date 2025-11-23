@@ -8,8 +8,8 @@ pub async fn queue_router(
     ctx: worker::Context,
 ) -> Result<()> {
     match batch.queue().as_str() {
-        "traces" => traces::process_batch(&batch, env, ctx).await?,
-        "heartbeat_summaries" => heartbeat_results::process_batch(&batch, env, ctx).await?,
+        "trace-queue" => traces::process_batch(&batch, env, ctx).await?,
+        "heartbeat-queue" => heartbeat_results::process_batch(&batch, env, ctx).await?,
         name => worker::console_log!("Unknown queue: {}", name),
     }
     batch.ack_all();

@@ -44,6 +44,14 @@ We’re capturing bits that weren’t obvious while porting the backend to the A
 - **Lack of DO migrations doc:** Wrangler requires `[[migrations]]` entries for new DO classes, but the recommended pattern (“append migration per change”) isn’t mentioned in workers-rs docs—you learn it from Wrangler errors.
 - **Local dev errors:** running `cargo check --target wasm32-unknown-unknown` can fail on filesystems that don’t support hardlinks (common on bind mounts). Not workers-rs’ fault, but worth calling out in docs so folks set `CARGO_TARGET_DIR` appropriately.
 - **UDP support is still aspirational:** Cloudflare announced Socket Workers in 2021 with UDP examples, but (as of Nov 2025) only outbound TCP via `connect()` has shipped. UDP remains “not available,” despite the docs snippet. Track progress via <https://community.cloudflare.com/tag/socket-workers>. For now, any UDP-heavy protocols (Minecraft query, Valve A2S) need a proxy or alternative transport.
+### Secret Store + Wrangler dev gotchas
+
+- Secret Stores work great in production, but Wrangler’s local dev **does not** pull remote secrets. You must:
+  1. Create the secret locally (omit `--remote`): `wrangler secrets-store secret create <store-id> AE_API_TOKEN`.
+  2. Start dev with the store mounted: `wrangler dev --secrets-store <store-id>` so Miniflare hydrates the binding.
+- Without step (2) you’ll see `Binding cannot be cast to the type String from Fetcher` when calling `env.secret("...")` / `env.secret_store("...")`.
+- When using secret stores from workers-rs, call `env.secret_store("BINDING")?.get().await?`; the binding→secret mapping is taken from `secrets_store_secrets` in `wrangler.toml`, so `.get()` doesn’t take a name.
+
 - **Analytics Engine bindings missing:** There’s no first-class AE binding in workers-rs; both reads and writes require manual `fetch` calls to `client/v4/accounts/{ACCOUNT_ID}/analytics_engine/sql` with API tokens. We’re considering upstreaming a binding layer—until then every project has to roll its own AE client.
 
 ### D1 ergonomics (parameter binding)

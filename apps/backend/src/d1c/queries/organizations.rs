@@ -41,6 +41,7 @@ pub struct GetOrganizationByIdRow {
     pub name: String,
     pub created_at: i64,
     pub owner_id: String,
+    pub ae_sample_rate: f64,
 }
 #[tracing::instrument(name = "d1c.get_organization_by_id", skip(d1))]
 pub async fn get_organization_by_id(
@@ -105,4 +106,16 @@ pub async fn get_organization_members(
     let result = stmt.all().await?;
     let rows = result.results::<GetOrganizationMembersRow>()?;
     Ok(rows)
+}
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct GetOrgSampleRateRow {
+    pub id: Option<String>,
+    pub ae_sample_rate: f64,
+}
+#[tracing::instrument(name = "d1c.get_org_sample_rate", skip(d1))]
+pub async fn get_org_sample_rate(d1: &D1Database, id: &str) -> Result<Option<GetOrgSampleRateRow>> {
+    let stmt = d1.prepare("SELECT id, ae_sample_rate FROM organizations WHERE id = ?1");
+    let stmt = stmt.bind(&[id.into()])?;
+    let result = stmt.first::<GetOrgSampleRateRow>(None).await?;
+    Ok(result)
 }

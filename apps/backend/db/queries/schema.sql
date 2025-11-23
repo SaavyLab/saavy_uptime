@@ -1,3 +1,6 @@
+CREATE INDEX idx_monitor_dispatch_hot_org_status
+  ON monitor_dispatch_hot (org_id, status)
+
 CREATE INDEX idx_monitors_org_enabled_next_run
   ON monitors (org_id, enabled, next_run_at)
 
@@ -28,9 +31,9 @@ CREATE TABLE members (
   updated_at INTEGER NOT NULL
 )
 
-CREATE TABLE monitor_dispatches (
-  id TEXT PRIMARY KEY,
-  monitor_id TEXT NOT NULL REFERENCES monitors(id) ON DELETE CASCADE,
+CREATE TABLE monitor_dispatch_hot (
+  monitor_id TEXT PRIMARY KEY REFERENCES monitors(id) ON DELETE CASCADE,
+  dispatch_id TEXT NOT NULL,
   org_id TEXT NOT NULL,
   status TEXT NOT NULL,
   scheduled_for_ts INTEGER NOT NULL,
@@ -38,7 +41,7 @@ CREATE TABLE monitor_dispatches (
   completed_at_ts INTEGER,
   runner_colo TEXT,
   error TEXT,
-  created_at INTEGER NOT NULL
+  updated_at INTEGER NOT NULL
 )
 
 CREATE TABLE "monitors" (
@@ -85,7 +88,7 @@ CREATE TABLE organizations (
   slug TEXT NOT NULL UNIQUE,
   name TEXT NOT NULL, -- Display name
   created_at INTEGER NOT NULL
-, owner_id TEXT NOT NULL REFERENCES members(identity_id) ON DELETE CASCADE)
+, owner_id TEXT NOT NULL REFERENCES members(identity_id) ON DELETE CASCADE, ae_sample_rate REAL NOT NULL DEFAULT 1.0)
 
 CREATE TABLE settings (
   key TEXT PRIMARY KEY,
