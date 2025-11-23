@@ -1,0 +1,64 @@
+{
+  "name": "saavy-uptime",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cloudflare-native uptime and incident monitoring (Workers + Durable Objects + D1 + Analytics Engine).",
+  "scripts": {
+    "build": "npm run frontend:build",
+    "frontend:build": "cd apps/frontend && npm install && npm run build",
+    "deploy": "npm run db:migrations:apply && npx wrangler deploy --config wrangler.toml",
+    "db:migrations:apply": "npx wrangler d1 migrations apply DB --remote --config wrangler.toml"
+  },
+  "cloudflare": {
+    "bindings": {
+      "ACCESS_TEAM_DOMAIN": {
+        "description": "Cloudflare Access team domain (https://<team>.cloudflareaccess.com) used to verify Access JWTs."
+      },
+      "ACCESS_AUD": {
+        "description": "Cloudflare Access application Audience Tag that matches the dashboard/worker policy."
+      },
+      "DISPATCH_TOKEN": {
+        "description": "Shared secret used to authorize monitor dispatch callbacks from Durable Objects."
+      },
+      "DISPATCH_BASE_URL": {
+        "description": "Base URL for the Saavy Uptime API (typically this Worker’s public hostname)."
+      },
+      "ENABLE_TICKER_ADMIN": {
+        "description": "Set to 1 to expose internal ticker controls; leave unset/0 for production."
+      },
+      "AE_ACCOUNT_ID": {
+        "description": "Analytics Engine account ID (from Cloudflare dashboard → Analytics Engine)."
+      },
+      "AE_TRACES_DATASET": {
+        "description": "Dataset name for distributed tracing spans written by the trace queue consumer."
+      },
+      "AE_HEARTBEATS_DATASET": {
+        "description": "Dataset name for heartbeat summaries written by the heartbeat queue consumer."
+      },
+      "AE_API_TOKEN": {
+        "description": "Secret (stored in Secrets Store) that authorizes writes to the Analytics Engine datasets."
+      },
+      "DB": {
+        "description": "Primary D1 database binding that stores orgs, monitors, schedules, and incidents."
+      },
+      "AE_TRACES": {
+        "description": "Analytics Engine dataset binding for tracing spans (auto-provisioned by Deploy Button)."
+      },
+      "AE_HEARTBEATS": {
+        "description": "Analytics Engine dataset binding for monitor heartbeat metrics."
+      },
+      "ARCHIVE_BUCKET": {
+        "description": "R2 bucket used for cold-storage of incident artifacts and monitor exports."
+      },
+      "heartbeat-queue": {
+        "description": "Workers Queue that carries heartbeat summaries from runners to the AE writer."
+      },
+      "trace-queue": {
+        "description": "Workers Queue that carries tracing spans to the Analytics Engine writer."
+      },
+      "TICKER": {
+        "description": "Durable Object namespace backing the global ticker that schedules monitor execution."
+      }
+    }
+  }
+}
