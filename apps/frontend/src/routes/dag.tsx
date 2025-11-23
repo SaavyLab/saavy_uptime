@@ -104,11 +104,21 @@ const staticNodes: Node[] = [
 		},
 	},
 	{
-		id: "ae",
+		id: "ae_heartbeats",
 		type: "custom",
 		position: { x: 250, y: 450 },
 		data: {
-			label: "Analytics Engine",
+			label: "AE Heartbeats Dataset",
+			icon: <Activity size={20} className="text-[var(--accent)]" />,
+			type: "Metrics",
+		},
+	},
+	{
+		id: "ae_traces",
+		type: "custom",
+		position: { x: 250, y: 450 },
+		data: {
+			label: "AE Traces Dataset",
 			icon: <Activity size={20} className="text-[var(--accent)]" />,
 			type: "Metrics",
 		},

@@ -5,7 +5,7 @@ pub async fn process_batch(
     env: Env,
     _ctx: Context,
 ) -> Result<()> {
-    let dataset: AnalyticsEngineDataset = env.analytics_engine("AE")?;
+    let dataset: AnalyticsEngineDataset = env.analytics_engine("AE_TRACES")?;
     hb_tracing::handle_json_batch(batch, &dataset)?;
     Ok(())
 }

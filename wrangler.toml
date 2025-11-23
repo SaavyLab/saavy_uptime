@@ -13,7 +13,8 @@ DISPATCH_TOKEN = "local-dev-token"
 DISPATCH_BASE_URL = "http://127.0.0.1:8787/api"
 ENABLE_TICKER_ADMIN = 1
 AE_ACCOUNT_ID = "aef405d01b3d36d6b5ebeed5efe8c2f8"
-AE_DATASET = "saavy_uptime_dev"
+AE_TRACES_DATASET = "saavy_uptime_traces_dev"
+AE_HEARTBEATS_DATASET = "saavy_uptime_heartbeats_dev"
 
 [build]
 command = "cargo install worker-build && worker-build --release"
@@ -42,8 +43,12 @@ migrations_dir = "apps/backend/db/migrations"
 migrations_table = "d1_migrations"
 
 [[analytics_engine_datasets]]
-binding = "AE"
-dataset = "saavy_uptime_dev"
+binding = "AE_TRACES"
+dataset = "saavy_uptime_traces_dev"
+
+[[analytics_engine_datasets]]
+binding = "AE_HEARTBEATS"
+dataset = "saavy_uptime_heartbeats_dev"
 
 [[r2_buckets]]
 binding = "ARCHIVE_BUCKET"
@@ -85,7 +90,8 @@ DISPATCH_TOKEN = "local-dev-token"
 DISPATCH_BASE_URL = "https://api.preview.saavylab.dev/api"
 ENABLE_TICKER_ADMIN = 1
 AE_ACCOUNT_ID = "aef405d01b3d36d6b5ebeed5efe8c2f8"
-AE_DATASET = "saavy_uptime_preview"
+AE_TRACES_DATASET = "saavy_uptime_traces_preview"
+AE_HEARTBEATS_DATASET = "saavy_uptime_heartbeats_preview"
 
 [[env.preview.durable_objects.bindings]]
 name = "TICKER"
@@ -105,8 +111,12 @@ migrations_dir = "apps/backend/db/migrations"
 migrations_table = "d1_migrations"
 
 [[env.preview.analytics_engine_datasets]]
-binding = "AE"
-dataset = "saavy_uptime_preview"
+binding = "AE_TRACES"
+dataset = "saavy_uptime_traces_preview"
+
+[[env.preview.analytics_engine_datasets]]
+binding = "AE_HEARTBEATS"
+dataset = "saavy_uptime_heartbeats_preview"
 
 [[env.preview.r2_buckets]]
 binding = "ARCHIVE_BUCKET"
@@ -149,7 +159,8 @@ DISPATCH_TOKEN = "local-dev-token"
 DISPATCH_BASE_URL = "https://api.uptime.saavylab.dev/api"
 ENABLE_TICKER_ADMIN = 1
 AE_ACCOUNT_ID = "aef405d01b3d36d6b5ebeed5efe8c2f8"
-AE_DATASET = "saavy_uptime"
+AE_TRACES_DATASET = "saavy_uptime_traces"
+AE_HEARTBEATS_DATASET = "saavy_uptime_heartbeats"
 
 [[env.production.durable_objects.bindings]]
 name = "TICKER"
@@ -164,13 +175,16 @@ migrations_dir = "apps/backend/db/migrations"
 migrations_table = "d1_migrations"
 
 [[env.production.analytics_engine_datasets]]
-binding = "AE"
-dataset = "saavy_uptime"
+binding = "AE_TRACES"
+dataset = "saavy_uptime_traces"
+
+[[env.production.analytics_engine_datasets]]
+binding = "AE_HEARTBEATS"
+dataset = "saavy_uptime_heartbeats"
 
 [[env.production.r2_buckets]]
 binding = "ARCHIVE_BUCKET"
 bucket_name = "saavy-uptime"
-
 
 [[env.production.queues.producers]]
 queue = "trace-queue"
@@ -178,5 +192,14 @@ binding = "trace-queue"
 
 [[env.production.queues.consumers]]
 queue = "trace-queue"
+max_batch_size = 100
+max_batch_timeout = 5
+
+[[env.production.queues.producers]]
+queue = "heartbeat-queue"
+binding = "heartbeat-queue"
+
+[[env.production.queues.consumers]]
+queue = "heartbeat-queue"
 max_batch_size = 100
 max_batch_timeout = 5
