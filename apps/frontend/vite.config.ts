@@ -1,12 +1,13 @@
-import { defineConfig, type PluginOption } from 'vite'
-import viteReact from '@vitejs/plugin-react'
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
 import { fileURLToPath, URL } from 'node:url'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [viteReact(), tailwindcss() as PluginOption],
+    // @ts-expect-error - tailwindcss plugin is not typed, this works but vite 7 is a bit wonky still
+  plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

@@ -3,11 +3,8 @@
 use axum::{body::Body as AxumBody, response::Response as AxumResponse};
 use console_error_panic_hook::set_once as set_panic_hook;
 use tower_service::Service;
-use tracing_subscriber::{layer::SubscriberExt, Registry};
 use worker::{Context, Env, HttpRequest, Result};
 use worker_macros::event;
-
-mod telemetry;
 
 pub mod analytics;
 pub mod auth;
@@ -26,9 +23,6 @@ pub mod utils;
 #[event(fetch, respond_with_errors)]
 pub async fn main(req: HttpRequest, env: Env, _ctx: Context) -> Result<AxumResponse> {
     set_panic_hook();
-
-    let subscriber = Registry::default().with(telemetry::ConsoleLayer::default());
-    let _ = tracing::subscriber::set_global_default(subscriber);
 
     let mut router = router::create_router(&env)?;
 
