@@ -141,7 +141,9 @@ function MonitorsPage() {
 	}, [monitors]);
 
 	const monitorStatuses = useMemo(() => {
-		const statuses = Array.from(new Set(monitors.map((monitor) => monitor.status)));
+		const statuses = Array.from(
+			new Set(monitors.map((monitor) => monitor.status)),
+		);
 		return statuses.sort((a, b) => a.localeCompare(b));
 	}, [monitors]);
 
@@ -165,7 +167,10 @@ function MonitorsPage() {
 		const data = [...filteredMonitors];
 		const direction = sortDirection === "asc" ? 1 : -1;
 		data.sort((a, b) => {
-			const compare = (valueA: string | number | null, valueB: string | number | null) => {
+			const compare = (
+				valueA: string | number | null,
+				valueB: string | number | null,
+			) => {
 				if (valueA == null && valueB == null) return 0;
 				if (valueA == null) return -1;
 				if (valueB == null) return 1;
@@ -181,7 +186,10 @@ function MonitorsPage() {
 				case "interval":
 					return direction * compare(a.config.interval, b.config.interval);
 				case "lastCheckedAt":
-					return direction * compare(a.lastCheckedAt ?? null, b.lastCheckedAt ?? null);
+					return (
+						direction *
+						compare(a.lastCheckedAt ?? null, b.lastCheckedAt ?? null)
+					);
 				default:
 					return direction * compare(a.name, b.name);
 			}
@@ -298,7 +306,9 @@ function MonitorsPage() {
 												step={1}
 												value={seedQuantity}
 												onChange={(e) =>
-													setSeedQuantity(Number.parseInt(e.target.value, 10) || 0)
+													setSeedQuantity(
+														Number.parseInt(e.target.value, 10) || 0,
+													)
 												}
 											/>
 										</div>
@@ -378,7 +388,7 @@ function MonitorsPage() {
 			</div>
 
 			<div className="flex flex-col gap-4">
-		<div className="flex items-center gap-4">
+				<div className="flex items-center gap-4">
 					<div className="relative flex-1 max-w-sm">
 						<Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
 						<Input
@@ -401,64 +411,64 @@ function MonitorsPage() {
 							))}
 						</SelectContent>
 					</Select>
-			<Select value={statusFilter} onValueChange={setStatusFilter}>
-				<SelectTrigger className="w-[180px] bg-background">
-					<SelectValue placeholder="Filter by status" />
-				</SelectTrigger>
-				<SelectContent>
-					<SelectItem value="all">All Statuses</SelectItem>
-					{monitorStatuses.map((status) => (
-						<SelectItem key={status} value={status}>
-							{status.toUpperCase()}
-						</SelectItem>
-					))}
-				</SelectContent>
-			</Select>
+					<Select value={statusFilter} onValueChange={setStatusFilter}>
+						<SelectTrigger className="w-[180px] bg-background">
+							<SelectValue placeholder="Filter by status" />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="all">All Statuses</SelectItem>
+							{monitorStatuses.map((status) => (
+								<SelectItem key={status} value={status}>
+									{status.toUpperCase()}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
 				</div>
 
 				<div className="rounded-md border bg-card">
 					<Table>
-				<TableHeader>
-					<TableRow>
-						<TableHead className="w-[300px]">
-							<button
-								type="button"
-								className="flex items-center gap-1"
-								onClick={() => toggleSort("name")}
-							>
-								Name {sortIndicator("name")}
-							</button>
-						</TableHead>
-						<TableHead>
-							<button
-								type="button"
-								className="flex items-center gap-1"
-								onClick={() => toggleSort("status")}
-							>
-								Status {sortIndicator("status")}
-							</button>
-						</TableHead>
-						<TableHead>
-							<button
-								type="button"
-								className="flex items-center gap-1"
-								onClick={() => toggleSort("interval")}
-							>
-								Interval {sortIndicator("interval")}
-							</button>
-						</TableHead>
-						<TableHead>
-							<button
-								type="button"
-								className="flex items-center gap-1"
-								onClick={() => toggleSort("lastCheckedAt")}
-							>
-								Last Check {sortIndicator("lastCheckedAt")}
-							</button>
-						</TableHead>
-						<TableHead className="text-right">Actions</TableHead>
-					</TableRow>
-				</TableHeader>
+						<TableHeader>
+							<TableRow>
+								<TableHead className="w-[300px]">
+									<button
+										type="button"
+										className="flex items-center gap-1"
+										onClick={() => toggleSort("name")}
+									>
+										Name {sortIndicator("name")}
+									</button>
+								</TableHead>
+								<TableHead>
+									<button
+										type="button"
+										className="flex items-center gap-1"
+										onClick={() => toggleSort("status")}
+									>
+										Status {sortIndicator("status")}
+									</button>
+								</TableHead>
+								<TableHead>
+									<button
+										type="button"
+										className="flex items-center gap-1"
+										onClick={() => toggleSort("interval")}
+									>
+										Interval {sortIndicator("interval")}
+									</button>
+								</TableHead>
+								<TableHead>
+									<button
+										type="button"
+										className="flex items-center gap-1"
+										onClick={() => toggleSort("lastCheckedAt")}
+									>
+										Last Check {sortIndicator("lastCheckedAt")}
+									</button>
+								</TableHead>
+								<TableHead className="text-right">Actions</TableHead>
+							</TableRow>
+						</TableHeader>
 						<TableBody>
 							{isLoading ? (
 								<TableRow>

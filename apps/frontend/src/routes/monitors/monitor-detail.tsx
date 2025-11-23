@@ -44,15 +44,15 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 			queryFn: () => getMonitor(monitorId),
 		});
 
-	const heartbeatQuery = useQuery({
-		enabled: Boolean(monitorQuery.data),
-		queryKey: ["monitor", monitorId, "heartbeats"],
-		queryFn: () =>
-			getMonitorHeartbeats(monitorId, {
-				limit: 100,
-				windowHours: 24,
-			}),
-	});
+		const heartbeatQuery = useQuery({
+			enabled: Boolean(monitorQuery.data),
+			queryKey: ["monitor", monitorId, "heartbeats"],
+			queryFn: () =>
+				getMonitorHeartbeats(monitorId, {
+					limit: 100,
+					windowHours: 24,
+				}),
+		});
 
 		const deleteMutation = useMutation({
 			mutationFn: () => deleteMonitor(monitorId),
@@ -219,15 +219,17 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 									</div>
 								</dl>
 							</SectionCard>
-					<SectionCard
+							<SectionCard
 								title="Recent heartbeats"
 								description="Latest executions streamed from the worker ticker"
 							>
-						{heartbeatWindow && (
-							<p className="text-xs text-muted-foreground font-mono mb-2">
-								Observing last {heartbeatWindow.hours}h · {new Date(heartbeatWindow.sinceMs).toLocaleString()} → {new Date(heartbeatWindow.untilMs).toLocaleString()}
-							</p>
-						)}
+								{heartbeatWindow && (
+									<p className="text-xs text-muted-foreground font-mono mb-2">
+										Observing last {heartbeatWindow.hours}h ·{" "}
+										{new Date(heartbeatWindow.sinceMs).toLocaleString()} →{" "}
+										{new Date(heartbeatWindow.untilMs).toLocaleString()}
+									</p>
+								)}
 								{heartbeatQuery.isLoading ? (
 									<div className="space-y-3">
 										<Skeleton className="h-12" />
@@ -254,12 +256,12 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 									</p>
 								) : (
 									<div className="space-y-3">
-							{heartbeats.map((heartbeat) => (
-								<HeartbeatRow
-									key={`${heartbeat.dispatchId ?? "unknown"}-${heartbeat.timestampMs}`}
-									heartbeat={heartbeat}
-								/>
-							))}
+										{heartbeats.map((heartbeat) => (
+											<HeartbeatRow
+												key={`${heartbeat.dispatchId ?? "unknown"}-${heartbeat.timestampMs}`}
+												heartbeat={heartbeat}
+											/>
+										))}
 									</div>
 								)}
 							</SectionCard>
@@ -290,9 +292,7 @@ function HeartbeatRow({ heartbeat }: { heartbeat: HeartbeatSample }) {
 					<p className="font-mono text-[var(--text-primary)]">
 						{ok ? "OK" : "FAIL"}
 					</p>
-					<p className="font-mono text-xs text-[var(--text-muted)]">
-						{region}
-					</p>
+					<p className="font-mono text-xs text-[var(--text-muted)]">{region}</p>
 				</div>
 				<p className="font-mono text-xs text-[var(--text-muted)]">
 					{formatHeartbeatTimestamp(heartbeat.timestampMs)}
