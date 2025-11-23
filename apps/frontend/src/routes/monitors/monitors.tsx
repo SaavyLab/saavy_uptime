@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
 	Table,
 	TableBody,
@@ -25,6 +26,15 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "@/components/ui/dialog";
 import {
 	Select,
 	SelectContent,
@@ -80,6 +90,8 @@ function MonitorsPage() {
 	const [pageSize, setPageSize] = useState(20);
 	const [sortColumn, setSortColumn] = useState<SortColumn>("name");
 	const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+	const [seedQuantity, setSeedQuantity] = useState(300);
+	const [seedDialogOpen, setSeedDialogOpen] = useState(false);
 
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
@@ -106,7 +118,7 @@ function MonitorsPage() {
 	});
 
 	const seedMutation = useMutation({
-		mutationFn: () => seedMonitors(),
+		mutationFn: (quantity: number) => seedMonitors(quantity),
 		onSuccess: ({ created, failed }) => {
 			const description =
 				failed > 0
@@ -114,6 +126,7 @@ function MonitorsPage() {
 					: `Created ${created} monitors`;
 			toast.success("Seed complete", { description });
 			queryClient.invalidateQueries({ queryKey: ["monitors"] });
+			setSeedDialogOpen(false);
 		},
 		onError: (err: unknown) => {
 			toast.error(
@@ -128,7 +141,9 @@ function MonitorsPage() {
 	}, [monitors]);
 
 	const monitorStatuses = useMemo(() => {
-		const statuses = Array.from(new Set(monitors.map((monitor) => monitor.status)));
+		const statuses = Array.from(
+			new Set(monitors.map((monitor) => monitor.status)),
+		);
 		return statuses.sort((a, b) => a.localeCompare(b));
 	}, [monitors]);
 
@@ -152,7 +167,10 @@ function MonitorsPage() {
 		const data = [...filteredMonitors];
 		const direction = sortDirection === "asc" ? 1 : -1;
 		data.sort((a, b) => {
-			const compare = (valueA: string | number | null, valueB: string | number | null) => {
+			const compare = (
+				valueA: string | number | null,
+				valueB: string | number | null,
+			) => {
 				if (valueA == null && valueB == null) return 0;
 				if (valueA == null) return -1;
 				if (valueB == null) return 1;
@@ -168,7 +186,10 @@ function MonitorsPage() {
 				case "interval":
 					return direction * compare(a.config.interval, b.config.interval);
 				case "lastCheckedAt":
-					return direction * compare(a.lastCheckedAt ?? null, b.lastCheckedAt ?? null);
+					return (
+						direction *
+						compare(a.lastCheckedAt ?? null, b.lastCheckedAt ?? null)
+					);
 				default:
 					return direction * compare(a.name, b.name);
 			}
@@ -208,6 +229,17 @@ function MonitorsPage() {
 		return sortDirection === "asc" ? "↑" : "↓";
 	};
 
+	const handleSeedSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+		event.preventDefault();
+		const parsed = Number.parseInt(seedQuantity.toString(), 10);
+		if (!Number.isFinite(parsed) || parsed <= 0) {
+			toast.error("Enter a positive number of monitors to seed");
+			return;
+		}
+
+		seedMutation.mutate(parsed);
+	};
+
 	// Fleet Stats
 	const totalCount = monitors.length;
 	const upCount = monitors.filter((m) => m.status === "up").length;
@@ -241,20 +273,67 @@ function MonitorsPage() {
 								/>
 								Warm Ticker
 							</Button>
-							<Button
-								variant="outline"
-								onClick={() => seedMutation.mutate()}
-								disabled={seedMutation.isPending}
-								className="gap-2"
-							>
-								<Database
-									className={cn(
-										"h-4 w-4",
-										seedMutation.isPending && "animate-spin",
-									)}
-								/>
-								Seed Data
-							</Button>
+							<Dialog open={seedDialogOpen} onOpenChange={setSeedDialogOpen}>
+								<DialogTrigger asChild>
+									<Button
+										variant="outline"
+										className="gap-2"
+										disabled={seedMutation.isPending}
+									>
+										<Database
+											className={cn(
+												"h-4 w-4",
+												seedMutation.isPending && "animate-spin",
+											)}
+										/>
+										Seed Data
+									</Button>
+								</DialogTrigger>
+								<DialogContent>
+									<DialogHeader>
+										<DialogTitle>Seed monitors</DialogTitle>
+										<DialogDescription>
+											Choose how many monitors to generate for testing.
+										</DialogDescription>
+									</DialogHeader>
+									<form onSubmit={handleSeedSubmit} className="space-y-4">
+										<div className="space-y-2">
+											<Label htmlFor="seed-quantity">Quantity</Label>
+											<Input
+												id="seed-quantity"
+												type="number"
+												min={1}
+												step={1}
+												value={seedQuantity}
+												onChange={(e) =>
+													setSeedQuantity(
+														Number.parseInt(e.target.value, 10) || 0,
+													)
+												}
+											/>
+										</div>
+										<DialogFooter>
+											<Button
+												type="button"
+												variant="outline"
+												onClick={() => setSeedDialogOpen(false)}
+											>
+												Cancel
+											</Button>
+											<Button
+												type="submit"
+												disabled={seedMutation.isPending}
+												className="gap-2"
+											>
+												{seedMutation.isPending && (
+													<Database className="h-4 w-4 animate-spin" />
+												)}
+												Seed {seedQuantity > 0 ? seedQuantity : ""}
+											</Button>
+										</DialogFooter>
+									</form>
+								</DialogContent>
+							</Dialog>
 						</>
 					)}
 					<Button
@@ -309,7 +388,7 @@ function MonitorsPage() {
 			</div>
 
 			<div className="flex flex-col gap-4">
-		<div className="flex items-center gap-4">
+				<div className="flex items-center gap-4">
 					<div className="relative flex-1 max-w-sm">
 						<Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
 						<Input
@@ -332,64 +411,64 @@ function MonitorsPage() {
 							))}
 						</SelectContent>
 					</Select>
-			<Select value={statusFilter} onValueChange={setStatusFilter}>
-				<SelectTrigger className="w-[180px] bg-background">
-					<SelectValue placeholder="Filter by status" />
-				</SelectTrigger>
-				<SelectContent>
-					<SelectItem value="all">All Statuses</SelectItem>
-					{monitorStatuses.map((status) => (
-						<SelectItem key={status} value={status}>
-							{status.toUpperCase()}
-						</SelectItem>
-					))}
-				</SelectContent>
-			</Select>
+					<Select value={statusFilter} onValueChange={setStatusFilter}>
+						<SelectTrigger className="w-[180px] bg-background">
+							<SelectValue placeholder="Filter by status" />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="all">All Statuses</SelectItem>
+							{monitorStatuses.map((status) => (
+								<SelectItem key={status} value={status}>
+									{status.toUpperCase()}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
 				</div>
 
 				<div className="rounded-md border bg-card">
 					<Table>
-				<TableHeader>
-					<TableRow>
-						<TableHead className="w-[300px]">
-							<button
-								type="button"
-								className="flex items-center gap-1"
-								onClick={() => toggleSort("name")}
-							>
-								Name {sortIndicator("name")}
-							</button>
-						</TableHead>
-						<TableHead>
-							<button
-								type="button"
-								className="flex items-center gap-1"
-								onClick={() => toggleSort("status")}
-							>
-								Status {sortIndicator("status")}
-							</button>
-						</TableHead>
-						<TableHead>
-							<button
-								type="button"
-								className="flex items-center gap-1"
-								onClick={() => toggleSort("interval")}
-							>
-								Interval {sortIndicator("interval")}
-							</button>
-						</TableHead>
-						<TableHead>
-							<button
-								type="button"
-								className="flex items-center gap-1"
-								onClick={() => toggleSort("lastCheckedAt")}
-							>
-								Last Check {sortIndicator("lastCheckedAt")}
-							</button>
-						</TableHead>
-						<TableHead className="text-right">Actions</TableHead>
-					</TableRow>
-				</TableHeader>
+						<TableHeader>
+							<TableRow>
+								<TableHead className="w-[300px]">
+									<button
+										type="button"
+										className="flex items-center gap-1"
+										onClick={() => toggleSort("name")}
+									>
+										Name {sortIndicator("name")}
+									</button>
+								</TableHead>
+								<TableHead>
+									<button
+										type="button"
+										className="flex items-center gap-1"
+										onClick={() => toggleSort("status")}
+									>
+										Status {sortIndicator("status")}
+									</button>
+								</TableHead>
+								<TableHead>
+									<button
+										type="button"
+										className="flex items-center gap-1"
+										onClick={() => toggleSort("interval")}
+									>
+										Interval {sortIndicator("interval")}
+									</button>
+								</TableHead>
+								<TableHead>
+									<button
+										type="button"
+										className="flex items-center gap-1"
+										onClick={() => toggleSort("lastCheckedAt")}
+									>
+										Last Check {sortIndicator("lastCheckedAt")}
+									</button>
+								</TableHead>
+								<TableHead className="text-right">Actions</TableHead>
+							</TableRow>
+						</TableHeader>
 						<TableBody>
 							{isLoading ? (
 								<TableRow>

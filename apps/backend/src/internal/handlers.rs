@@ -69,7 +69,9 @@ fn validate_dispatch_token(state: &AppState, headers: &HeaderMap) -> Result<(), 
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
-pub struct SeedRequest {}
+pub struct SeedRequest {
+    pub quantity: Option<usize>,
+}
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -83,12 +85,12 @@ pub async fn seed_monitors_handler(
     AppTicker(ticker): AppTicker,
     AppDb(d1): AppDb,
     auth: User,
-    Json(_payload): Json<SeedRequest>,
+    Json(payload): Json<SeedRequest>,
 ) -> Result<Json<SeedResponse>, StatusCode> {
     let membership = load_membership(&d1, auth.sub())
         .await
         .map_err(|err| StatusCode::from(err))?;
-    let templates = seed_definitions();
+    let templates = seed_definitions(payload.quantity.unwrap_or(300));
     let mut created = 0;
     let mut failed = 0;
 
@@ -105,8 +107,10 @@ pub async fn seed_monitors_handler(
     Ok(Json(SeedResponse { created, failed }))
 }
 
-fn seed_definitions() -> Vec<CreateMonitor> {
+fn seed_definitions(quantity: usize) -> Vec<CreateMonitor> {
     let mut monitors = Vec::new();
+
+    let target = quantity / 3;
 
     fn push_many(
         list: &mut Vec<CreateMonitor>,
@@ -132,14 +136,14 @@ fn seed_definitions() -> Vec<CreateMonitor> {
         "https://httpstat.us/503",
         "https://httpstat.us/200?sleep=2000",
     ];
-    push_many(&mut monitors, "httpstat", &httpstat, 100, true);
+    push_many(&mut monitors, "httpstat", &httpstat, target, true);
 
     let postman = [
         "https://postman-echo.com/status/200",
         "https://postman-echo.com/status/500",
         "https://postman-echo.com/delay/1",
     ];
-    push_many(&mut monitors, "postman", &postman, 100, true);
+    push_many(&mut monitors, "postman", &postman, target, true);
 
     let real = [
         "https://www.cloudflare.com",
@@ -148,7 +152,7 @@ fn seed_definitions() -> Vec<CreateMonitor> {
         "https://workers.cloudflare.com",
         "https://www.iana.org/domains/reserved",
     ];
-    push_many(&mut monitors, "real", &real, 100, true);
+    push_many(&mut monitors, "real", &real, target, true);
 
     monitors
 }

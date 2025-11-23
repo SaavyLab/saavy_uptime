@@ -31,12 +31,6 @@ export default function Layout() {
 
 				{/* Main Content */}
 				<main className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10 relative">
-					{/* Background Flavor */}
-					<div className="fixed inset-0 z-0 pointer-events-none">
-						<div className="absolute top-0 right-0 -mt-20 -mr-20 w-96 h-96 rounded-full bg-primary/5 blur-3xl" />
-						<div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-96 h-96 rounded-full bg-primary/5 blur-3xl" />
-					</div>
-
 					<div className="mx-auto max-w-7xl animate-in fade-in slide-in-from-bottom-4 duration-500 relative z-10">
 						<Outlet />
 					</div>

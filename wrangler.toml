@@ -82,7 +82,7 @@ secrets_store_secrets = [
 ACCESS_TEAM_DOMAIN = "https://saavylab.cloudflareaccess.com"
 ACCESS_AUD = "e8604f5d9df109c391b937c4293c06fa76548def743a48fec18da93e0ddddeda"
 DISPATCH_TOKEN = "local-dev-token"
-DISPATCH_BASE_URL = "https://api.uptime.saavylab.dev/api"
+DISPATCH_BASE_URL = "https://api.preview.saavylab.dev/api"
 ENABLE_TICKER_ADMIN = 1
 AE_ACCOUNT_ID = "aef405d01b3d36d6b5ebeed5efe8c2f8"
 AE_DATASET = "saavy_uptime_preview"
@@ -99,8 +99,8 @@ new_classes = ["Ticker"]
 [[env.preview.d1_databases]]
 binding = "DB"
 database_name = "saavy_uptime_preview"
-database_id = "038435b0-ef7d-4232-80c3-fe90c57417f0"
-preview_database_id = "038435b0-ef7d-4232-80c3-fe90c57417f0"
+database_id = "18c0bf0a-729a-435d-aab2-a17b77379ad3"
+preview_database_id = "18c0bf0a-729a-435d-aab2-a17b77379ad3"
 migrations_dir = "apps/backend/db/migrations"
 migrations_table = "d1_migrations"
 
