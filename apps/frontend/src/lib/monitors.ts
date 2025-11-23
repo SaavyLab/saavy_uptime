@@ -169,13 +169,13 @@ export const deleteMonitor = async (monitorId: string): Promise<void> => {
 	}
 };
 
-export const seedMonitors = async (): Promise<SeedResponse> => {
+export const seedMonitors = async (quantity: number): Promise<SeedResponse> => {
 	const response = await fetch(`${apiBase}/api/internal/seed`, {
 		method: "POST",
 		headers: withAccessHeader({
 			"Content-Type": "application/json",
 		}),
-		body: JSON.stringify({}),
+		body: JSON.stringify({ quantity }),
 	});
 
 	if (!response.ok) {

@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
 	Table,
 	TableBody,
@@ -25,6 +26,15 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "@/components/ui/dialog";
 import {
 	Select,
 	SelectContent,
@@ -80,6 +90,8 @@ function MonitorsPage() {
 	const [pageSize, setPageSize] = useState(20);
 	const [sortColumn, setSortColumn] = useState<SortColumn>("name");
 	const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+	const [seedQuantity, setSeedQuantity] = useState(300);
+	const [seedDialogOpen, setSeedDialogOpen] = useState(false);
 
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
@@ -106,7 +118,7 @@ function MonitorsPage() {
 	});
 
 	const seedMutation = useMutation({
-		mutationFn: () => seedMonitors(),
+		mutationFn: (quantity: number) => seedMonitors(quantity),
 		onSuccess: ({ created, failed }) => {
 			const description =
 				failed > 0
@@ -114,6 +126,7 @@ function MonitorsPage() {
 					: `Created ${created} monitors`;
 			toast.success("Seed complete", { description });
 			queryClient.invalidateQueries({ queryKey: ["monitors"] });
+			setSeedDialogOpen(false);
 		},
 		onError: (err: unknown) => {
 			toast.error(
@@ -208,6 +221,17 @@ function MonitorsPage() {
 		return sortDirection === "asc" ? "↑" : "↓";
 	};
 
+	const handleSeedSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+		event.preventDefault();
+		const parsed = Number.parseInt(seedQuantity.toString(), 10);
+		if (!Number.isFinite(parsed) || parsed <= 0) {
+			toast.error("Enter a positive number of monitors to seed");
+			return;
+		}
+
+		seedMutation.mutate(parsed);
+	};
+
 	// Fleet Stats
 	const totalCount = monitors.length;
 	const upCount = monitors.filter((m) => m.status === "up").length;
@@ -241,20 +265,65 @@ function MonitorsPage() {
 								/>
 								Warm Ticker
 							</Button>
-							<Button
-								variant="outline"
-								onClick={() => seedMutation.mutate()}
-								disabled={seedMutation.isPending}
-								className="gap-2"
-							>
-								<Database
-									className={cn(
-										"h-4 w-4",
-										seedMutation.isPending && "animate-spin",
-									)}
-								/>
-								Seed Data
-							</Button>
+							<Dialog open={seedDialogOpen} onOpenChange={setSeedDialogOpen}>
+								<DialogTrigger asChild>
+									<Button
+										variant="outline"
+										className="gap-2"
+										disabled={seedMutation.isPending}
+									>
+										<Database
+											className={cn(
+												"h-4 w-4",
+												seedMutation.isPending && "animate-spin",
+											)}
+										/>
+										Seed Data
+									</Button>
+								</DialogTrigger>
+								<DialogContent>
+									<DialogHeader>
+										<DialogTitle>Seed monitors</DialogTitle>
+										<DialogDescription>
+											Choose how many monitors to generate for testing.
+										</DialogDescription>
+									</DialogHeader>
+									<form onSubmit={handleSeedSubmit} className="space-y-4">
+										<div className="space-y-2">
+											<Label htmlFor="seed-quantity">Quantity</Label>
+											<Input
+												id="seed-quantity"
+												type="number"
+												min={1}
+												step={1}
+												value={seedQuantity}
+												onChange={(e) =>
+													setSeedQuantity(Number.parseInt(e.target.value, 10) || 0)
+												}
+											/>
+										</div>
+										<DialogFooter>
+											<Button
+												type="button"
+												variant="outline"
+												onClick={() => setSeedDialogOpen(false)}
+											>
+												Cancel
+											</Button>
+											<Button
+												type="submit"
+												disabled={seedMutation.isPending}
+												className="gap-2"
+											>
+												{seedMutation.isPending && (
+													<Database className="h-4 w-4 animate-spin" />
+												)}
+												Seed {seedQuantity > 0 ? seedQuantity : ""}
+											</Button>
+										</DialogFooter>
+									</form>
+								</DialogContent>
+							</Dialog>
 						</>
 					)}
 					<Button

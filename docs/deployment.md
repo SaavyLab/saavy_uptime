@@ -41,6 +41,11 @@ Set the `database_id`, AE dataset, and R2 bucket identifiers per environment ins
    wrangler r2 bucket create saavy-uptime-preview
    ```
 5. **Access application + policy**: create a self-hosted app covering the Worker + Pages hostname; capture the team domain and audience string for `wrangler.toml`.
+6. **Queues**
+    ```
+    npx wrangler queues create heartbeat-queue
+    npx wrangler queues create trace-queue
+    ```
 6. **Pages project** (one-time):
    ```bash
    wrangler pages project create saavy-uptime
@@ -160,3 +165,13 @@ Documenting today’s manual sequence keeps us honest while designing that exper
 | DNS | `cloudflare_record` (CNAME/AAAA for Worker + Pages) |
 
 Treat this table as the source of truth when building infra modules—each row corresponds to the manual commands in sections 3–7.
+
+## CI Deploy Reality Check (GitHub Actions)
+
+Wrangler still needs resource IDs baked into `wrangler.toml` (or an override). That means a “from zero with no prior IDs” run cannot be 100 % automatic. To make the provided `Deploy (Cloudflare)` workflow succeed:
+
+1. **Secrets Store (one-time)** – `wrangler secrets-store store create <name>` then capture the ID (e.g., `8876bad33f...`). Add it to `wrangler.toml` under `secrets_store_secrets` for each env, or pass it to the workflow input `secrets_store_id`.
+2. **Resource IDs in config** – Ensure `wrangler.toml` has the correct IDs/names for D1, AE, R2, queues, and DO script names per environment. The workflow can create these if missing, but Wrangler still reads the IDs from config when deploying.
+3. **AE token** – Place `AE_API_TOKEN` in GitHub secrets. The workflow will write it into the Cloudflare secrets store for the selected environment.
+4. **Run the workflow** – Manually dispatch `Deploy (Cloudflare)` with `environment=preview` or `production`, optional `api_base_url` (otherwise it derives workers.dev for preview), and optional `provision_resources=true` to create missing Cloudflare resources.
+5. **Still manual today** – Access app/policy and custom domains must be set in the Cloudflare UI/API. If you change IDs/domains, update `wrangler.toml` (or a `wrangler.ci.toml` override) before re-running CI.

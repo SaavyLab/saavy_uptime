@@ -1,5 +1,7 @@
 # Saavy Uptime
 
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/saavylab/saavy_uptime)
+
 Cloudflare-native uptime and incident monitoring: Rust Workers + Durable Objects for sub‑minute scheduling, D1 for hot configuration/state, Analytics Engine for historical aggregates, and a Vite/React dashboard served via Cloudflare Pages. Everything in this repo is open source and deploys into your own Cloudflare account so you control the knobs *and* the bill. Running entirely on Cloudflare’s global edge means no servers, no cron VMs, no regional outages, and sub-50ms cold starts for every check.
 
 > **Status:** Actively in development. Phase 1/2 of the implementation plan (monitor CRUD + scheduler + HTTP checks) is underway—expect APIs and UI to evolve quickly.

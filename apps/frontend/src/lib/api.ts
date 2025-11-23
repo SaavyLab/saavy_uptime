@@ -20,5 +20,4 @@ export const withAccessHeader = (headers: Record<string, string> = {}) => {
 		"Cf-Access-Jwt-Assertion": accessToken,
 	};
 };
-
-export const apiBase = "http://localhost:8787";
+export const apiBase = import.meta.env.VITE_API_URL || "http://localhost:8787";
