@@ -81,6 +81,17 @@ curl -X POST http://localhost:8787/api/internal/seed \
 
 ---
 
+## Deploy via Cloudflare Button
+
+1. Click the **Deploy to Cloudflare** button above. Cloudflare will clone this repo into your own GitHub account and walk you through naming the Worker, D1 database, AE datasets, R2 bucket, queues, and Secrets Store entry. Keep the defaults unless you have existing resources to reuse.
+2. When prompted for environment variables and secrets, supply the production values you want baked into the Worker (`ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, `DISPATCH_*`, `AE_ACCOUNT_ID`, etc.). The UI shows the descriptions defined in `package.json`.
+3. Accept the suggested build/deploy commands (they run the frontend build, apply D1 migrations using the `DB` binding, and publish the Worker). Once the flow finishes you will have a fully provisioned stack plus a forked repo you control.
+4. Manually add a Cloudflare Access application/policy for your Worker + Pages domain, and wire any custom domains/DNS you need. Those pieces still require dashboard changes today.
+
+> Tip: if you plan to do local development after clicking the button, copy the generated IDs back into your local `wrangler.toml` or export them via env vars. The template file in this repo intentionally uses placeholders so Deploy Buttons can provision fresh resources.
+
+---
+
 ## Roadmap Snapshot
 
 1. **Foundations** – Wrangler config, Access, D1 schema, CI (done).

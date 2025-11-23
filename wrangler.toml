@@ -2,19 +2,16 @@ name = "saavy-uptime"
 main = "apps/backend/build/index.js"
 compatibility_date = "2025-11-11"
 workers_dev = false
-secrets_store_secrets = [
-    { binding = "AE_API_TOKEN", store_id = "339bf9a9619041cabd2825136b3ee3db", secret_name = "AE_API_TOKEN" }
-]
 
 [vars]
-ACCESS_TEAM_DOMAIN = "https://saavylab.cloudflareaccess.com"
-ACCESS_AUD = "e8604f5d9df109c391b937c4293c06fa76548def743a48fec18da93e0ddddeda"
-DISPATCH_TOKEN = "local-dev-token"
-DISPATCH_BASE_URL = "http://127.0.0.1:8787/api"
-ENABLE_TICKER_ADMIN = 1
-AE_ACCOUNT_ID = "aef405d01b3d36d6b5ebeed5efe8c2f8"
-AE_TRACES_DATASET = "saavy_uptime_traces_dev"
-AE_HEARTBEATS_DATASET = "saavy_uptime_heartbeats_dev"
+ACCESS_TEAM_DOMAIN = "https://<your-team>.cloudflareaccess.com"
+ACCESS_AUD = "<access-audience-tag>"
+DISPATCH_TOKEN = "change-me"
+DISPATCH_BASE_URL = "https://api.your-domain.tld/api"
+ENABLE_TICKER_ADMIN = 0
+AE_ACCOUNT_ID = "<analytics-account-id>"
+AE_TRACES_DATASET = "saavy_uptime_traces"
+AE_HEARTBEATS_DATASET = "saavy_uptime_heartbeats"
 
 [build]
 command = "cargo install worker-build && worker-build --release"
@@ -28,6 +25,11 @@ script_name = "saavy-uptime"
 tag = "v1"
 new_classes = ["Ticker"]
 
+[[secrets_store_secrets]]
+binding = "AE_API_TOKEN"
+store_id = "00000000000000000000000000000000"
+secret_name = "AE_API_TOKEN"
+
 [observability]
 [observability.logs]
 enabled = true
@@ -36,24 +38,24 @@ invocation_logs = true
 
 [[d1_databases]]
 binding = "DB"
-database_name = "saavy_uptime_dev"
+database_name = "saavy_uptime_default"
 database_id = "00000000-0000-0000-0000-000000000000"
-preview_database_id = "038435b0-ef7d-4232-80c3-fe90c57417f0"
+preview_database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "apps/backend/db/migrations"
 migrations_table = "d1_migrations"
 
 [[analytics_engine_datasets]]
 binding = "AE_TRACES"
-dataset = "saavy_uptime_traces_dev"
+dataset = "saavy_uptime_traces"
 
 [[analytics_engine_datasets]]
 binding = "AE_HEARTBEATS"
-dataset = "saavy_uptime_heartbeats_dev"
+dataset = "saavy_uptime_heartbeats"
 
 [[r2_buckets]]
 binding = "ARCHIVE_BUCKET"
-bucket_name = "saavy-uptime-dev"
-preview_bucket_name = "saavy-uptime-preview"
+bucket_name = "saavy-uptime-archive"
+preview_bucket_name = "saavy-uptime-archive-preview"
 
 [[queues.producers]]
 queue = "heartbeat-queue"
@@ -79,17 +81,14 @@ max_batch_timeout = 5
 [env.preview]
 name = "saavy-uptime-preview"
 workers_dev = true
-secrets_store_secrets = [
-    { binding = "AE_API_TOKEN", store_id = "339bf9a9619041cabd2825136b3ee3db", secret_name = "AE_API_TOKEN" }
-]
 
 [env.preview.vars]
-ACCESS_TEAM_DOMAIN = "https://saavylab.cloudflareaccess.com"
-ACCESS_AUD = "e8604f5d9df109c391b937c4293c06fa76548def743a48fec18da93e0ddddeda"
-DISPATCH_TOKEN = "local-dev-token"
-DISPATCH_BASE_URL = "https://api.preview.saavylab.dev/api"
+ACCESS_TEAM_DOMAIN = "https://<your-team>.cloudflareaccess.com"
+ACCESS_AUD = "<access-audience-tag>"
+DISPATCH_TOKEN = "change-me"
+DISPATCH_BASE_URL = "https://preview.api.your-domain.tld/api"
 ENABLE_TICKER_ADMIN = 1
-AE_ACCOUNT_ID = "aef405d01b3d36d6b5ebeed5efe8c2f8"
+AE_ACCOUNT_ID = "<analytics-account-id>"
 AE_TRACES_DATASET = "saavy_uptime_traces_preview"
 AE_HEARTBEATS_DATASET = "saavy_uptime_heartbeats_preview"
 
@@ -102,11 +101,16 @@ script_name = "saavy-uptime-preview"
 tag = "v1"
 new_classes = ["Ticker"]
 
+[[env.preview.secrets_store_secrets]]
+binding = "AE_API_TOKEN"
+store_id = "00000000000000000000000000000000"
+secret_name = "AE_API_TOKEN"
+
 [[env.preview.d1_databases]]
 binding = "DB"
 database_name = "saavy_uptime_preview"
-database_id = "18c0bf0a-729a-435d-aab2-a17b77379ad3"
-preview_database_id = "18c0bf0a-729a-435d-aab2-a17b77379ad3"
+database_id = "00000000-0000-0000-0000-000000000000"
+preview_database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "apps/backend/db/migrations"
 migrations_table = "d1_migrations"
 
@@ -120,8 +124,8 @@ dataset = "saavy_uptime_heartbeats_preview"
 
 [[env.preview.r2_buckets]]
 binding = "ARCHIVE_BUCKET"
-bucket_name = "saavy-uptime-preview"
-preview_bucket_name = "saavy-uptime-preview"
+bucket_name = "saavy-uptime-archive-preview"
+preview_bucket_name = "saavy-uptime-archive-preview"
 
 [[env.preview.queues.producers]]
 queue = "trace-queue"
@@ -147,18 +151,14 @@ max_batch_timeout = 5
 [env.production]
 name = "saavy-uptime"
 workers_dev = false
-secrets_store_secrets = [
-    { binding = "AE_API_TOKEN", store_id = "339bf9a9619041cabd2825136b3ee3db", secret_name = "AE_API_TOKEN" }
-]
-
 
 [env.production.vars]
-ACCESS_TEAM_DOMAIN = "https://saavylab.cloudflareaccess.com"
-ACCESS_AUD = "e8604f5d9df109c391b937c4293c06fa76548def743a48fec18da93e0ddddeda"
-DISPATCH_TOKEN = "local-dev-token"
-DISPATCH_BASE_URL = "https://api.uptime.saavylab.dev/api"
-ENABLE_TICKER_ADMIN = 1
-AE_ACCOUNT_ID = "aef405d01b3d36d6b5ebeed5efe8c2f8"
+ACCESS_TEAM_DOMAIN = "https://<your-team>.cloudflareaccess.com"
+ACCESS_AUD = "<access-audience-tag>"
+DISPATCH_TOKEN = "change-me"
+DISPATCH_BASE_URL = "https://api.your-domain.tld/api"
+ENABLE_TICKER_ADMIN = 0
+AE_ACCOUNT_ID = "<analytics-account-id>"
 AE_TRACES_DATASET = "saavy_uptime_traces"
 AE_HEARTBEATS_DATASET = "saavy_uptime_heartbeats"
 
@@ -167,10 +167,15 @@ name = "TICKER"
 class_name = "Ticker"
 script_name = "saavy-uptime"
 
+[[env.production.secrets_store_secrets]]
+binding = "AE_API_TOKEN"
+store_id = "00000000000000000000000000000000"
+secret_name = "AE_API_TOKEN"
+
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "saavy_uptime"
-database_id = "8d1a587f-92b7-419c-8eec-b6850e3d7d62"
+database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "apps/backend/db/migrations"
 migrations_table = "d1_migrations"
 
@@ -184,7 +189,7 @@ dataset = "saavy_uptime_heartbeats"
 
 [[env.production.r2_buckets]]
 binding = "ARCHIVE_BUCKET"
-bucket_name = "saavy-uptime"
+bucket_name = "saavy-uptime-archive"
 
 [[env.production.queues.producers]]
 queue = "trace-queue"
