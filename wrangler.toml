@@ -10,7 +10,6 @@ DISPATCH_TOKEN = "change-me"
 DISPATCH_BASE_URL = "https://api.your-domain.tld/api"
 ENABLE_TICKER_ADMIN = 0
 AE_ACCOUNT_ID = "<analytics-account-id>"
-AE_TRACES_DATASET = "saavy_uptime_traces"
 AE_HEARTBEATS_DATASET = "saavy_uptime_heartbeats"
 
 [build]
@@ -35,6 +34,9 @@ secret_name = "AE_API_TOKEN"
 enabled = true
 head_sampling_rate = 1
 invocation_logs = true
+[observability.traces]
+enabled = true
+head_sampling_rate = 1
 
 [[d1_databases]]
 binding = "DB"
@@ -43,10 +45,6 @@ database_id = "00000000-0000-0000-0000-000000000000"
 preview_database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "apps/backend/db/migrations"
 migrations_table = "d1_migrations"
-
-[[analytics_engine_datasets]]
-binding = "AE_TRACES"
-dataset = "saavy_uptime_traces"
 
 [[analytics_engine_datasets]]
 binding = "AE_HEARTBEATS"
@@ -66,15 +64,6 @@ queue = "heartbeat-queue"
 max_batch_size = 100
 max_batch_timeout = 5
 
-[[queues.producers]]
-queue = "trace-queue"
-binding = "trace-queue"
-
-[[queues.consumers]]
-queue = "trace-queue"
-max_batch_size = 100
-max_batch_timeout = 5
-
 # ========================================
 # PREVIEW ENVIRONMENT
 # ========================================
@@ -89,7 +78,6 @@ DISPATCH_TOKEN = "change-me"
 DISPATCH_BASE_URL = "https://preview.api.your-domain.tld/api"
 ENABLE_TICKER_ADMIN = 1
 AE_ACCOUNT_ID = "<analytics-account-id>"
-AE_TRACES_DATASET = "saavy_uptime_traces_preview"
 AE_HEARTBEATS_DATASET = "saavy_uptime_heartbeats_preview"
 
 [[env.preview.durable_objects.bindings]]
@@ -115,10 +103,6 @@ migrations_dir = "apps/backend/db/migrations"
 migrations_table = "d1_migrations"
 
 [[env.preview.analytics_engine_datasets]]
-binding = "AE_TRACES"
-dataset = "saavy_uptime_traces_preview"
-
-[[env.preview.analytics_engine_datasets]]
 binding = "AE_HEARTBEATS"
 dataset = "saavy_uptime_heartbeats_preview"
 
@@ -126,15 +110,6 @@ dataset = "saavy_uptime_heartbeats_preview"
 binding = "ARCHIVE_BUCKET"
 bucket_name = "saavy-uptime-archive-preview"
 preview_bucket_name = "saavy-uptime-archive-preview"
-
-[[env.preview.queues.producers]]
-queue = "trace-queue"
-binding = "trace-queue"
-
-[[env.preview.queues.consumers]]
-queue = "trace-queue"
-max_batch_size = 100
-max_batch_timeout = 5
 
 [[env.preview.queues.producers]]
 queue = "heartbeat-queue"
@@ -159,7 +134,6 @@ DISPATCH_TOKEN = "change-me"
 DISPATCH_BASE_URL = "https://api.your-domain.tld/api"
 ENABLE_TICKER_ADMIN = 0
 AE_ACCOUNT_ID = "<analytics-account-id>"
-AE_TRACES_DATASET = "saavy_uptime_traces"
 AE_HEARTBEATS_DATASET = "saavy_uptime_heartbeats"
 
 [[env.production.durable_objects.bindings]]
@@ -180,25 +154,12 @@ migrations_dir = "apps/backend/db/migrations"
 migrations_table = "d1_migrations"
 
 [[env.production.analytics_engine_datasets]]
-binding = "AE_TRACES"
-dataset = "saavy_uptime_traces"
-
-[[env.production.analytics_engine_datasets]]
 binding = "AE_HEARTBEATS"
 dataset = "saavy_uptime_heartbeats"
 
 [[env.production.r2_buckets]]
 binding = "ARCHIVE_BUCKET"
 bucket_name = "saavy-uptime-archive"
-
-[[env.production.queues.producers]]
-queue = "trace-queue"
-binding = "trace-queue"
-
-[[env.production.queues.consumers]]
-queue = "trace-queue"
-max_batch_size = 100
-max_batch_timeout = 5
 
 [[env.production.queues.producers]]
 queue = "heartbeat-queue"

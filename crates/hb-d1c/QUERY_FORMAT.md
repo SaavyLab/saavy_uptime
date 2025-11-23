@@ -129,7 +129,7 @@ pub async fn authenticate_user(
 ) -> worker::Result<Option<AuthenticateUserRow>>
 ```
 
-**See:** [Observability with cf-tracing](README.md#observability-with-cf-tracing) for more details.
+**See:** [Observability](README.md#observability) for more details.
 
 ---
 
@@ -640,4 +640,4 @@ SELECT COUNT(*) FROM users;
 
 - [README.md](README.md) – Project overview and quick start
 - [GETTING_STARTED.md](GETTING_STARTED.md) – Step-by-step tutorial
-- [Observability with cf-tracing](README.md#observability-with-cf-tracing) – Tracing integration guide
+- [Observability](README.md#observability) – Tracing integration guide

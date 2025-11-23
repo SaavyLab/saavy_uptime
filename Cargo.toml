@@ -3,6 +3,5 @@ resolver = "3"
 members = [
   "apps/backend",
   "crates/hb-d1c",
-  "crates/hb-tracing",
   "crates/hb-auth",
  ]
