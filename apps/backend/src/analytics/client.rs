@@ -43,11 +43,7 @@ impl AeQueryClient {
             headers.set("Content-Type", "text/plain")?;
         }
 
-        console_log!(
-            "Analytics Engine request: {:?}, {}",
-            req.url(),
-            self.api_token
-        );
+        console_log!("Analytics Engine request: {:?}", req.url());
 
         let mut resp = Fetch::Request(req).send().await?;
         let status = resp.status_code();
