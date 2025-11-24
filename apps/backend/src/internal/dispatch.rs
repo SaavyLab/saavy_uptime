@@ -186,7 +186,8 @@ fn write_heartbeat_to_analytics(
     event: &HeartbeatResult,
 ) -> worker::Result<()> {
     let builder = AnalyticsEngineDataPointBuilder::new()
-        .indexes(vec![event.monitor_id.as_str(), event.org_id.as_str()])
+        .indexes(vec![event.monitor_id.as_str()])
+        .add_blob(event.org_id.as_str())
         .add_blob(event.dispatch_id.as_str())
         .add_double(event.timestamp as f64)
         .add_blob(event.status)
