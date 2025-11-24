@@ -19,15 +19,12 @@ How we’ll use Cloudflare Analytics Engine (AE) alongside D1/R2, what we log, a
 
 Notes:
 
-- If sampling < 1.0, we still need unbiased estimates. We can store the sample rate with each heartbeat row (e.g., `sample_weight = 1 / rate`) so AE queries can `SUM(ok * sample_weight)` and produce correct percentages.
-- Even when sampling is off, D1 retains every heartbeat for ~24 h, and R2 handles archival. AE is purely for aggregated reads.
+- If sampling < 1.0, we still need unbiased estimates. We store the sample rate with each heartbeat row (e.g., `sample_weight = 1 / rate`) so AE queries can `SUM(ok * sample_weight)` and produce correct percentages.
+- D1 no longer keeps per-heartbeat logs; it only tracks the latest monitor status/incident state. AE is the source for heartbeat history.
 
 ## What stays out of AE
 
-- **Hot heartbeats / detail history** – The monitor detail page and recent timelines still read from D1. Users never lose immediate visibility when they lower AE sampling.
-- **Configuration, incidents, notifications** – authoritative data stays in D1 tables. AE can mirror summaries but not the source of truth.
-- **R2 archives** – long-term raw logs still ship to R2 for auditors/debugging.
-
+- **Monitor hot state / incidents / config** – D1 holds the latest status, incident timeline, and configuration. AE aggregates reference D1 when necessary but are not the source of truth.
 ## Reads & UI usage
 
 - **Dashboard cards** – Uptime (24 h/7 d/30 d), latency percentiles, POP coverage read from AE. If sample rate is too low, show a message (“Analytics disabled: AE sampling < 0.5”) and fall back to coarse estimates.

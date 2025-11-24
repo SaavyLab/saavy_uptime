@@ -53,6 +53,7 @@ We’re capturing bits that weren’t obvious while porting the backend to the A
 - When using secret stores from workers-rs, call `env.secret_store("BINDING")?.get().await?`; the binding→secret mapping is taken from `secrets_store_secrets` in `wrangler.toml`, so `.get()` doesn’t take a name.
 
 - **Analytics Engine bindings missing:** There’s no first-class AE binding in workers-rs; both reads and writes require manual `fetch` calls to `client/v4/accounts/{ACCOUNT_ID}/analytics_engine/sql` with API tokens. We’re considering upstreaming a binding layer—until then every project has to roll its own AE client.
+- **AE `indexes` footgun:** `AnalyticsEngineDataPointBuilder::indexes` takes a Vec, but the runtime rejects more than one value with `writeDataPoint(): Maximum of 1 indexes supported.`. Pass exactly one index and move other dimensions into blobs; the API signature should probably reflect that.
 
 ### D1 ergonomics (parameter binding)
 

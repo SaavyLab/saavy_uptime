@@ -65,20 +65,22 @@ pub async fn recent_heartbeats(
     let dataset = client.dataset();
     let sql = format!(
         r#"SELECT
-            double1 AS timestamp_ms,
-            blob2 AS status,
-            double2 AS latency_ms,
-            nullIf(blob3, '') AS region,
-            nullIf(blob4, '') AS colo,
-            nullIf(blob5, '') AS error,
-            double3 AS code,
-            double4 AS sample_rate,
-            nullIf(blob1, '') AS dispatch_id
+            index1 as monitor_id,
+            blob1 as org_id,
+            blob2 as dispatch_id,
+            double1 as timestamp_ms,
+            blob3 as status,
+            blob4 as region,
+            blob5 as colo,
+            blob6 as error,
+            double2 as latency_ms,
+            double3 as code,
+            double4 as sample_rate
         FROM `{dataset}`
-        WHERE index1 = '{monitor}'
-          AND index2 = '{org}'
-          AND double1 BETWEEN {since} AND {until}
-        ORDER BY double1 DESC
+        WHERE monitor_id = '{monitor}'
+          AND org_id = '{org}'
+          AND timestamp_ms BETWEEN {since} AND {until}
+        ORDER BY timestamp_ms DESC
         LIMIT {limit}
         FORMAT JSON"#,
         dataset = dataset,

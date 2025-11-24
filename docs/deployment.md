@@ -127,7 +127,7 @@ Update `{{ORG_ID}}` inside `apps/backend/seed/monitors.sql` before running the S
 ## 10. Observability & Logs
 
 - Use `wrangler tail` to stream structured logs (`console_error!`) from the Worker and Durable Object.
-- Enable Analytics Engine dashboards (see `docs/observability.md`) by pointing Grafana to the AE dataset you provisioned.
+- Wire up your preferred dashboard tool (Grafana, etc.) directly to the AE dataset you provisioned; sample queries live in `docs/analytics-engine-plan.md`.
 - Capture dispatch IDs + `cf.colo` metadata early so future visualizations have data even in preview.
 
 ## 11. Toward One-Click Deploys

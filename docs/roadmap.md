@@ -1,4 +1,4 @@
-# Implementation Plan – CF-Native Uptime Monitor
+# Roadmap – CF-Native Uptime Monitor
 
 ## Overview
 
@@ -6,7 +6,7 @@ This roadmap breaks the project into incremental, shippable phases so we can dep
 
 ## Phase 0 – Foundations
 
-- **Deliverable:** Skeleton deployment with Wrangler-configured Worker, DO, D1, AE, R2 bindings, Cloudflare Access, and React shell.
+- **Deliverable:** Skeleton deployment with Wrangler-configured Worker, DO, D1, AE bindings, Cloudflare Access, and React shell.
 - **Tasks:**
   - Establish repository structure (Workers backend, Durable Object module, frontend app).
   - Configure `wrangler.toml`, environments, bindings, and Access policies.
@@ -22,12 +22,12 @@ This roadmap breaks the project into incremental, shippable phases so we can dep
   - Design scheduler data model (`next_run_at`, lease tokens) and implement DO `alarm()` loop that claims work.
   - Add worker endpoint to receive dispatch requests (no real checks yet) and emit structured logs.
 
-## Phase 2 – HTTP Check Execution & Hot Storage
+## Phase 2 – HTTP Check Execution & Analytics Engine Writes
 
-- **Deliverable:** Monitors execute real HTTP/HTTPS checks; heartbeats stored in D1 (rolling 24 h) and metrics streamed to Analytics Engine; incidents open/close.
+- **Deliverable:** Monitors execute real HTTP/HTTPS checks; D1 maintains monitor “hot state” while Analytics Engine stores heartbeat summaries; incidents open/close.
 - **Tasks:**
   - Implement fetch-based checker with timeout, redirects, TLS verification, status/sub-string assertions.
-  - Persist heartbeats to D1 with retention guard, and push `rtt_ms`, `ok_status` metrics into AE.
+  - Update the dispatch path to write heartbeats directly to AE (respecting per-org sampling) after updating D1 hot state.
   - Add incident state machine (N failures to open, M successes to close) and store incident timeline.
   - Surface incident summaries in API and basic UI widgets.
 
@@ -49,21 +49,12 @@ This roadmap breaks the project into incremental, shippable phases so we can dep
   - Implement retry/backoff on 5xx responses and expose delivery log UI.
   - Allow per-monitor notification configuration in frontend.
 
-## Phase 5 – Data Lifecycle Automation
-
-- **Deliverable:** Cron-triggered janitor archives old heartbeats to R2 with manifests before pruning D1; basic import/export tooling.
-- **Tasks:**
-  - Implement Worker Cron that batches heartbeats older than retention, writes gzipped JSON/Parquet to R2, records manifest + checksum.
-  - Verify uploads before deleting from D1; track archival metadata for audits.
-  - Provide CLI/API to export/import archived data as needed.
-  - Monitor storage costs and retention policies via observability hooks.
-
-## Phase 6 – Polish & Stretch
+## Phase 5 – Polish & Stretch
 
 - **Deliverable:** Access service tokens, JSON import/export flows, maintenance window scaffolding, observability enhancements.
 - **Tasks:**
   - Issue Access service tokens for automation; document usage.
-  - Build JSON import/export for monitors/incidents and CLI helpers for R2 retrieval.
+  - Build JSON import/export for monitors/incidents and optional artifact attachment hooks (future R2 usage).
   - Add maintenance window + SLO placeholder models for future growth.
   - Instrument structured logs, tracing, AE dashboards, and cost/perf tests.
 
@@ -71,14 +62,14 @@ This roadmap breaks the project into incremental, shippable phases so we can dep
 
 1. **Week 1 – Bootstrap:** Repo scaffolding, Wrangler deploy, Access, CI, migrations.
 2. **Week 2 – CRUD + Scheduler:** API/UI for monitors, DO ticker logging dispatches.
-3. **Week 3 – Execution + Storage:** Real HTTP checks, D1 heartbeats, AE metrics, incidents.
+3. **Week 3 – Execution + AE Writes:** Real HTTP checks, AE metrics, incident engine.
 4. **Week 4 – Dashboard & Status:** Internal dashboard, public status pages, AE charts.
 5. **Week 5 – Notifications:** Email/webhook delivery with retries and log UI.
-6. **Week 6 – Lifecycle & Hardening:** R2 archival pipeline, import/export, load/cost tests, docs.
+6. **Week 6 – Hardening:** Load/cost tests, docs, Access tokens, maintenance mode stubs.
 
 ## Getting Started Checklist
 
-- Create Wrangler project with bindings for D1 dev/prod databases, AE datasets, R2 bucket, and Durable Object namespace.
+- Create Wrangler project with bindings for D1 dev/prod databases, AE datasets, and Durable Object namespace.
 - Write initial SQL migrations and integrate `wrangler d1 migrations apply` into CI/deploy scripts.
 - Scaffold frontend via Vite/React hosted on Cloudflare Pages, secured through Access.
 - Build monitor CRUD API endpoints plus seed data to simulate monitors locally.
