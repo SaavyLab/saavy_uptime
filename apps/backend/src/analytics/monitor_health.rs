@@ -75,7 +75,7 @@ pub async fn recent_heartbeats(
             blob6 as error,
             double2 as latency_ms,
             double3 as code,
-            double4 as sample_rate,
+            double4 as sample_rate
         FROM `{dataset}`
         WHERE monitor_id = '{monitor}'
           AND org_id = '{org}'
