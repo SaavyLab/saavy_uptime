@@ -12,6 +12,11 @@ use hb_auth::User;
 use worker::console_error;
 
 #[worker::send]
+#[tracing::instrument(
+    name = "organizations.http.get_by_membership",
+    skip(d1, auth),
+    fields(identity_id = %auth.sub())
+)]
 pub async fn get_organization_by_membership_handler(
     AppDb(d1): AppDb,
     auth: User,
@@ -28,6 +33,11 @@ pub async fn get_organization_by_membership_handler(
 }
 
 #[worker::send]
+#[tracing::instrument(
+    name = "organizations.http.get_members",
+    skip(d1, auth),
+    fields(identity_id = %auth.sub())
+)]
 pub async fn get_organization_members_handler(
     AppDb(d1): AppDb,
     auth: User,
@@ -43,6 +53,11 @@ pub async fn get_organization_members_handler(
 }
 
 #[worker::send]
+#[tracing::instrument(
+    name = "organizations.http.create",
+    skip(d1, auth, payload),
+    fields(identity_id = %auth.sub())
+)]
 pub async fn create_organization_handler(
     AppDb(d1): AppDb,
     auth: User,

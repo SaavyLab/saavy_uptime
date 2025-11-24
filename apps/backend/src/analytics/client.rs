@@ -31,6 +31,11 @@ impl AeQueryClient {
         &self.dataset
     }
 
+    #[tracing::instrument(
+        name = "analytics.client.query",
+        skip(self, sql),
+        fields(sql = %sql)
+    )]
     pub async fn query<T: DeserializeOwned>(&self, sql: &str) -> Result<T> {
         let mut init = RequestInit::new();
         init.with_method(Method::Post);

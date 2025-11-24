@@ -8,7 +8,7 @@ Cloudflare’s Deploy Buttons remove most of the manual toil:
 
 1. Click the **Deploy to Cloudflare** badge in `README.md` (or visit `https://deploy.workers.cloudflare.com/?url=https://github.com/SaavyLab/saavy_uptime`). Cloudflare will clone the repo into your GitHub/GitLab account.
 2. Accept or edit the default resource names for the Worker, Durable Object namespace, D1 database, Analytics Engine dataset (heartbeats), R2 bucket, and Secrets Store. The placeholders in `wrangler.toml` are intentionally generic so the button can provision fresh resources.
-3. Fill in the environment variable + secret prompts (Access team domain/audience, dispatch token/base URL, AE account ID, etc.). The descriptions defined in `package.json` surface here.
+3. Fill in the environment variable + secret prompts (Access team domain/audience, dispatch token, AE account ID, etc.). The descriptions defined in `package.json` surface here.
 4. Confirm the build/deploy commands. The generated scripts run the frontend build, apply migrations via `wrangler d1 migrations apply DB`, then deploy the Worker. After the workflow completes you’ll have a fully provisioned stack (plus a fork you own).
 5. Manual follow-ups: create/adjust your Cloudflare Access application to protect the Worker + Pages domain, add any custom domains/DNS, and backfill demo data if desired.
 
@@ -21,7 +21,7 @@ Use the remaining sections below when you need to understand the internals, repr
 | Cloudflare account + target zone | Need access to create Workers, Durable Objects, D1, AE, R2, Pages, and Access apps. |
 | CLI utilities | `wrangler` ≥ v3, Rust stable + `wasm32-unknown-unknown`, `cargo install worker-build`, Node 20+/Bun, PNPM (or npm), `go-task`, `cloudflared`. |
 | Auth | `wrangler login`, `cloudflared access login https://<app>` then export `VITE_CF_ACCESS_TOKEN` for local/preview smoke tests. |
-| Secrets/config | `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, `DISPATCH_TOKEN`, `DISPATCH_BASE_URL`, etc. live in `wrangler.toml` (per-env overrides encouraged). |
+| Secrets/config | `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, `DISPATCH_TOKEN`, etc. live in `wrangler.toml` (per-env overrides encouraged). |
 
 ## 2. Environment Matrix
 

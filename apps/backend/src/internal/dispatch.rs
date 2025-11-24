@@ -16,6 +16,11 @@ use crate::monitors::service::update_monitor_status_for_org;
 use crate::monitors::types::{HeartbeatResult, MonitorStatus, MonitorStatusSnapshot};
 use crate::utils::date::now_ms;
 
+#[tracing::instrument(
+    name = "internal.dispatch.handle_dispatch",
+    skip(d1, analytics, payload, cf),
+    fields(monitor_id = %payload.monitor_id, org_id = %payload.org_id, dispatch_id = %payload.dispatch_id)
+)]
 pub async fn handle_dispatch(
     d1: D1Database,
     analytics: &AnalyticsEngineDataset,
@@ -102,6 +107,11 @@ pub async fn handle_dispatch(
     Ok(())
 }
 
+#[tracing::instrument(
+    name = "internal.dispatch.persist_heartbeat_result",
+    skip(d1, analytics, snapshot, result),
+    fields(monitor_id = %result.monitor_id, org_id = %result.org_id, dispatch_id = %result.dispatch_id)
+)]
 async fn persist_heartbeat_result(
     d1: &D1Database,
     analytics: &AnalyticsEngineDataset,
@@ -143,6 +153,11 @@ fn monitor_snapshot_from_payload(payload: &DispatchRequest) -> MonitorStatusSnap
     }
 }
 
+#[tracing::instrument(
+    name = "internal.dispatch.check_monitor",
+    skip(payload, start, region, colo),
+    fields(monitor_id = %payload.monitor_id, org_id = %payload.org_id, dispatch_id = %payload.dispatch_id)
+)]
 async fn check_monitor(
     payload: &DispatchRequest,
     start: i64,
@@ -181,6 +196,11 @@ async fn check_monitor(
     Ok(result)
 }
 
+#[tracing::instrument(
+    name = "internal.dispatch.write_heartbeat_to_analytics",
+    skip(dataset, event),
+    fields(monitor_id = %event.monitor_id, org_id = %event.org_id, dispatch_id = %event.dispatch_id)
+)]
 fn write_heartbeat_to_analytics(
     dataset: &AnalyticsEngineDataset,
     event: &HeartbeatResult,
@@ -203,6 +223,11 @@ fn write_heartbeat_to_analytics(
 
 const MAX_REDIRECT_DEPTH: u8 = 10;
 
+#[tracing::instrument(
+    name = "internal.dispatch.check_http_monitor",
+    skip(payload, start, region, colo),
+    fields(monitor_id = %payload.monitor_id, org_id = %payload.org_id, dispatch_id = %payload.dispatch_id)
+)]
 async fn check_http_monitor(
     payload: &DispatchRequest,
     start: i64,
@@ -386,6 +411,11 @@ async fn check_http_monitor(
 
 const DEFAULT_HTTP_TIMEOUT_MS: i64 = 30_000;
 
+#[tracing::instrument(
+    name = "internal.dispatch.perform_fetch",
+    skip(url, timeout_ms, _verify_tls),
+    fields(url = %url, timeout_ms = %timeout_ms)
+)]
 async fn perform_fetch(
     url: &str,
     timeout_ms: i64,
