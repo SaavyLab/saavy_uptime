@@ -13,7 +13,7 @@ Only these two personas are in scope for the current milestone. Incident respons
 
 ## Data Requirements (What must land in AE)
 
-### Heartbeat fact row (written by `external::queues::heartbeat_results`)
+### Heartbeat fact row (written by `internal::dispatch::persist_heartbeat_result`)
 
 | Field | Purpose | Notes |
 | --- | --- | --- |
@@ -31,7 +31,7 @@ Only these two personas are in scope for the current milestone. Incident respons
 ### Optional context rows (future backlog)
 
 - **Incident snapshots** (`incident_id`, `started_at`, `resolved_at`, `consecutive_failures`) – nice-to-have for later MTTR/incident visuals; do not prioritize implementation work yet.
-- **Cost telemetry** (`dispatch_duration_ms`, `queue_duration_ms`, `ae_batch_size`) – only needed once we build the cost console.
+- **Cost telemetry** (`dispatch_duration_ms`, `ae_write_errors`) – only needed once we build the cost console.
 
 If we can add these fields “for free” while touching ingestion, great; otherwise they stay deferred until the corresponding UI work restarts.
 
@@ -58,13 +58,13 @@ If we can add these fields “for free” while touching ingestion, great; other
 ### Deferred backlog (outside current scope)
 
 - **Incident drilldowns** (failure streak boundaries, geo impact, recovery latency charts).
-- **Cost & pipeline health** (AE write volume, dispatch runtime percentiles, queue freshness alerts).
+- **Cost & pipeline health** (AE write volume, dispatch runtime percentiles, write error alerts).
 
 Keep any prior notes for these flows in git history; revisit once monitor-health dashboards ship.
 
 ## Validation Checklist
 
-1. **Schema audit** – Confirm `apps/backend/src/external/queues/heartbeat_results.rs` emits every field listed in the heartbeat fact row.
+1. **Schema audit** – Confirm `apps/backend/src/internal/dispatch.rs` emits every field listed in the heartbeat fact row.
 2. **Backfill strategy** – Document whether we need to seed AE from D1 when adding new columns (especially `dispatch_id`, `sample_rate`).
 3. **API coverage (monitor health only)** – Ensure `GET /api/monitors/:id/heartbeats`, `/uptime`, `/latency`, and fleet-level endpoints have specs and owners.
 4. **Sampling transparency** – Every AE-backed response must echo the effective sample rate so UI can show fidelity badges.

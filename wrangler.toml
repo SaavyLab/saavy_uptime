@@ -55,14 +55,6 @@ binding = "ARCHIVE_BUCKET"
 bucket_name = "saavy-uptime-archive"
 preview_bucket_name = "saavy-uptime-archive-preview"
 
-[[queues.producers]]
-queue = "heartbeat-queue"
-binding = "heartbeat-queue"
-
-[[queues.consumers]]
-queue = "heartbeat-queue"
-max_batch_size = 100
-max_batch_timeout = 5
 
 # ========================================
 # PREVIEW ENVIRONMENT
@@ -111,14 +103,6 @@ binding = "ARCHIVE_BUCKET"
 bucket_name = "saavy-uptime-archive-preview"
 preview_bucket_name = "saavy-uptime-archive-preview"
 
-[[env.preview.queues.producers]]
-queue = "heartbeat-queue"
-binding = "heartbeat-queue"
-
-[[env.preview.queues.consumers]]
-queue = "heartbeat-queue"
-max_batch_size = 100
-max_batch_timeout = 5
 
 # ========================================
 # PRODUCTION ENVIRONMENT
@@ -160,12 +144,3 @@ dataset = "saavy_uptime_heartbeats"
 [[env.production.r2_buckets]]
 binding = "ARCHIVE_BUCKET"
 bucket_name = "saavy-uptime-archive"
-
-[[env.production.queues.producers]]
-queue = "heartbeat-queue"
-binding = "heartbeat-queue"
-
-[[env.production.queues.consumers]]
-queue = "heartbeat-queue"
-max_batch_size = 100
-max_batch_timeout = 5

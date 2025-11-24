@@ -7,7 +7,7 @@ Living runbook for getting Saavy Uptime into any Cloudflare environment today wh
 Cloudflare’s Deploy Buttons remove most of the manual toil:
 
 1. Click the **Deploy to Cloudflare** badge in `README.md` (or visit `https://deploy.workers.cloudflare.com/?url=https://github.com/SaavyLab/saavy_uptime`). Cloudflare will clone the repo into your GitHub/GitLab account.
-2. Accept or edit the default resource names for the Worker, Durable Object namespace, D1 database, Analytics Engine dataset (heartbeats), R2 bucket, queues, and Secrets Store. The placeholders in `wrangler.toml` are intentionally generic so the button can provision fresh resources.
+2. Accept or edit the default resource names for the Worker, Durable Object namespace, D1 database, Analytics Engine dataset (heartbeats), R2 bucket, and Secrets Store. The placeholders in `wrangler.toml` are intentionally generic so the button can provision fresh resources.
 3. Fill in the environment variable + secret prompts (Access team domain/audience, dispatch token/base URL, AE account ID, etc.). The descriptions defined in `package.json` surface here.
 4. Confirm the build/deploy commands. The generated scripts run the frontend build, apply migrations via `wrangler d1 migrations apply DB`, then deploy the Worker. After the workflow completes you’ll have a fully provisioned stack (plus a fork you own).
 5. Manual follow-ups: create/adjust your Cloudflare Access application to protect the Worker + Pages domain, add any custom domains/DNS, and backfill demo data if desired.
@@ -53,10 +53,6 @@ Set the `database_id`, AE dataset, and R2 bucket identifiers per environment ins
    wrangler r2 bucket create saavy-uptime-preview
    ```
 5. **Access application + policy**: create a self-hosted app covering the Worker + Pages hostname; capture the team domain and audience string for `wrangler.toml`.
-6. **Queues**
-    ```
-    npx wrangler queues create heartbeat-queue
-    ```
 6. **Pages project** (one-time):
    ```bash
    wrangler pages project create saavy-uptime
@@ -182,7 +178,7 @@ Treat this table as the source of truth when building infra modules—each row c
 Wrangler still needs resource IDs baked into `wrangler.toml` (or an override). That means a “from zero with no prior IDs” run cannot be 100 % automatic. To make the provided `Deploy (Cloudflare)` workflow succeed:
 
 1. **Secrets Store (one-time)** – `wrangler secrets-store store create <name>` then capture the ID (e.g., `8876bad33f...`). Add it to `wrangler.toml` under `secrets_store_secrets` for each env, or pass it to the workflow input `secrets_store_id`.
-2. **Resource IDs in config** – Ensure `wrangler.toml` has the correct IDs/names for D1, AE, R2, queues, and DO script names per environment. The workflow can create these if missing, but Wrangler still reads the IDs from config when deploying.
+2. **Resource IDs in config** – Ensure `wrangler.toml` has the correct IDs/names for D1, AE, R2, and DO script names per environment. The workflow can create these if missing, but Wrangler still reads the IDs from config when deploying.
 3. **AE token** – Place `AE_API_TOKEN` in GitHub secrets. The workflow will write it into the Cloudflare secrets store for the selected environment.
 4. **Run the workflow** – Manually dispatch `Deploy (Cloudflare)` with `environment=preview` or `production`, optional `api_base_url` (otherwise it derives workers.dev for preview), and optional `provision_resources=true` to create missing Cloudflare resources.
 5. **Still manual today** – Access app/policy and custom domains must be set in the Cloudflare UI/API. If you change IDs/domains, update `wrangler.toml` (or a `wrangler.ci.toml` override) before re-running CI.

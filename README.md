@@ -24,7 +24,7 @@ Instead of buying uptime from someone else, you deploy this Worker + Durable Obj
 ## Highlights
 
 - **Sub-minute scheduling** – Durable Object alarms claim due monitors in batches and dispatch immediately, no cron drift or VM orchestration.
-- **Cloudflare-first architecture** – Axum Worker secured by Access, DO ticker for stateful scheduling, D1 for config + monitor hot state, Analytics Engine for aggregates written via queues.
+- **Cloudflare-first architecture** – Axum Worker secured by Access, DO ticker for stateful scheduling, D1 for config + monitor hot state, Analytics Engine for aggregates written directly from dispatch.
 - **Bring-your-own cost model** – tweak intervals, retention, and aggregation to match your budget; you pay Cloudflare directly.
 - **One-click deploy** – Wrangler + Pages handle everything; no extra infrastructure to babysit.
 - **Stretch goals** – real-time execution DAG, geographic POP map, predictive cost dashboard, R2 time-travel incident replay, collaborative incident timelines (`docs/highlight-features.md`).
@@ -83,7 +83,7 @@ curl -X POST http://localhost:8787/api/internal/seed \
 
 ## Deploy via Cloudflare Button
 
-1. Click the **Deploy to Cloudflare** button above. Cloudflare will clone this repo into your own GitHub account and walk you through naming the Worker, D1 database, AE datasets, R2 bucket, queues, and Secrets Store entry. Keep the defaults unless you have existing resources to reuse.
+1. Click the **Deploy to Cloudflare** button above. Cloudflare will clone this repo into your own GitHub account and walk you through naming the Worker, D1 database, AE datasets, R2 bucket, and Secrets Store entry. Keep the defaults unless you have existing resources to reuse.
 2. When prompted for environment variables and secrets, supply the production values you want baked into the Worker (`ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, `DISPATCH_*`, `AE_ACCOUNT_ID`, etc.). The UI shows the descriptions defined in `package.json`.
 3. Accept the suggested build/deploy commands (they run the frontend build, apply D1 migrations using the `DB` binding, and publish the Worker). Once the flow finishes you will have a fully provisioned stack plus a forked repo you control.
 4. Manually add a Cloudflare Access application/policy for your Worker + Pages domain, and wire any custom domains/DNS you need. Those pieces still require dashboard changes today.
@@ -96,7 +96,7 @@ curl -X POST http://localhost:8787/api/internal/seed \
 
 1. **Foundations** – Wrangler config, Access, D1 schema, CI (done).
 2. **Monitor CRUD + ticker** – API/UI + Durable Object scheduler (in progress).
-3. **HTTP execution & storage** – Real checks, D1 hot-state updates, queue → AE metrics, incident skeleton.
+3. **HTTP execution & storage** – Real checks, D1 hot-state updates, direct AE metrics, incident skeleton.
 4. **Dashboard & status pages** – AE-backed aggregates, public `/status/<slug>`.
 5. **Notifications** – Webhook/email policies, retries, delivery logs.
 6. **Lifecycle & polish** – Queue/AE tuning, import/export, service tokens, “wow” visualizations.

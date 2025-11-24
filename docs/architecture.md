@@ -11,8 +11,7 @@ This document tracks the major components, data flows, and runtime responsibilit
 | **Ticker Durable Object** | Statefully schedules monitors via `alarm()`; resolves membership and claims due monitors. | Stores per-org cadence, error counters, and writes `monitor_dispatches` rows. |
 | **Dispatch Runner (internal Axum route)** | Executes individual monitor checks. Receives DO fan-out requests via `POST /api/internal/dispatch/run`. | Updates D1 hot state, emits heartbeat events, manages incidents. |
 | **D1 (SQLite)** | Hot relational store for orgs, monitors, dispatch metadata, and incident state. | Stores only the current monitor “hot state”—no raw heartbeat log—so writes stay cheap. |
-| **Analytics Engine (AE)** | High-volume metrics store (uptime %, latency percentiles, player counts). | Fed asynchronously by a queue consumer that batches heartbeats before writing. |
-| **Workers Queues** | Reliable pipeline between dispatch runner and AE consumer. | Runner enqueues every heartbeat immediately; consumer Worker flushes to AE with retries. |
+| **Analytics Engine (AE)** | High-volume metrics store (uptime %, latency percentiles, player counts). | Dispatch runner writes heartbeats directly after each check. |
 | **R2** | Cold storage for future replay payloads/archives. | Optional; no longer required for heartbeat rotation now that AE owns historical data. |
 | **Frontend (Vite/React)** | Dashboard + bootstrap flow. Uses TanStack Router/Query + shadcn UI. | Dev-only controls (e.g., “Warm ticker”) hit internal APIs. |
 
@@ -21,12 +20,11 @@ This document tracks the major components, data flows, and runtime responsibilit
 | Path | Purpose |
 | --- | --- |
 | `apps/backend/src/` | Axum Worker (main entry point) plus feature modules (`monitors`, `heartbeats`, etc.). |
-| `apps/backend/src/cloudflare/` | Shared bindings/helpers for Cloudflare services (D1 helpers, Durable Object bindings, queue producers). These modules are compiled into the Worker crate so rust-analyzer can index them. |
-| `apps/backend/src/external/` | Actual implementations of “external” entry points—Durable Objects and queue consumers. Each file gets its own `#[event(fetch/queue)]` macro at build time, but we keep them in Cargo so tooling works. |
+| `apps/backend/src/cloudflare/` | Shared bindings/helpers for Cloudflare services (D1 helpers, Durable Object bindings). These modules are compiled into the Worker crate so rust-analyzer can index them. |
+| `apps/backend/src/external/` | Actual implementations of “external” entry points—Durable Objects (each file gets its own `#[event(fetch)]` macro). |
 | `apps/backend/src/cloudflare/durable_objects/` | Types shared between the Worker and DO (e.g., `TickerConfig`, error enums). |
-| `apps/backend/src/cloudflare/queues/` | Queue message types + helper functions to publish messages. |
-
-This split lets us keep feature logic grouped by domain (monitors, heartbeats, incidents) while still isolating Cloudflare-specific runtime components. When browsing the repo: look in `cloudflare/` for shared bindings/types, and in `external/` for the actual DO/queue consumer code that compiles into separate entry points.
+ 
+This split lets us keep feature logic grouped by domain (monitors, heartbeats, incidents) while still isolating Cloudflare-specific runtime components. When browsing the repo: look in `cloudflare/` for shared bindings/types, and in `external/` for the actual DO code that compiles into separate entry points.
 
 ## Health Check Flow
 
@@ -59,16 +57,15 @@ flowchart LR
     
     Runner -->|HTTP/TCP Check| Target
     Runner -->|Update hot state| D1
-    Runner -->|Enqueue heartbeat| Queue
-    Queue -->|Batch write| AE
+    Runner -->|Write heartbeat| AE
     Runner -->|UPDATE dispatch status| D1
 ```
 
 1. **User action** (bootstrap org, create monitor) hits the API Worker and persists config to D1.
 2. **Ticker DO** wakes via `alarm()`, loads org cadence, queries D1 for due monitors, and writes `monitor_dispatches` rows.
 3. For each due monitor, the DO POSTs to `/api/internal/dispatch/run` (authenticated via `X-Dispatch-Token`). Each request spins up a fresh Worker isolate (same script).
-4. **Dispatch runner** executes the check (HTTP/TCP/game protocol), updates the monitor’s hot state in D1, publishes a heartbeat message to the queue, and marks the dispatch row completed.
-5. **Queue consumer** drains heartbeat messages, batches them, and writes to AE so analytics stay off the dispatch hot path. Frontend/API read from D1/AE for dashboards, incidents, and future visualizations (DAG, geo map, etc.).
+4. **Dispatch runner** executes the check (HTTP/TCP/game protocol), updates the monitor’s hot state in D1, writes the heartbeat to AE, and marks the dispatch row completed.
+5. Frontend/API read from D1/AE for dashboards, incidents, and future visualizations (DAG, geo map, etc.).
 
 ## Future Visual Hooks
 
@@ -76,11 +73,7 @@ flowchart LR
 - Heartbeats with `cf.colo` metadata power the geo map and incident replay.
 - `monitor_dispatches` table is the bridge between control plane (DO) and runner instrumentation—keep it append-only for reliable auditing.
 - Containers can complement Workers for protocols beyond HTTP/TCP; see “Protocol Adapter Container” below.
-- Analytics Engine writes flow through Workers Queues:
-  1. **Dispatch runner** publishes a `HeartbeatSummary` message to the `heartbeat-summaries` queue after each check (or according to the org’s sample rate).
-  2. A **queue consumer Worker** (see `apps/backend/src/external/queues/heartbeat_summaries.rs`) receives batches of messages, attaches metadata (`sample_rate`, dataset name), and writes them to AE via the REST API.
-  3. If AE writes fail, the queue retries; we only `ack` after a successful flush so no heartbeats are lost.
-  4. Future analytics datasets (incident context, cost telemetry) can either share this queue (with a `type` field) or use dedicated queues if we need different batching.
+- Analytics Engine writes happen synchronously: once the dispatch runner updates D1 it records the heartbeat in AE (subject to per-monitor sample rates).
 - R2 is optional now that AE holds historical data, but remains available for future replay payloads or cold archives if requirements change.
 
 ## Protocol Adapter Container (UDP/ICMP/Game checks)
@@ -176,4 +169,4 @@ fn check_minecraft(_: &str, _: u32) -> Result<(), String> {
 
 The Worker can call this adapter selectively using `Fetch::Request` and insert the returned metrics into `heartbeats`. This lets us support hobbyist-friendly game protocols without leaving the Cloudflare ecosystem.
 
-Keep this doc updated as new queues, services, or bindings land.
+Keep this doc updated as new services or bindings land.

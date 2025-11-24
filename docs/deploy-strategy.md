@@ -45,12 +45,11 @@ A lightweight Node.js CLI that orchestrates the setup.
     The template `wrangler.toml` will contain placeholders. The CLI replaces them based on the user's choice.
     ```toml
     # Template
-    [queues.consumers]
-    max_batch_size = {{BATCH_SIZE}}
-    max_batch_timeout = {{BATCH_TIMEOUT}}
+    [vars]
+    DEFAULT_SAMPLE_RATE = {{SAMPLE_RATE}}
     ```
-    *   **Hobby:** Batch 10, Timeout 1s (Low latency, higher potential bill if high volume).
-    *   **Pro:** Batch 100, Timeout 10s (High throughput, optimized for cost).
+    *   **Hobby:** `0.5` (captures enough data without spiking AE costs).
+    *   **Pro:** `1.0` (log every heartbeat).
 *   **GitHub Integration:**
     Uses `execa('gh', ...)` to handle authentication and API calls. This ensures Windows/Mac/Linux compatibility without us maintaining complex OAuth logic.
 
@@ -86,11 +85,11 @@ This is the engine that replaces local Rust installation.
 
 How does the user manage the app after the initial `npx` command?
 
-### Scenario A: Tuning Performance
+### Scenario A: Tuning Sampling
 *   **User Action:** Opens `wrangler.toml` in GitHub UI (or VS Code).
-*   **Change:** Edits `max_batch_size = 50`.
+*   **Change:** Edits `DEFAULT_SAMPLE_RATE = 0.75`.
 *   **Deploy:** Commits and pushes.
-*   **Result:** GitHub Action runs `wrangler deploy`. Cloudflare updates the queue consumer config.
+*   **Result:** GitHub Action runs `wrangler deploy`. Cloudflare updates the Worker with the new sampling configuration.
 
 ### Scenario B: Modifying SQL
 *   **User Action:** Edits `db/queries/monitors.sql`.
