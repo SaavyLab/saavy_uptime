@@ -55,6 +55,11 @@ struct HeartbeatRow {
     dispatch_id: Option<String>,
 }
 
+#[tracing::instrument(
+    name = "analytics.monitor_health.recent_heartbeats",
+    skip(client),
+    fields(monitor_id = %monitor_id, org_id = %org_id, since_ms = %window.since_ms, until_ms = %window.until_ms, limit = %limit)
+)]
 pub async fn recent_heartbeats(
     client: &AeQueryClient,
     monitor_id: &str,
@@ -76,7 +81,7 @@ pub async fn recent_heartbeats(
             double2 as latency_ms,
             double3 as code,
             double4 as sample_rate
-        FROM `{dataset}`
+        FROM {dataset}
         WHERE monitor_id = '{monitor}'
           AND org_id = '{org}'
           AND timestamp_ms BETWEEN {since} AND {until}

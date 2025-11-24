@@ -10,6 +10,11 @@ struct BootstrapPayload<'a> {
     org_id: &'a str,
 }
 
+#[tracing::instrument(
+    name = "bootstrap.ensure_ticker_bootstrapped",
+    skip(ticker, org_id),
+    fields(org_id = %org_id)
+)]
 pub async fn ensure_ticker_bootstrapped(
     ticker: &ObjectNamespace,
     org_id: &str,
@@ -38,6 +43,10 @@ pub struct TickerReconcileSummary {
     pub failed: usize,
 }
 
+#[tracing::instrument(
+    name = "bootstrap.ensure_all_tickers",
+    skip(ticker, d1),
+)]
 pub async fn ensure_all_tickers(
     ticker: &ObjectNamespace,
     d1: &D1Database,

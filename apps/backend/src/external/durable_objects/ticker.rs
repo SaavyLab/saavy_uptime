@@ -47,6 +47,11 @@ impl Ticker {
         self.state.storage().put("state", state).await
     }
 
+    #[tracing::instrument(
+        name = "external.durable_objects.ticker.arm_alarm",
+        skip(self, delay_ms),
+        fields(delay_ms = %delay_ms)
+    )]
     async fn arm_alarm(&self, delay_ms: u64) -> std::result::Result<(), TickerError> {
         let clamped = delay_ms.max(MIN_REARM_DELAY_MS);
         self.state
@@ -87,11 +92,21 @@ impl Ticker {
         Ok(())
     }
 
+    #[tracing::instrument(
+        name = "external.durable_objects.ticker.poke",
+        skip(self),
+        fields(manual = true)
+    )]
     async fn poke(&self) -> std::result::Result<(), TickerError> {
         self.run_tick(true).await?;
         Ok(())
     }
 
+    #[tracing::instrument(
+        name = "external.durable_objects.ticker.run_tick",
+        skip(self, _manual),
+        fields(manual = %_manual)
+    )]
     async fn run_tick(&self, _manual: bool) -> std::result::Result<(), TickerError> {
         let mut state = self.load_state().await?;
         let config = match state.config.as_ref() {
@@ -119,6 +134,11 @@ impl Ticker {
         Ok(())
     }
 
+    #[tracing::instrument(
+        name = "external.durable_objects.ticker.claim_due_monitors",
+        skip(self, config),
+        fields(org_id = %config.org_id)
+    )]
     async fn claim_due_monitors(
         &self,
         config: &TickerConfig,
@@ -184,6 +204,11 @@ impl Ticker {
         Ok(claimed)
     }
 
+    #[tracing::instrument(
+        name = "external.durable_objects.ticker.dispatch_monitors",
+        skip(self, config, monitors, sample_rate),
+        fields(org_id = %config.org_id, monitors = %monitors.len(), sample_rate = %sample_rate)
+    )]
     async fn dispatch_monitors(
         &self,
         config: &TickerConfig,
@@ -204,6 +229,11 @@ impl Ticker {
             .map(|_| ())
     }
 
+    #[tracing::instrument(
+        name = "external.durable_objects.ticker.dispatch_monitor",
+        skip(self, config, monitor, sample_rate),
+        fields(org_id = %config.org_id, monitor_id = %monitor.id, sample_rate = %sample_rate)
+    )]
     async fn dispatch_monitor(
         &self,
         config: &TickerConfig,
@@ -217,6 +247,11 @@ impl Ticker {
             .await
     }
 
+    #[tracing::instrument(
+        name = "external.durable_objects.ticker.record_pending_dispatch",
+        skip(self, org_id, monitor, dispatch_id),
+        fields(org_id = %org_id, monitor_id = %monitor.id, dispatch_id = %dispatch_id)
+    )]
     async fn record_pending_dispatch(
         &self,
         org_id: &str,
@@ -237,6 +272,11 @@ impl Ticker {
         .map_err(|err| TickerError::database("ticker.dispatch.hot", err))
     }
 
+    #[tracing::instrument(
+        name = "external.durable_objects.ticker.send_dispatch_request",
+        skip(self, dispatch_id, org_id, monitor, sample_rate),
+        fields(dispatch_id = %dispatch_id, org_id = %org_id, monitor_id = %monitor.id, sample_rate = %sample_rate)
+    )]
     async fn send_dispatch_request(
         &self,
         dispatch_id: &str,
@@ -244,18 +284,15 @@ impl Ticker {
         monitor: &MonitorDispatchRow,
         sample_rate: f64,
     ) -> std::result::Result<(), TickerError> {
-        let base_url = self
+        let service = self
             .env
-            .var("DISPATCH_BASE_URL")
-            .map_err(|_| TickerError::missing_var("ticker.dispatch.base_url", "DISPATCH_BASE_URL"))?
-            .to_string();
+            .service("DISPATCH_SERVICE")
+            .map_err(|err| TickerError::request("ticker.dispatch.service", err))?;
         let token = self
             .env
             .var("DISPATCH_TOKEN")
             .map_err(|_| TickerError::missing_var("ticker.dispatch.token", "DISPATCH_TOKEN"))?
             .to_string();
-
-        let url = format!("{}/internal/dispatch/run", base_url.trim_end_matches('/'));
 
         let payload = DispatchPayload {
             dispatch_id: dispatch_id.to_string(),
@@ -284,7 +321,7 @@ impl Ticker {
         init.with_method(Method::Post);
         init.with_body(Some(JsValue::from_str(&body)));
 
-        let mut req = Request::new_with_init(&url, &init)?;
+        let mut req = Request::new_with_init("/api/internal/dispatch/run", &init)?;
         {
             let headers = req.headers_mut()?;
             headers
@@ -295,21 +332,26 @@ impl Ticker {
                 .map_err(|err| TickerError::request("ticker.dispatch.headers", err))?;
         }
 
-        let response = Fetch::Request(req)
-            .send()
+        let response = service
+            .fetch_request(req)
             .await
             .map_err(|err| TickerError::request("ticker.dispatch.fetch", err))?;
 
-        if response.status_code() >= 400 {
+        if response.status().as_u16() >= 400 {
             return Err(TickerError::response_status(
                 "ticker.dispatch.response",
-                response.status_code(),
+                response.status().as_u16(),
             ));
         }
 
         Ok(())
     }
 
+    #[tracing::instrument(
+        name = "external.durable_objects.ticker.load_sample_rate",
+        skip(self, org_id),
+        fields(org_id = %org_id)
+    )]
     async fn load_sample_rate(&self, org_id: &str) -> std::result::Result<f64, TickerError> {
         let d1 = self.env.d1("DB")?;
         let rate = get_org_sample_rate(&d1, org_id)
@@ -327,6 +369,11 @@ impl DurableObject for Ticker {
         Self { state, env }
     }
 
+    #[tracing::instrument(
+        name = "external.durable_objects.ticker.fetch",
+        skip(self, req),
+        fields(method = %req.method(), path = %req.path())
+    )]
     async fn fetch(&self, mut req: Request) -> Result<Response> {
         let method = req.method().clone();
         let path = req.path();
@@ -350,6 +397,10 @@ impl DurableObject for Ticker {
         }
     }
 
+    #[tracing::instrument(
+        name = "external.durable_objects.ticker.alarm",
+        skip(self),
+    )]
     async fn alarm(&self) -> Result<Response> {
         if let Err(err) = self.run_tick(false).await {
             console_log!("ticker alarm error: {err:?}");

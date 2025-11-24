@@ -20,6 +20,11 @@ use serde::{Deserialize, Serialize};
 use worker::console_error;
 
 #[worker::send]
+#[tracing::instrument(
+    name = "internal.handlers.reconcile_tickers_handler",
+    skip(ticker, d1, _user),
+    fields(user = %_user.sub())
+)]
 pub async fn reconcile_tickers_handler(
     AppTicker(ticker): AppTicker,
     AppDb(d1): AppDb,
@@ -37,6 +42,11 @@ pub async fn reconcile_tickers_handler(
 
 #[worker::send]
 #[axum::debug_handler]
+#[tracing::instrument(
+    name = "internal.handlers.dispatch_handler",
+    skip(state, d1, analytics, cf, headers, payload),
+    fields(payload.monitor_id = %payload.monitor_id, payload.org_id = %payload.org_id, payload.dispatch_id = %payload.dispatch_id)
+)]
 pub async fn dispatch_handler(
     State(state): State<AppState>,
     AppDb(d1): AppDb,

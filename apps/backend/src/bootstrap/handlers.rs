@@ -26,6 +26,11 @@ struct CountResult {
 }
 
 #[worker::send]
+#[tracing::instrument(
+    name = "bootstrap.status",
+    skip(state, d1, auth),
+    fields(identity_id = %auth.sub())
+)]
 pub async fn status(
     State(state): State<AppState>,
     AppDb(d1): AppDb,
@@ -53,6 +58,11 @@ pub struct InitializePayload {
 }
 
 #[worker::send]
+#[tracing::instrument(
+    name = "bootstrap.initialize",
+    skip(ticker, d1, auth, payload),
+    fields(identity_id = %auth.sub())
+)]
 pub async fn initialize(
     AppTicker(ticker): AppTicker,
     AppDb(d1): AppDb,

@@ -20,9 +20,6 @@
       "DISPATCH_TOKEN": {
         "description": "Shared secret used to authorize monitor dispatch callbacks from Durable Objects."
       },
-      "DISPATCH_BASE_URL": {
-        "description": "Base URL for the Saavy Uptime API (typically this Worker’s public hostname)."
-      },
       "ENABLE_TICKER_ADMIN": {
         "description": "Set to 1 to expose internal ticker controls; leave unset/0 for production."
       },

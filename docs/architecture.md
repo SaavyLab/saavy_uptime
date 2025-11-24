@@ -63,7 +63,7 @@ flowchart LR
 
 1. **User action** (bootstrap org, create monitor) hits the API Worker and persists config to D1.
 2. **Ticker DO** wakes via `alarm()`, loads org cadence, queries D1 for due monitors, and writes `monitor_dispatches` rows.
-3. For each due monitor, the DO POSTs to `/api/internal/dispatch/run` (authenticated via `X-Dispatch-Token`). Each request spins up a fresh Worker isolate (same script).
+3. For each due monitor, the DO calls the Worker via a Service Binding (`/api/internal/dispatch/run`, authenticated via `X-Dispatch-Token`). Each request spins up a fresh Worker isolate (same script) without leaving Cloudflare’s network.
 4. **Dispatch runner** executes the check (HTTP/TCP/game protocol), updates the monitor’s hot state in D1, writes the heartbeat to AE, and marks the dispatch row completed.
 5. Frontend/API read from D1/AE for dashboards, incidents, and future visualizations (DAG, geo map, etc.).
 

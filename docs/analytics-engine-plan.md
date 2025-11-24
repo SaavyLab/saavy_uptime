@@ -1,6 +1,6 @@
 # Analytics Engine Plan
 
-How we’ll use Cloudflare Analytics Engine (AE) alongside D1/R2, what we log, and how we keep costs predictable without sacrificing accuracy.
+How we’ll use Cloudflare Analytics Engine (AE) alongside D1, what we log, and how we keep costs predictable without sacrificing accuracy.
 
 ## Goals
 
