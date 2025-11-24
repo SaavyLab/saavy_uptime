@@ -4,11 +4,11 @@ use std::time::Duration;
 
 use futures::{future::select, future::Either, pin_mut};
 use js_sys::Math;
+use worker::D1Database;
 use worker::{
     console_error, console_log, AbortController, AnalyticsEngineDataPointBuilder,
     AnalyticsEngineDataset, Cf, Delay, Fetch, Method, Request, RequestInit, Response,
 };
-use worker::D1Database;
 
 use crate::dispatch_state::{finalize_dispatch, mark_dispatch_running};
 use crate::internal::types::{DispatchError, DispatchRequest, MonitorKind};
@@ -112,8 +112,7 @@ async fn persist_heartbeat_result(
         .await
         .map_err(DispatchError::Monitor)?;
     if should_record(result.sample_rate) {
-        write_heartbeat_to_analytics(analytics, &result)
-            .map_err(DispatchError::Heartbeat)?;
+        write_heartbeat_to_analytics(analytics, &result).map_err(DispatchError::Heartbeat)?;
     }
     Ok(())
 }
