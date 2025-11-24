@@ -58,7 +58,7 @@ struct HeartbeatRow {
 #[tracing::instrument(
     name = "analytics.monitor_health.recent_heartbeats",
     skip(client),
-    fields(monitor_id = %monitor_id, org_id = %org_id, window = %window.since_ms, window = %window.until_ms, limit = %limit)
+    fields(monitor_id = %monitor_id, org_id = %org_id, since_ms = %window.since_ms, until_ms = %window.until_ms, limit = %limit)
 )]
 pub async fn recent_heartbeats(
     client: &AeQueryClient,
