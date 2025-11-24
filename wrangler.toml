@@ -13,7 +13,7 @@ AE_ACCOUNT_ID = "<analytics-account-id>"
 AE_HEARTBEATS_DATASET = "saavy_uptime_heartbeats"
 
 [build]
-command = "cargo install worker-build && worker-build --release"
+command = "bash scripts/build-backend.sh"
 
 [[durable_objects.bindings]]
 name = "TICKER"
