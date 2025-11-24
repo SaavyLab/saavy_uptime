@@ -320,20 +320,17 @@ impl Ticker {
         let mut init = RequestInit::new();
         init.with_method(Method::Post);
         init.with_body(Some(JsValue::from_str(&body)));
-
-        let mut req = Request::new_with_init("/api/internal/dispatch/run", &init)?;
-        {
-            let headers = req.headers_mut()?;
-            headers
-                .set("Content-Type", "application/json")
-                .map_err(|err| TickerError::request("ticker.dispatch.headers", err))?;
-            headers
-                .set("X-Dispatch-Token", &token)
-                .map_err(|err| TickerError::request("ticker.dispatch.headers", err))?;
-        }
+        let mut headers = Headers::new();
+        headers
+            .set("Content-Type", "application/json")
+            .map_err(|err| TickerError::request("ticker.dispatch.headers", err))?;
+        headers
+            .set("X-Dispatch-Token", &token)
+            .map_err(|err| TickerError::request("ticker.dispatch.headers", err))?;
+        init.with_headers(headers);
 
         let response = service
-            .fetch_request(req)
+            .fetch("/api/internal/dispatch/run", Some(init))
             .await
             .map_err(|err| TickerError::request("ticker.dispatch.fetch", err))?;
 

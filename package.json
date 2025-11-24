@@ -18,7 +18,7 @@
         "description": "Cloudflare Access application Audience Tag that matches the dashboard/worker policy."
       },
       "DISPATCH_TOKEN": {
-        "description": "Shared secret used to authorize monitor dispatch callbacks from Durable Objects."
+        "description": "Shared secret used to authorize Durable Object dispatch requests (defense in depth)."
       },
       "ENABLE_TICKER_ADMIN": {
         "description": "Set to 1 to expose internal ticker controls; leave unset/0 for production."
