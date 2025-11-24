@@ -4,11 +4,11 @@ use std::time::Duration;
 
 use futures::{future::select, future::Either, pin_mut};
 use js_sys::Math;
+use worker::D1Database;
 use worker::{
-    console_error, console_log, AbortController, Cf, Delay, Fetch, Method, Request, RequestInit,
-    Response,
+    console_error, console_log, AbortController, AnalyticsEngineDataPointBuilder,
+    AnalyticsEngineDataset, Cf, Delay, Fetch, Method, Request, RequestInit, Response,
 };
-use worker::{D1Database, Queue};
 
 use crate::dispatch_state::{finalize_dispatch, mark_dispatch_running};
 use crate::internal::types::{DispatchError, DispatchRequest, MonitorKind};
@@ -18,7 +18,7 @@ use crate::utils::date::now_ms;
 
 pub async fn handle_dispatch(
     d1: D1Database,
-    heartbeat_queue: Queue,
+    analytics: &AnalyticsEngineDataset,
     payload: DispatchRequest,
     cf: Cf,
 ) -> Result<(), DispatchError> {
@@ -45,7 +45,7 @@ pub async fn handle_dispatch(
     let completion_ts = match check {
         Ok(result) => {
             let ts = result.timestamp;
-            persist_heartbeat_result(&d1, &heartbeat_queue, &snapshot, result).await?;
+            persist_heartbeat_result(&d1, analytics, &snapshot, result).await?;
             ts
         }
         Err(DispatchError::CheckFailed(result)) => {
@@ -56,7 +56,7 @@ pub async fn handle_dispatch(
                 .unwrap_or_else(|| "check failed".to_string());
             dispatch_status = "failed";
             dispatch_error = Some(error_text);
-            persist_heartbeat_result(&d1, &heartbeat_queue, &snapshot, result).await?;
+            persist_heartbeat_result(&d1, analytics, &snapshot, result).await?;
             ts
         }
         Err(err) => {
@@ -67,7 +67,7 @@ pub async fn handle_dispatch(
             dispatch_error = Some(error_message.clone());
             persist_heartbeat_result(
                 &d1,
-                &heartbeat_queue,
+                analytics,
                 &snapshot,
                 HeartbeatResult {
                     monitor_id: payload.monitor_id.clone(),
@@ -104,23 +104,20 @@ pub async fn handle_dispatch(
 
 async fn persist_heartbeat_result(
     d1: &D1Database,
-    heartbeat_queue: &Queue,
+    analytics: &AnalyticsEngineDataset,
     snapshot: &MonitorStatusSnapshot,
     result: HeartbeatResult,
 ) -> Result<(), DispatchError> {
     update_monitor_status_for_org(d1, &result, snapshot)
         .await
         .map_err(DispatchError::Monitor)?;
-    if should_enqueue(result.sample_rate) {
-        heartbeat_queue
-            .send(result)
-            .await
-            .map_err(DispatchError::Heartbeat)?;
+    if should_record(result.sample_rate) {
+        write_heartbeat_to_analytics(analytics, &result).map_err(DispatchError::Heartbeat)?;
     }
     Ok(())
 }
 
-fn should_enqueue(sample_rate: f64) -> bool {
+fn should_record(sample_rate: f64) -> bool {
     if sample_rate >= 1.0 {
         return true;
     }
@@ -182,6 +179,25 @@ async fn check_monitor(
     };
 
     Ok(result)
+}
+
+fn write_heartbeat_to_analytics(
+    dataset: &AnalyticsEngineDataset,
+    event: &HeartbeatResult,
+) -> worker::Result<()> {
+    let builder = AnalyticsEngineDataPointBuilder::new()
+        .indexes(vec![event.monitor_id.as_str(), event.org_id.as_str()])
+        .add_blob(event.dispatch_id.as_str())
+        .add_double(event.timestamp as f64)
+        .add_blob(event.status)
+        .add_double(event.latency_ms as f64)
+        .add_blob(event.region.as_str())
+        .add_blob(event.colo.as_str())
+        .add_blob(event.error.as_ref().unwrap_or(&String::new()).as_str())
+        .add_double(event.code.unwrap_or(0) as f64)
+        .add_double(event.sample_rate);
+
+    dataset.write_data_point(&builder.build())
 }
 
 const MAX_REDIRECT_DEPTH: u8 = 10;

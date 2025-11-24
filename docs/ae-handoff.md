@@ -7,8 +7,8 @@
 
 ## Objectives for Next Chunk
 1. **Validate AE schema coverage**
-   - Ingestion via `external::queues::heartbeat_results` already writes heartbeat summaries to AE; confirm the stored columns cover upcoming analytics and extend the schema if we need extra dimensions such as dispatch IDs.
-   - Add instrumentation/alerts so the queue consumer stays healthy and AE data remains fresh (<1 min lag).
+   - Ingestion via `internal::dispatch::persist_heartbeat_result` already writes heartbeat summaries to AE; confirm the stored columns cover upcoming analytics and extend the schema if we need extra dimensions such as dispatch IDs.
+   - Add instrumentation/alerts so the synchronous AE writes stay healthy (<1 min lag); log/alert on failures since there’s no queue retry.
 
 2. **Query APIs for insights**
    - Add backend endpoints (e.g., `/api/monitors/:id/heartbeats`, `/api/insights/fleet`) that run AE SQL via the Analytics Engine client.

@@ -51,15 +51,13 @@ Whenever the user lowers the sample rate, we:
 ## Next steps
 
 1. Design the AE table schema (likely one dataset per environment with columns above).
-2. Add a queue producer in the dispatch path that enqueues heartbeat summaries (respecting rate).
-3. Implement a `heartbeat-summaries` queue consumer Worker that batches messages and writes to AE (one dataset per environment).
+2. Update the dispatch path so, after persisting to D1, it writes the heartbeat directly to AE (respecting the per-org sample rate).
+3. Make the AE write resilient (log failures, alert if error rate spikes) since there is no longer a queue retry safety net.
 4. Build the first AE query (uptime last 24 h) and wire it into the dashboard.
 5. Add UI copy/docs explaining the cost vs. fidelity trade-off when adjusting AE settings.
 
-## Queue-based ingestion
+## Direct ingestion
 
-- **Producer:** The dispatch runner (internal Worker route) publishes each heartbeat summary to the `HEARTBEAT_SUMMARIES` queue. Messages include `sample_rate` metadata so AE queries can correct for sampling.
-- **Consumer:** A separate queue consumer Worker (defined under `apps/backend/src/external/queues/heartbeat_summaries.rs`) receives batches (e.g., 100 messages), groups them by dataset, and writes to AE via the Analytics Engine API. Any AE write failure can be retried because the queue only `ack`s after a successful flush.
-- **Config:** Wrangler config (`wrangler.toml`) declares the queue producer/consumer bindings with conservative `max_batch_size`/`max_batch_timeout`. Inside the consumer Worker, we honor org-specific batch limits via env vars if needed.
-
-This approach keeps the dispatch path lean (fire-and-forget queue publish) while giving us durable batching/retries for AE writes.
+- The dispatch runner writes each heartbeat summary straight to AE after updating D1. Writes are gated by the org’s `sample_rate` to control volume.
+- Because there is no retry queue, failed AE writes are logged and surfaced via metrics; the D1 hot state remains correct even if analytics lag.
+- This simplifies deployment (no queue bindings) and keeps analytics latency low at the cost of occasional dropped metrics if AE is unavailable.

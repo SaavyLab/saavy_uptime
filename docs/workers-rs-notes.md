@@ -63,14 +63,10 @@ We’re capturing bits that weren’t obvious while porting the backend to the A
 - **Testing utility:** an in-memory D1 adapter we can unit-test against (with asserts on bindings) would catch these mistakes before deploying to Workers.
  Until we have tooling, we’re triple-checking bind order manually and leaving comments near each `prepare` call. Anything workers-rs can do (even doc guidance) would save folks from hard-to-spot bugs.
 
-### Queues batch config
-
-- Queue consumers require `max_batch_size` / `max_batch_timeout` in `wrangler.toml`. That’s fine for static deployments, but we’d like a runtime knob so users can tune AE batch sizes without redeploying. Example: hobby orgs might want smaller batches to reduce latency, while larger tenants want 500+ messages per batch for cost efficiency. Right now the workaround is to set Wrangler’s limits high and enforce our own cap inside the consumer (via env vars), but a per-queue API or dynamic configuration would make operator UX nicer.
-
 ### External entrypoints and tooling
 
-- Durable Object and Queue consumer entrypoints live in the repo but aren’t part of the main crate (they’re compiled via the `#[event(...)]` macros), so Rust Analyzer / cargo check often skip them. IDEs treat those files as “dead code,” meaning no diagnostics or inline errors until we run `worker-build`. It would be great if workers-rs exposed a virtual crate or recommended stub modules so tools can index these entrypoints. Until then we have to run `cargo check --lib --bin whatever` manually or accept that the analyzer can’t see them.
-- Possible workaround: emit a `rust-project.json` (see <https://rust-analyzer.github.io/book/non_cargo_based_projects.html>) that tells rust-analyzer about the extra “crates” for DOs/queue consumers. We haven’t wired this up yet, but it might be worth generating one during build to keep IDEs happy.
+- Durable Object entrypoints live in the repo but aren’t part of the main crate (they’re compiled via the `#[event(...)]` macros), so Rust Analyzer / cargo check often skip them. IDEs treat those files as “dead code,” meaning no diagnostics or inline errors until we run `worker-build`. It would be great if workers-rs exposed a virtual crate or recommended stub modules so tools can index these entrypoints. Until then we have to run `cargo check --lib --bin whatever` manually or accept that the analyzer can’t see them.
+- Possible workaround: emit a `rust-project.json` (see <https://rust-analyzer.github.io/book/non_cargo_based_projects.html>) that tells rust-analyzer about the extra “crates” for DOs. We haven’t wired this up yet, but it might be worth generating one during build to keep IDEs happy.
 - **Workers Builds lack Rust tooling:** Deploy Buttons/Workers Builds run in a Node/Bun image without `cargo`. If your `[build] command` uses `worker-build`, you must bootstrap Rust yourself (install `rustup`, `cargo`, and `worker-build`) inside that command or script. There’s no toggle to pre-provision Rust on Cloudflare’s runners today, so plan for the install time or commit prebuilt artifacts.
 
 If you run into other sharp edges, add them here so we can hand actionable notes back to the Workers team (or automate them via templates/Taskfile steps).

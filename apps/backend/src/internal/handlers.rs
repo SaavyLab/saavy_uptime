@@ -1,8 +1,8 @@
 use crate::auth::membership::load_membership;
 use crate::bootstrap::ticker_bootstrap::ensure_all_tickers;
+use crate::cloudflare::analytics::AppAnalytics;
 use crate::cloudflare::d1::AppDb;
 use crate::cloudflare::durable_objects::ticker::AppTicker;
-use crate::cloudflare::queues::HeartbeatQueue;
 use crate::cloudflare::request::RequestCf;
 use crate::internal::dispatch::handle_dispatch;
 use crate::internal::types::{DispatchRequest, MonitorKind, ReconcileResponse};
@@ -40,13 +40,13 @@ pub async fn reconcile_tickers_handler(
 pub async fn dispatch_handler(
     State(state): State<AppState>,
     AppDb(d1): AppDb,
-    HeartbeatQueue(heartbeat_queue): HeartbeatQueue,
+    AppAnalytics(analytics): AppAnalytics,
     RequestCf(cf): RequestCf,
     headers: HeaderMap,
     Json(payload): Json<DispatchRequest>,
 ) -> Result<StatusCode, StatusCode> {
     validate_dispatch_token(&state, &headers)?;
-    handle_dispatch(d1, heartbeat_queue, payload, cf).await?;
+    handle_dispatch(d1, &analytics, payload, cf).await?;
 
     Ok(StatusCode::ACCEPTED)
 }

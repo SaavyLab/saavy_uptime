@@ -30,7 +30,7 @@
         "description": "Analytics Engine account ID (from Cloudflare dashboard → Analytics Engine)."
       },
       "AE_HEARTBEATS_DATASET": {
-        "description": "Dataset name for heartbeat summaries written by the heartbeat queue consumer."
+        "description": "Dataset name for heartbeat summaries written directly from the dispatch runner."
       },
       "AE_API_TOKEN": {
         "description": "Secret (stored in Secrets Store) that authorizes writes to the Analytics Engine datasets."
@@ -43,9 +43,6 @@
       },
       "ARCHIVE_BUCKET": {
         "description": "R2 bucket used for cold-storage of incident artifacts and monitor exports."
-      },
-      "heartbeat-queue": {
-        "description": "Workers Queue that carries heartbeat summaries from runners to the AE writer."
       },
       "TICKER": {
         "description": "Durable Object namespace backing the global ticker that schedules monitor execution."
