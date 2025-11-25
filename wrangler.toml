@@ -8,11 +8,12 @@ ACCESS_TEAM_DOMAIN = "https://<your-team>.cloudflareaccess.com"
 ACCESS_AUD = "<access-audience-tag>"
 DISPATCH_TOKEN = "change-me"
 ENABLE_TICKER_ADMIN = 0
-AE_ACCOUNT_ID = "<analytics-account-id>"
+AE_ACCOUNT_ID = "00000000-0000-0000-0000-000000000000"
 AE_HEARTBEATS_DATASET = "saavy_uptime_heartbeats"
 
 [build]
-command = "bash scripts/build-backend.sh"
+command = "cargo install worker-build && worker-build --release"
+# command = "bash scripts/build-backend.sh"
 
 [[durable_objects.bindings]]
 name = "TICKER"
@@ -53,12 +54,6 @@ dataset = "saavy_uptime_heartbeats"
 binding = "ARCHIVE_BUCKET"
 bucket_name = "saavy-uptime-archive"
 preview_bucket_name = "saavy-uptime-archive-preview"
-
-[[services]]
-binding = "DISPATCH_SERVICE"
-service = "saavy-uptime"
-environment = "production"
-
 
 # ========================================
 # PREVIEW ENVIRONMENT
@@ -106,12 +101,6 @@ binding = "ARCHIVE_BUCKET"
 bucket_name = "saavy-uptime-archive-preview"
 preview_bucket_name = "saavy-uptime-archive-preview"
 
-[[env.preview.services]]
-binding = "DISPATCH_SERVICE"
-service = "saavy-uptime-preview"
-environment = "preview"
-
-
 # ========================================
 # PRODUCTION ENVIRONMENT
 # ========================================
@@ -151,8 +140,3 @@ dataset = "saavy_uptime_heartbeats"
 [[env.production.r2_buckets]]
 binding = "ARCHIVE_BUCKET"
 bucket_name = "saavy-uptime-archive"
-
-[[env.production.services]]
-binding = "DISPATCH_SERVICE"
-service = "saavy-uptime"
-environment = "production"
