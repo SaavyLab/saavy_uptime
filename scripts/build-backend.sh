@@ -4,12 +4,18 @@ set -euo pipefail
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKEND_DIR="$PROJECT_ROOT/apps/backend"
 
-if [ -f "$HOME/.cargo/env" ]; then
-	# shellcheck disable=SC1091
-	source "$HOME/.cargo/env"
-fi
+# Detect if we're in local dev (Rust already available) vs Deploy Button (need to bootstrap)
+is_local_dev() {
+	# If cargo and worker-build are both available, we're in local dev
+	command -v cargo >/dev/null 2>&1 && command -v worker-build >/dev/null 2>&1
+}
 
 ensure_rust() {
+	if [ -f "$HOME/.cargo/env" ]; then
+		# shellcheck disable=SC1091
+		source "$HOME/.cargo/env"
+	fi
+
 	if command -v cargo >/dev/null 2>&1; then
 		return
 	fi
@@ -30,11 +36,17 @@ ensure_worker_build() {
 }
 
 main() {
-	ensure_rust
-	ensure_worker_build
-
-	cd "$BACKEND_DIR"
-	worker-build --release
+	if is_local_dev; then
+		# Fast path: just build, skip bootstrap checks
+		cd "$BACKEND_DIR"
+		worker-build --release
+	else
+		# Deploy Button path: bootstrap Rust and tools
+		ensure_rust
+		ensure_worker_build
+		cd "$BACKEND_DIR"
+		worker-build --release
+	fi
 }
 
 main "$@"

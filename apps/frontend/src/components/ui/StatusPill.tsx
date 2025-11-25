@@ -1,12 +1,12 @@
 import { cn } from "@/lib/utils";
 
 const STATUS_MAP: Record<string, string> = {
-	up: "border border-emerald-400/30 bg-emerald-400/10 text-emerald-200",
-	down: "border border-[var(--accent-red)]/40 bg-[var(--accent-red)]/15 text-[var(--accent-red)]",
-	degraded: "border border-amber-300/40 bg-amber-300/15 text-amber-200",
-	maintenance:
-		"border border-[var(--accent)]/40 bg-[var(--accent)]/15 text-[var(--accent-strong)]",
-	unknown: "border border-white/20 bg-white/10 text-[var(--text-primary)]",
+	up: "bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30",
+	down: "bg-red-500/15 text-red-400 ring-1 ring-red-500/30",
+	degraded: "bg-amber-500/15 text-amber-400 ring-1 ring-amber-500/30",
+	pending: "bg-cyan-500/15 text-cyan-400 ring-1 ring-cyan-500/30",
+	maintenance: "bg-zinc-500/15 text-zinc-400 ring-1 ring-zinc-500/30",
+	unknown: "bg-zinc-500/15 text-zinc-400 ring-1 ring-zinc-500/30",
 };
 
 type StatusPillProps = {
@@ -19,7 +19,7 @@ export function StatusPill({ status, className }: StatusPillProps) {
 	return (
 		<span
 			className={cn(
-				"w-fit rounded-full px-3 py-1 text-xs font-semibold uppercase",
+				"inline-flex items-center rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
 				STATUS_MAP[normalized] ?? STATUS_MAP.unknown,
 				className,
 			)}

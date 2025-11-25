@@ -20,6 +20,9 @@
       "DISPATCH_TOKEN": {
         "description": "Shared secret used to authorize Durable Object dispatch requests (defense in depth)."
       },
+      "DISPATCH_URL": {
+        "description": "Base URL of the Worker for DO→Worker dispatch calls (e.g., https://saavy-uptime.<subdomain>.workers.dev)."
+      },
       "ENABLE_TICKER_ADMIN": {
         "description": "Set to 1 to expose internal ticker controls; leave unset/0 for production."
       },

@@ -15,6 +15,7 @@ tasks:
 
   dev:
     desc: "Run Wrangler dev server"
+    dir: ../..
     cmds:
       - npx wrangler dev {{.CLI_ARGS}}
     
@@ -25,22 +26,22 @@ tasks:
   migrate:
     desc: "Apply D1 migrations"
     cmds:
-      - npx wrangler d1 migrations apply {{.DATABASE_NAME}} {{.CLI_ARGS}}
+      - bunx wrangler d1 migrations apply {{.DATABASE_NAME}} {{.CLI_ARGS}}
   
   migrate:create:
     desc: "Create a new D1 migration"
     cmds:
-      - npx wrangler d1 migrations create {{.DATABASE_NAME}} {{.CLI_ARGS}}
+      - bunx wrangler d1 migrations create {{.DATABASE_NAME}} {{.CLI_ARGS}}
 
   db:exec:
     desc: "Execute a SQL command on the D1 database"
     cmds:
-      - npx wrangler d1 execute {{.DATABASE_NAME}} --command="{{.CLI_ARGS}}"
+      - bunx wrangler d1 execute {{.DATABASE_NAME}} --command="{{.CLI_ARGS}}"
 
   db:file:
     desc: "Execute a SQL file on the D1 database"
     cmds:
-      - npx wrangler d1 execute {{.DATABASE_NAME}} --file="{{.CLI_ARGS}}"
+      - bunx wrangler d1 execute {{.DATABASE_NAME}} --file="{{.CLI_ARGS}}"
 
   db:generate:
     desc: "Generate D1 queries"
@@ -85,9 +86,10 @@ tasks:
 
   deploy:
     desc: "Deploy worker to Cloudflare"
+    dir: ../..
     deps: [build]
     cmds:
-      - npx wrangler deploy {{.CLI_ARGS}}
+      - bunx wrangler deploy {{.CLI_ARGS}}
 
   clean:
     desc: "Clean build artifacts"
@@ -98,14 +100,14 @@ tasks:
   tail:
     desc: "Tail worker logs"
     cmds:
-      - npx wrangler tail
+      - bunx wrangler tail
 
   do:list:
     desc: "List all Durable Objects"
     cmds:
-      - npx wrangler d1 objects list
+      - bunx wrangler d1 objects list
 
   kv:list:
     desc: "List KV namespaces"
     cmds:
-      - npx wrangler kv:namespace list
+      - bunx wrangler kv:namespace list
