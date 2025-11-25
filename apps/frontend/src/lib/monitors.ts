@@ -62,7 +62,7 @@ export type UpdateMonitorInput = z.infer<typeof createMonitorSchema>;
 
 const heartbeatSampleSchema = z.object({
 	timestampMs: z.number(),
-	status: z.string(),
+	status: z.string().transform((s) => s.toLowerCase()),
 	latencyMs: z.number(),
 	region: z.string().nullable(),
 	colo: z.string().nullable(),
