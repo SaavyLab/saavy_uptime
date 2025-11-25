@@ -7,18 +7,22 @@ workers_dev = false
 ACCESS_TEAM_DOMAIN = "https://<your-team>.cloudflareaccess.com"
 ACCESS_AUD = "<access-audience-tag>"
 DISPATCH_TOKEN = "change-me"
+DISPATCH_URL = "http://localhost:8787"
 ENABLE_TICKER_ADMIN = 0
 AE_ACCOUNT_ID = "00000000-0000-0000-0000-000000000000"
 AE_HEARTBEATS_DATASET = "saavy_uptime_heartbeats"
 
 [build]
-command = "cargo install worker-build && worker-build --release"
-# command = "bash scripts/build-backend.sh"
+command = "bash scripts/build-backend.sh"
 
 [[durable_objects.bindings]]
 name = "TICKER"
 class_name = "Ticker"
 script_name = "saavy-uptime"
+
+[[services]]
+binding = "DISPATCH_SERVICE"
+service = "saavy-uptime"
 
 [[migrations]]
 tag = "v1"
@@ -66,6 +70,7 @@ workers_dev = true
 ACCESS_TEAM_DOMAIN = "https://<your-team>.cloudflareaccess.com"
 ACCESS_AUD = "<access-audience-tag>"
 DISPATCH_TOKEN = "change-me"
+DISPATCH_URL = "https://saavy-uptime-preview.<your-subdomain>.workers.dev"
 ENABLE_TICKER_ADMIN = 1
 AE_ACCOUNT_ID = "<analytics-account-id>"
 AE_HEARTBEATS_DATASET = "saavy_uptime_heartbeats_preview"
@@ -74,6 +79,10 @@ AE_HEARTBEATS_DATASET = "saavy_uptime_heartbeats_preview"
 name = "TICKER"
 class_name = "Ticker"
 script_name = "saavy-uptime-preview"
+
+[[env.preview.services]]
+binding = "DISPATCH_SERVICE"
+service = "saavy-uptime-preview"
 
 [[env.preview.migrations]]
 tag = "v1"
@@ -112,6 +121,7 @@ workers_dev = false
 ACCESS_TEAM_DOMAIN = "https://<your-team>.cloudflareaccess.com"
 ACCESS_AUD = "<access-audience-tag>"
 DISPATCH_TOKEN = "change-me"
+DISPATCH_URL = "https://saavy-uptime.<your-subdomain>.workers.dev"
 ENABLE_TICKER_ADMIN = 0
 AE_ACCOUNT_ID = "<analytics-account-id>"
 AE_HEARTBEATS_DATASET = "saavy_uptime_heartbeats"
@@ -120,6 +130,10 @@ AE_HEARTBEATS_DATASET = "saavy_uptime_heartbeats"
 name = "TICKER"
 class_name = "Ticker"
 script_name = "saavy-uptime"
+
+[[env.production.services]]
+binding = "DISPATCH_SERVICE"
+service = "saavy-uptime"
 
 [[env.production.secrets_store_secrets]]
 binding = "AE_API_TOKEN"

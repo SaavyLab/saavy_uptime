@@ -31,10 +31,10 @@ INSERT INTO monitors (
 );
 
 -- name: get_monitor_by_id :one
-SELECT * FROM monitors WHERE id = :id AND org_id = :org_id;
+SELECT id, org_id, name, kind, enabled, config_json, status, last_checked_at, last_failed_at, first_checked_at, rt_ms, region, last_error, next_run_at, created_at, updated_at FROM monitors WHERE id = :id AND org_id = :org_id;
 
 -- name: get_monitors_by_org_id :many
-SELECT * FROM monitors WHERE org_id = :org_id ORDER BY created_at DESC;
+SELECT id, org_id, name, kind, enabled, config_json, status, last_checked_at, last_failed_at, first_checked_at, rt_ms, region, last_error, next_run_at, created_at, updated_at FROM monitors WHERE org_id = :org_id ORDER BY created_at DESC;
 
 -- name: list_due_monitors :many
 -- params: org_id String

@@ -1,6 +1,6 @@
 # Cloudflare-Native Differentiators
 
-Ideas that showcase features Uptime Kuma (and most self-hosted poller stacks) can’t deliver without Cloudflare’s edge platform. These depend on the core monitor pipeline (ticker DO, distributed runners, D1/AE/R2 storage) and should be slotted post-MVP.
+Ideas that showcase features unique to Cloudflare's edge platform. These depend on the core monitor pipeline (ticker DO, distributed runners, D1/AE/R2 storage) and should be slotted post-MVP.
 
 ## 1. Real-Time Execution DAG
 

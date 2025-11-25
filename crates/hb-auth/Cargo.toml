@@ -15,7 +15,7 @@ default = ["axum"]
 axum = ["dep:axum"]
 
 [dependencies]
-worker = { version = "0.6", features = ['http'] }
+worker = { version = "0.7", features = ['http'] }
 axum = { version = "0.8", default-features = false, features = ["json"], optional = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

@@ -39,8 +39,9 @@ impl Ticker {
             .state
             .storage()
             .get::<TickerState>("state")
-            .await
-            .unwrap_or_default())
+            .await?
+            .unwrap_or_default()
+        )
     }
 
     async fn save_state(&self, state: &TickerState) -> Result<()> {
@@ -284,10 +285,11 @@ impl Ticker {
         monitor: &MonitorDispatchRow,
         sample_rate: f64,
     ) -> std::result::Result<(), TickerError> {
-        let service = self
+        let dispatch_url = self
             .env
-            .service("DISPATCH_SERVICE")
-            .map_err(|err| TickerError::request("ticker.dispatch.service", err))?;
+            .var("DISPATCH_URL")
+            .map_err(|_| TickerError::missing_var("ticker.dispatch.url", "DISPATCH_URL"))?
+            .to_string();
         let token = self
             .env
             .var("DISPATCH_TOKEN")
@@ -317,9 +319,8 @@ impl Ticker {
             )
         })?;
 
-        let mut init = RequestInit::new();
-        init.with_method(Method::Post);
-        init.with_body(Some(JsValue::from_str(&body)));
+        let url = format!("{}/api/internal/dispatch/run", dispatch_url);
+
         let mut headers = Headers::new();
         headers
             .set("Content-Type", "application/json")
@@ -327,17 +328,22 @@ impl Ticker {
         headers
             .set("X-Dispatch-Token", &token)
             .map_err(|err| TickerError::request("ticker.dispatch.headers", err))?;
+
+        let mut init = RequestInit::new();
+        init.with_method(Method::Post);
+        init.with_body(Some(JsValue::from_str(&body)));
         init.with_headers(headers);
 
-        let response = service
-            .fetch("/api/internal/dispatch/run", Some(init))
+        let req = Request::new_with_init(&url, &init)?;
+        let response = Fetch::Request(req)
+            .send()
             .await
             .map_err(|err| TickerError::request("ticker.dispatch.fetch", err))?;
 
-        if response.status().as_u16() >= 400 {
+        if response.status_code() >= 400 {
             return Err(TickerError::response_status(
                 "ticker.dispatch.response",
-                response.status().as_u16(),
+                response.status_code(),
             ));
         }
 
