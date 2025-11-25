@@ -64,7 +64,7 @@ pub struct InitializePayload {
     fields(identity_id = %auth.sub())
 )]
 pub async fn initialize(
-    AppTicker(ticker): AppTicker,
+    ticker: AppTicker,
     AppDb(d1): AppDb,
     auth: User,
     Json(payload): Json<InitializePayload>,

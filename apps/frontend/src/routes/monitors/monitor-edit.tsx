@@ -263,4 +263,5 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 const mapMonitorToFormValues = (monitor: Monitor): MonitorFormValues => ({
 	name: monitor.name,
 	config: httpMonitorConfigSchema.parse(monitor.config),
+	relayId: monitor.relayId ?? "",
 });

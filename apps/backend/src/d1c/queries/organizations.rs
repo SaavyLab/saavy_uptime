@@ -12,16 +12,13 @@ pub fn create_organization_stmt(
         .prepare(
             "INSERT INTO organizations (id, slug, name, owner_id, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
         );
-    let stmt = stmt
-        .bind(
-            &[
-                id.into(),
-                slug.into(),
-                name.into(),
-                owner_id.into(),
-                (created_at as f64).into(),
-            ],
-        )?;
+    let stmt = stmt.bind(&[
+        id.into(),
+        slug.into(),
+        name.into(),
+        owner_id.into(),
+        (created_at as f64).into(),
+    ])?;
     Ok(stmt)
 }
 #[tracing::instrument(name = "d1c.create_organization", skip(d1))]
@@ -116,10 +113,7 @@ pub struct GetOrgSampleRateRow {
     pub ae_sample_rate: f64,
 }
 #[tracing::instrument(name = "d1c.get_org_sample_rate", skip(d1))]
-pub async fn get_org_sample_rate(
-    d1: &D1Database,
-    id: &str,
-) -> Result<Option<GetOrgSampleRateRow>> {
+pub async fn get_org_sample_rate(d1: &D1Database, id: &str) -> Result<Option<GetOrgSampleRateRow>> {
     let stmt = d1.prepare("SELECT id, ae_sample_rate FROM organizations WHERE id = ?1");
     let stmt = stmt.bind(&[id.into()])?;
     let result = stmt.first::<GetOrgSampleRateRow>(None).await?;

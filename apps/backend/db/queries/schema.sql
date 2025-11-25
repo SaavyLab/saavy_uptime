@@ -4,6 +4,8 @@ CREATE INDEX idx_monitor_dispatch_hot_org_status
 CREATE INDEX idx_monitors_org_enabled_next_run
   ON monitors (org_id, enabled, next_run_at)
 
+CREATE INDEX idx_monitors_relay ON monitors(relay_id)
+
 CREATE INDEX idx_monitors_status
   ON monitors (status)
 
@@ -11,6 +13,10 @@ CREATE INDEX idx_notifications_monitor_kind
   ON notifications (monitor_id, kind)
 
 CREATE INDEX idx_organizations_owner_id ON organizations (owner_id)
+
+CREATE INDEX idx_relays_enabled ON relays (enabled)
+
+CREATE INDEX idx_relays_location ON relays (location_hint)
 
 CREATE TABLE incidents (
   id TEXT PRIMARY KEY,
@@ -61,7 +67,7 @@ CREATE TABLE "monitors" (
   next_run_at INTEGER,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
-)
+, relay_id TEXT REFERENCES relays(id))
 
 CREATE TABLE notifications (
   id TEXT PRIMARY KEY,
@@ -89,6 +95,21 @@ CREATE TABLE organizations (
   name TEXT NOT NULL, -- Display name
   created_at INTEGER NOT NULL
 , owner_id TEXT NOT NULL REFERENCES members(identity_id) ON DELETE CASCADE, ae_sample_rate REAL NOT NULL DEFAULT 1.0)
+
+CREATE TABLE relays (
+  id TEXT PRIMARY KEY,
+  slug TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  location_hint TEXT NOT NULL,
+  jurisdiction TEXT NOT NULL,
+  durable_object_id TEXT NOT NULL UNIQUE,
+  enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
+  last_bootstrapped_at INTEGER,
+  last_error TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  CHECK (length(durable_object_id) = 64)
+)
 
 CREATE TABLE settings (
   key TEXT PRIMARY KEY,

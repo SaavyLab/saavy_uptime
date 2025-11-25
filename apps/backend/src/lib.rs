@@ -16,6 +16,7 @@ pub mod external;
 pub mod internal;
 pub mod monitors;
 pub mod organizations;
+pub mod relays;
 pub mod router;
 pub mod utils;
 

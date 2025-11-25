@@ -1,14 +1,19 @@
 use cuid2::create_id;
 use std::{convert::TryFrom, result::Result};
 use worker::wasm_bindgen::JsValue;
-use worker::{console_log, D1Database, ObjectNamespace};
+use worker::{console_log, D1Database};
 
 use crate::bootstrap::ticker_bootstrap::ensure_ticker_bootstrapped;
-use crate::d1c::queries::monitors::{create_monitor, get_monitor_by_id, update_monitor_status};
+use crate::cloudflare::durable_objects::ticker::AppTicker;
+use crate::d1c::queries::monitors::{
+    create_monitor, get_monitor_by_id, set_monitor_relay, update_monitor_status,
+};
 use crate::monitors::types::{
     CreateMonitor, HeartbeatResult, Monitor, MonitorError, MonitorStatus, MonitorStatusSnapshot,
     UpdateMonitor,
 };
+use crate::relays::errors::RelayError;
+use crate::relays::service::get_relay_by_id;
 use crate::utils::date::now_ms;
 use crate::utils::wasm_types::js_number;
 
@@ -18,15 +23,27 @@ use crate::utils::wasm_types::js_number;
     fields(org_id = %org_id)
 )]
 pub async fn create_monitor_for_org(
-    ticker: &ObjectNamespace,
+    ticker: &AppTicker,
     d1: &D1Database,
     org_id: &str,
     monitor: CreateMonitor,
 ) -> Result<Monitor, MonitorError> {
     let id = create_id().to_string();
+    let relay_id = monitor.relay_id.trim().to_string();
+    if relay_id.is_empty() {
+        return Err(MonitorError::InvalidConfig(
+            "Relay selection is required".to_string(),
+        ));
+    }
+
+    get_relay_by_id(d1, &relay_id)
+        .await
+        .map_err(relay_error_to_monitor_error)?;
+
     monitor.config.validate()?;
     let config_json = monitor.config.to_json()?;
     let kind = monitor.kind.to_string();
+    let now = now_ms();
     create_monitor(
         d1,
         &id,
@@ -36,8 +53,8 @@ pub async fn create_monitor_for_org(
         1,
         &config_json,
         MonitorStatus::Pending.to_string().as_str(),
-        now_ms(),
-        now_ms(),
+        now,
+        now,
     )
     .await
     .map_err(MonitorError::DbRun)?;
@@ -46,12 +63,34 @@ pub async fn create_monitor_for_org(
         .await
         .map_err(MonitorError::Bootstrap)?;
 
+    set_monitor_relay(d1, &relay_id, now_ms(), &id, &org_id)
+        .await
+        .map_err(MonitorError::DbRun)?;
+
     match get_monitor_by_id(d1, &id, &org_id).await {
-        Ok(Some(row)) => Monitor::try_from(row),
+        Ok(Some(row)) => {
+            let mut monitor = Monitor::try_from(row)?;
+            monitor.relay_id = Some(relay_id);
+            Ok(monitor)
+        }
         Ok(None) => Err(MonitorError::NotFound),
         Err(_) => Err(MonitorError::DbRun(worker::Error::RustError(
             "Failed to get monitor".to_string(),
         ))),
+    }
+}
+
+fn relay_error_to_monitor_error(err: RelayError) -> MonitorError {
+    match err {
+        RelayError::Validation { field: _, message } => MonitorError::InvalidConfig(message),
+        RelayError::Database { source, .. } => MonitorError::DbRun(source),
+        RelayError::DurableObject { source, .. } => MonitorError::DbRun(source),
+        RelayError::Serialization { context, source } => MonitorError::InvalidConfig(format!(
+            "Unable to parse relay response ({context}): {source}"
+        )),
+        RelayError::Conflict(_) => {
+            MonitorError::InvalidConfig("Relay configuration conflict".to_string())
+        }
     }
 }
 

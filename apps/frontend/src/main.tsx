@@ -18,6 +18,7 @@ import MonitorEditRoute from "@/routes/monitors/monitor-edit";
 import MonitorNewRoute from "@/routes/monitors/monitor-new";
 import MonitorsRoute from "@/routes/monitors/monitors";
 import OrganizationRoute from "@/routes/organization/organization";
+import RelaysRoute from "@/routes/relays/relays";
 import StatusRoute from "@/routes/status.tsx";
 import "@/styles.css";
 import reportWebVitals from "@/reportWebVitals.ts";
@@ -47,6 +48,7 @@ const routeTree = typedRootRoute.addChildren([
 	MonitorDetailRoute(typedRootRoute),
 	MonitorEditRoute(typedRootRoute),
 	MonitorNewRoute(typedRootRoute),
+	RelaysRoute(typedRootRoute),
 	IncidentsRoute(typedRootRoute),
 	StatusRoute(typedRootRoute),
 	OrganizationRoute(typedRootRoute),

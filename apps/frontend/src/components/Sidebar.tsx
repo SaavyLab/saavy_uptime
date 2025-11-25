@@ -4,15 +4,17 @@ import {
 	AlertCircle,
 	Building2,
 	GitBranch,
+	Globe2,
 	Home,
 	Monitor,
-	Settings,
 	Radio,
+	Settings,
 } from "lucide-react";
 
 const NAV_ITEMS = [
 	{ to: "/", label: "Overview", icon: Home },
 	{ to: "/monitors", label: "Monitors", icon: Monitor },
+	{ to: "/relays", label: "Relays", icon: Globe2 },
 	{ to: "/incidents", label: "Incidents", icon: AlertCircle },
 	{ to: "/dag", label: "Execution DAG", icon: GitBranch },
 	{ to: "/status", label: "Status Pages", icon: Radio },
@@ -23,16 +25,15 @@ export function Sidebar() {
 	return (
 		<aside className="fixed inset-y-0 left-0 z-50 hidden w-56 flex-col border-r border-white/[0.04] bg-[#0a0a0c]/90 backdrop-blur-xl md:flex">
 			<div className="flex h-14 items-center border-b border-white/[0.04] px-5">
-				<Link
-					to="/"
-					className="flex items-center gap-2.5 text-foreground"
-				>
+				<Link to="/" className="flex items-center gap-2.5 text-foreground">
 					<div className="h-7 w-7 rounded bg-gradient-to-br from-cyan-400 to-cyan-600 flex items-center justify-center shadow-[0_0_12px_rgba(6,182,212,0.4)]">
 						<Activity size={14} strokeWidth={2.5} className="text-black" />
 					</div>
 					<div className="flex flex-col">
 						<span className="text-sm font-semibold tracking-tight">Saavy</span>
-						<span className="text-[10px] font-medium text-muted-foreground -mt-0.5 tracking-wide">UPTIME</span>
+						<span className="text-[10px] font-medium text-muted-foreground -mt-0.5 tracking-wide">
+							UPTIME
+						</span>
 					</div>
 				</Link>
 			</div>
@@ -66,11 +67,12 @@ export function Sidebar() {
 						<p className="truncate text-xs font-medium text-zinc-300">
 							Saavy User
 						</p>
-						<p className="truncate text-[10px] text-zinc-600">
-							user@saavy.dev
-						</p>
+						<p className="truncate text-[10px] text-zinc-600">user@saavy.dev</p>
 					</div>
-					<Settings size={14} className="text-zinc-600 group-hover:text-zinc-400 transition-colors" />
+					<Settings
+						size={14}
+						className="text-zinc-600 group-hover:text-zinc-400 transition-colors"
+					/>
 				</div>
 			</div>
 		</aside>

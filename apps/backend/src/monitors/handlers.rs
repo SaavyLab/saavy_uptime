@@ -67,7 +67,7 @@ pub async fn get_monitors_handler(
     fields(identity_id = %auth.sub())
 )]
 pub async fn create_monitor_handler(
-    AppTicker(ticker): AppTicker,
+    ticker: AppTicker,
     AppDb(d1): AppDb,
     auth: User,
     Json(monitor): Json<CreateMonitor>,

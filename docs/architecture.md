@@ -8,7 +8,8 @@ This document tracks the major components, data flows, and runtime responsibilit
 | --- | --- | --- |
 | **Access (Cloudflare Zero Trust)** | Authenticates every request to the API/frontend via CF Access JWTs. | Axum extractors verify `CF_Authorization` headers against Access JWKS. |
 | **API Worker (Axum)** | Frontend/API entry point. Hosts CRUD routes, internal admin endpoints, and exposes helper APIs to the Durable Object/dispatch runner. | Stateless; runs in a fresh isolate per request. |
-| **Ticker Durable Object** | Statefully schedules monitors via `alarm()`; resolves membership and claims due monitors. | Stores per-org cadence, error counters, and writes `monitor_dispatches` rows. |
+| **Ticker Durable Object** | Control-plane coordinator that maps monitors to Relays, keeps org cadence metadata, and handles failover. | Writes `monitor_dispatch_hot` rows, rotates round-robin assignments, and only wakes regional Relays that have work. |
+| **Relay Durable Objects (regional)** | Per-region runners pinned via `locationHint` that own a shard of monitors and self-schedule on their own alarms. | Execute checks from their colo, update D1/AE, and emit status back to the control plane; multiple Relays can be assigned to a single monitor for all-region mode. |
 | **Dispatch Runner (internal Axum route)** | Executes individual monitor checks. Receives DO fan-out requests via `POST /api/internal/dispatch/run`. | Updates D1 hot state, emits heartbeat events, manages incidents. |
 | **D1 (SQLite)** | Hot relational store for orgs, monitors, dispatch metadata, and incident state. | Stores only the current monitor “hot state”—no raw heartbeat log—so writes stay cheap. |
 | **Analytics Engine (AE)** | High-volume metrics store (uptime %, latency percentiles, player counts). | Dispatch runner writes heartbeats directly after each check. |
@@ -26,17 +27,21 @@ This document tracks the major components, data flows, and runtime responsibilit
  
 This split lets us keep feature logic grouped by domain (monitors, heartbeats, incidents) while still isolating Cloudflare-specific runtime components. When browsing the repo: look in `cloudflare/` for shared bindings/types, and in `external/` for the actual DO code that compiles into separate entry points.
 
-## Health Check Flow
+## Health Check Flow (Relay model)
 
 ```mermaid
 flowchart LR
     User((User/Admin))
     Target[(Monitor Target)]
-    
+
     subgraph ControlPlane["Control Plane (Workers)"]
         API[API Worker<br/>Axum routes]
-        DO[Ticker Durable Object]
-        Runner[Dispatch Runner<br/>/api/internal/dispatch/run]
+        Ticker[Ticker DO<br/>Coordinator]
+    end
+
+    subgraph Regional["Relay Durable Objects (pinned colos)"]
+        RelayWNAM[Relay DO<br/>wnam]
+        RelayWEUR[Relay DO<br/>weur]
     end
 
     subgraph Stores["Data Layer"]
@@ -50,31 +55,49 @@ flowchart LR
     API -->|Read Incidents/Dashboards| D1
     API -->|Query Aggregates| AE
 
-    DO -->|alarm 15s| DO
-    DO -->|Claim due monitors<br/>SELECT next_run_at| D1
-    DO -->|INSERT dispatch record| D1
-    DO -->|POST dispatch payload<br/>X-Dispatch-Token| Runner
-    
-    Runner -->|HTTP/TCP Check| Target
-    Runner -->|Update hot state| D1
-    Runner -->|Write heartbeat| AE
-    Runner -->|UPDATE dispatch status| D1
+    Ticker -->|assign monitors + upsert hot rows| D1
+    Ticker -->|notify pending work| RelayWNAM
+    Ticker -->|notify pending work| RelayWEUR
+    RelayWNAM -->|HTTP/TCP Check| Target
+    RelayWNAM -->|Update hot state| D1
+    RelayWNAM -->|Write heartbeat| AE
+    RelayWEUR -->|HTTP/TCP Check| Target
+    RelayWEUR -->|Update hot state| D1
+    RelayWEUR -->|Write heartbeat| AE
 ```
 
 1. **User action** (bootstrap org, create monitor) hits the API Worker and persists config to D1.
-2. **Ticker DO** wakes via `alarm()`, loads org cadence, queries D1 for due monitors, and writes `monitor_dispatches` rows.
-3. For each due monitor, the DO calls the Worker via a Service Binding (`/api/internal/dispatch/run`, authenticated via `X-Dispatch-Token`). Each request spins up a fresh Worker isolate (same script) without leaving Cloudflare’s network.
-4. **Dispatch runner** executes the check (HTTP/TCP/game protocol), updates the monitor’s hot state in D1, writes the heartbeat to AE, and marks the dispatch row completed.
-5. Frontend/API read from D1/AE for dashboards, incidents, and future visualizations (DAG, geo map, etc.).
+2. **Ticker DO** now operates as a control-plane scheduler: it rotates each monitor through an ordered list of Relays (round-robin) or targets every Relay for all-region mode, updating `monitor_dispatch_hot` with the destination relay and cadence metadata.
+3. **Relay DOs** are pinned to specific Cloudflare regions via `locationHint`. Each Relay keeps the monitor subset it owns in local state, wakes via its own `alarm()`, pulls pending rows that reference it, marks them running, executes the health check from its colo, and reports completion back to D1/AE.
+4. Relays can still call the existing dispatch runner route while we migrate logic, but the long-term plan is to execute HTTP/TCP checks directly inside the Relay so requests originate from the pinned region without extra hops.
+5. Frontend/API consume D1/AE just like before, but now they also gain visibility into which Relays handled each heartbeat (for DAG + geo visualizations).
 
 ## Future Visual Hooks
 
-- Dispatch events feed a real-time DAG visualizer + scheduling timeline (see `docs/highlight-features.md`).
-- Heartbeats with `cf.colo` metadata power the geo map and incident replay.
-- `monitor_dispatches` table is the bridge between control plane (DO) and runner instrumentation—keep it append-only for reliable auditing.
+- Dispatch events (Ticker assignments + Relay executions) feed a real-time DAG visualizer + scheduling timeline (see `docs/highlight-features.md`).
+- Heartbeats with `cf.colo` metadata now map directly to the Relay that executed the check, powering the geo map and incident replay.
+- `monitor_dispatch_hot` stays the source of truth between the control plane and Relays: each row records the destined Relay, dispatch state, and timestamps so auditors can replay the exact routing decisions.
+- Relay placement metadata (location hints, colo identifiers, friendly names) will surface in org settings so users can curate their geography mix without redeploying infrastructure.
 - Containers can complement Workers for protocols beyond HTTP/TCP; see “Protocol Adapter Container” below.
 - Analytics Engine writes happen synchronously: once the dispatch runner updates D1 it records the heartbeat in AE (subject to per-monitor sample rates).
 - R2 is optional now that AE holds historical data, but remains available for future replay payloads or cold archives if requirements change.
+
+## Relay Execution Modes
+
+- **Round-robin** – each monitor stores `relay_rotation` metadata (ordered list of Relay IDs). On every cadence the Ticker advances the pointer, writes a single `monitor_dispatch_hot` row targeting that Relay, and notifies it. Only one Relay wakes, minimizing CPU burn.
+- **All-region** – monitors that demand global coverage emit one pending row per Relay in a single transaction. Every Relay wakes exactly once, so we get parallel execution without polling loops.
+- **Failover** – if a Relay misses its deadline, the Ticker can reassign the row to the next Relay and bump an error counter, ensuring the hot path stays single-hop while still tolerating regional outages.
+
+Relay metadata (colo, friendly name, capabilities) will be user-selectable in the dashboard so orgs can decide whether a monitor pins to a specific geography, rotates across several, or explodes to “all regions”.
+
+## Durable Object Placement & Location Hints
+
+- Cloudflare currently accepts coarse-grained hints: `wnam`, `enam`, `weur`, `eeur`, `apac`, `oc`. Each Relay DO instance is created with one of these hints so Workers routes the instance to the closest colo in that region.
+- We’ll surface a `location_hint` field in the Relay config table plus `wrangler.toml` defaults so Deploy Button users get a sensible starter set (e.g., wnam, weur, apac). Advanced users can add more by creating additional Relay namespaces.
+- The Worker bindings will use `DurableObjectNamespace::id_from_name_with_options` so we can pass the hint at stub creation time, guaranteeing placement without spinning up multiple scripts.
+- Because hints are *advisory*, the Ticker also tracks observed `cf.colo` per Relay and can quarantine a region if Workers temporarily migrates the instance.
+- Jurisdictions are limited to `eu` and `fedramp`. We automatically map WEUR/EEUR hints to the `eu` jurisdiction (true residency guarantee) and treat every other hint as “global” because Cloudflare does not currently allow locking a DO to North America/APAC/etc.—location hints simply bias placement.
+
 
 ## Protocol Adapter Container (UDP/ICMP/Game checks)
 
