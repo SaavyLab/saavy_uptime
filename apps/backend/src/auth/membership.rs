@@ -55,7 +55,7 @@ impl From<MembershipError> for axum::http::StatusCode {
             }
             MembershipError::NotFound => {
                 console_error!("membership.not.found");
-                StatusCode::FORBIDDEN
+                StatusCode::UNAUTHORIZED
             }
         }
     }

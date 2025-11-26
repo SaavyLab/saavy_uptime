@@ -90,10 +90,10 @@ pub async fn update_monitor_handler(
     auth: User,
     Path(id): Path<String>,
     Json(monitor): Json<UpdateMonitor>,
-) -> Result<StatusCode, StatusCode> {
+) -> Result<Json<Monitor>, StatusCode> {
     let org_id = load_membership(&d1, auth.sub()).await?.organization_id;
     match update_monitor_for_org(&d1, &org_id, &id, monitor).await {
-        Ok(_) => Ok(StatusCode::OK),
+        Ok(monitor) => Ok(Json(monitor)),
         Err(err) => Err(err.into()),
     }
 }

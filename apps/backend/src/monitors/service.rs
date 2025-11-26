@@ -104,7 +104,7 @@ pub async fn update_monitor_for_org(
     org_id: &str,
     monitor_id: &str,
     monitor: UpdateMonitor,
-) -> Result<(), MonitorError> {
+) -> Result<Monitor, MonitorError> {
     let mut fields = Vec::new();
     let mut values: Vec<JsValue> = Vec::new();
 
@@ -133,6 +133,17 @@ pub async fn update_monitor_for_org(
         values.push(js_number(enabled as i64));
     }
 
+    if let Some(ref relay_id) = monitor.relay_id {
+        let relay_id = relay_id.trim();
+        if !relay_id.is_empty() {
+            get_relay_by_id(d1, relay_id)
+                .await
+                .map_err(relay_error_to_monitor_error)?;
+            fields.push("relay_id = ?".to_string());
+            values.push(JsValue::from_str(relay_id));
+        }
+    }
+
     if fields.is_empty() {
         return Err(MonitorError::NoFieldsToUpdate);
     }
@@ -144,7 +155,7 @@ pub async fn update_monitor_for_org(
     values.push(JsValue::from_str(org_id));
 
     let sql = format!(
-        "UPDATE monitors SET {} WHERE id = ? AND org_id = ?",
+        "UPDATE monitors SET {} WHERE id = ? AND org_id = ? RETURNING id, org_id, name, kind, enabled, config_json, status, last_checked_at, last_failed_at, first_checked_at, rt_ms, region, relay_id, last_error, next_run_at, created_at, updated_at",
         fields.join(", ")
     );
 
@@ -153,11 +164,18 @@ pub async fn update_monitor_for_org(
         .bind(&values)
         .map_err(MonitorError::DbBind)?;
 
-    query.run().await.map_err(MonitorError::DbRun)?;
+    let result = query.first::<crate::d1c::queries::monitors::GetMonitorByIdRow>(None)
+        .await
+        .map_err(MonitorError::DbRun)?;
 
-    console_log!("updated monitor: {monitor_id}");
-
-    Ok(())
+    match result {
+        Some(row) => {
+            let monitor = Monitor::try_from(row)?;
+            console_log!("updated monitor: {monitor_id}");
+            Ok(monitor)
+        }
+        None => Err(MonitorError::NotFound),
+    }
 }
 
 #[tracing::instrument(
@@ -172,12 +190,13 @@ pub async fn update_monitor_status_for_org(
 ) -> Result<(), MonitorError> {
     let now = now_ms();
     let first_checked_at = snapshot.first_checked_at.unwrap_or(now);
-    let mut last_failed_at = snapshot.last_failed_at.unwrap_or_default();
 
-    // We don't want to overwrite the last failed at if the monitor is already down.
-    if heartbeat.status.is_down() && !snapshot.status.is_down() {
-        last_failed_at = now;
-    }
+    // Determine last_failed_at: only update when transitioning to a down state
+    let last_failed_at = if heartbeat.status.is_down() && !snapshot.status.is_down() {
+        now
+    } else {
+        snapshot.last_failed_at.unwrap_or(0)
+    };
 
     let last_error = heartbeat.error.clone().unwrap_or_else(|| {
         if heartbeat.status.is_down() {

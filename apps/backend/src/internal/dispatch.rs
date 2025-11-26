@@ -424,7 +424,9 @@ async fn perform_fetch(
     let mut init = RequestInit::new();
     init.with_method(Method::Get);
 
-    // todo(saavy): use timeout/verify_tls
+    // NOTE: verify_tls is accepted but not enforced - Workers fetch() doesn't support
+    // disabling TLS verification. The option exists for future protocol adapter container
+    // support where we'll have full control over the HTTP client.
 
     let mut req = Request::new_with_init(url, &init).map_err(DispatchError::Heartbeat)?;
     let headers = req.headers_mut().map_err(DispatchError::Heartbeat)?;

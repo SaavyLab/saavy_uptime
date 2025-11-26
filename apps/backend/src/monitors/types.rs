@@ -305,6 +305,7 @@ pub struct UpdateMonitor {
     pub kind: Option<MonitorKind>,
     pub config: Option<HttpMonitorConfig>,
     pub enabled: Option<bool>,
+    pub relay_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
