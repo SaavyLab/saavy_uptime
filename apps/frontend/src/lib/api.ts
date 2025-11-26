@@ -6,7 +6,9 @@ const getAccessToken = () => {
 	if (!cfCookie) {
 		return import.meta.env.VITE_CF_ACCESS_TOKEN;
 	}
-	return cfCookie.split("=")[1];
+	const trimmed = cfCookie.trim();
+	const eqIndex = trimmed.indexOf("=");
+	return eqIndex >= 0 ? trimmed.substring(eqIndex + 1) : trimmed;
 };
 
 export const withAccessHeader = (headers: Record<string, string> = {}) => {

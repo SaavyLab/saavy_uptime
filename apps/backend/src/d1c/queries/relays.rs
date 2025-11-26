@@ -18,21 +18,24 @@ pub async fn insert_relay(
         .prepare(
             "INSERT INTO relays (id, slug, name, location_hint, jurisdiction, durable_object_id, enabled, last_bootstrapped_at, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
         );
-    let stmt = stmt.bind(&[
-        id.into(),
-        slug.into(),
-        name.into(),
-        location_hint.into(),
-        jurisdiction.into(),
-        durable_object_id.into(),
-        (enabled as f64).into(),
-        match last_bootstrapped_at {
-            Some(value) => (value as f64).into(),
-            None => worker::wasm_bindgen::JsValue::NULL,
-        },
-        (created_at as f64).into(),
-        (updated_at as f64).into(),
-    ])?;
+    let stmt = stmt
+        .bind(
+            &[
+                id.into(),
+                slug.into(),
+                name.into(),
+                location_hint.into(),
+                jurisdiction.into(),
+                durable_object_id.into(),
+                (enabled as f64).into(),
+                match last_bootstrapped_at {
+                    Some(value) => (value as f64).into(),
+                    None => worker::wasm_bindgen::JsValue::NULL,
+                },
+                (created_at as f64).into(),
+                (updated_at as f64).into(),
+            ],
+        )?;
     stmt.run().await?;
     Ok(())
 }
@@ -51,7 +54,10 @@ pub struct FindRelayBySlugRow {
     pub updated_at: i64,
 }
 #[tracing::instrument(name = "d1c.find_relay_by_slug", skip(d1))]
-pub async fn find_relay_by_slug(d1: &D1Database, slug: &str) -> Result<Option<FindRelayBySlugRow>> {
+pub async fn find_relay_by_slug(
+    d1: &D1Database,
+    slug: &str,
+) -> Result<Option<FindRelayBySlugRow>> {
     let stmt = d1.prepare("SELECT * FROM relays WHERE slug = ?1 LIMIT 1");
     let stmt = stmt.bind(&[slug.into()])?;
     let result = stmt.first::<FindRelayBySlugRow>(None).await?;
@@ -72,7 +78,10 @@ pub struct FindRelayByIdRow {
     pub updated_at: i64,
 }
 #[tracing::instrument(name = "d1c.find_relay_by_id", skip(d1))]
-pub async fn find_relay_by_id(d1: &D1Database, id: &str) -> Result<Option<FindRelayByIdRow>> {
+pub async fn find_relay_by_id(
+    d1: &D1Database,
+    id: &str,
+) -> Result<Option<FindRelayByIdRow>> {
     let stmt = d1.prepare("SELECT * FROM relays WHERE id = ?1 LIMIT 1");
     let stmt = stmt.bind(&[id.into()])?;
     let result = stmt.first::<FindRelayByIdRow>(None).await?;

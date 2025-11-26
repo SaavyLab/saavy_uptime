@@ -157,13 +157,23 @@ export const updateMonitor = async (
 	monitorId: string,
 	monitor: UpdateMonitorInput,
 ): Promise<Monitor> => {
-	const payload = updateMonitorSchema.parse(monitor);
+	const validated = updateMonitorSchema.parse(monitor);
 	const response = await fetch(`${apiBase}/api/monitors/${monitorId}`, {
 		method: "PATCH",
 		headers: withAccessHeader({
 			"Content-Type": "application/json",
 		}),
-		body: JSON.stringify(payload),
+		body: JSON.stringify({
+			name: validated.name,
+			relayId: validated.relayId,
+			config: {
+				url: validated.config.url,
+				interval: validated.config.interval,
+				timeout: validated.config.timeout,
+				verify_tls: validated.config.verifyTls,
+				follow_redirects: validated.config.followRedirects,
+			},
+		}),
 	});
 
 	if (!response.ok) {
