@@ -18,7 +18,11 @@ export function SubmitButton({
 	return (
 		<form.Subscribe selector={(state) => state.isSubmitting}>
 			{(isSubmitting) => (
-				<Button type="submit" disabled={isSubmitting || disabled} className={className}>
+				<Button
+					type="submit"
+					disabled={isSubmitting || disabled}
+					className={className}
+				>
 					{isSubmitting ? "Submitting..." : label}
 				</Button>
 			)}

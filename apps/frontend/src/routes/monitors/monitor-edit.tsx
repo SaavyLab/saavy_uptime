@@ -41,6 +41,7 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 				updateMonitor(monitorId, {
 					name: values.name,
 					config: values.config,
+					relayId: values.relayId,
 				}),
 			onSuccess: async (monitor) => {
 				toast.success("Monitor updated", {

@@ -39,7 +39,7 @@ function MonitorNewPage() {
 	const form = useAppForm({
 		defaultValues,
 		onSubmit: async ({ value, formApi }) => {
-            console.log(value);
+			console.log(value);
 			await createMonitor({
 				name: value.name,
 				config: value.config,
@@ -64,7 +64,7 @@ function MonitorNewPage() {
 
 			<div className="grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.7fr)]">
 				<div className="rounded-xl border border-border bg-card p-6 shadow-sm sm:p-8">
- 					<form.AppForm>
+					<form.AppForm>
 						<form
 							className="space-y-8"
 							onSubmit={(event) => {
@@ -77,9 +77,7 @@ function MonitorNewPage() {
 									name="relayId"
 									validators={{
 										onBlur: ({ value }) =>
-											value?.trim().length
-												? undefined
-												: "Select a relay",
+											value?.trim().length ? undefined : "Select a relay",
 									}}
 								>
 									{(field) => (
@@ -110,12 +108,14 @@ function MonitorNewPage() {
 												</SelectContent>
 											</Select>
 											{relayLoadError ? (
-												<p className="text-sm text-destructive">{relayLoadError}</p>
+												<p className="text-sm text-destructive">
+													{relayLoadError}
+												</p>
 											) : null}
 											{!hasRelays && !relayLoadError ? (
 												<p className="text-sm text-muted-foreground">
-													No relays configured. Head to the Relays page to create one
-													before adding monitors.
+													No relays configured. Head to the Relays page to
+													create one before adding monitors.
 												</p>
 											) : null}
 											{field.state.meta.errors[0] ? (
@@ -217,12 +217,12 @@ function MonitorNewPage() {
 								</div>
 							</div>
 
-								<div className="flex flex-col gap-3 sm:flex-row">
-									<form.SubmitButton
-										className="flex-1"
-										label="Create monitor"
-										disabled={!hasRelays || !!relayLoadError}
-									/>
+							<div className="flex flex-col gap-3 sm:flex-row">
+								<form.SubmitButton
+									className="flex-1"
+									label="Create monitor"
+									disabled={!hasRelays || !!relayLoadError}
+								/>
 								<Link to="/monitors" className="flex-1">
 									<Button variant="secondary" className="w-full">
 										Cancel

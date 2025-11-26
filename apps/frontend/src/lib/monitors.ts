@@ -57,7 +57,7 @@ const createMonitorSchema = z.object({
 
 const updateMonitorSchema = z.object({
 	name: z.string(),
-	relayId: z.string().nullable().optional().default(null),
+	relayId: z.string(),
 	config: httpMonitorConfigSchema,
 });
 
@@ -136,16 +136,16 @@ export const createMonitor = async (
 			"Content-Type": "application/json",
 		}),
 		body: JSON.stringify({
-            name: monitor.name,
-            config: {
-                url: monitor.config.url,
-                interval: monitor.config.interval,
-                timeout: monitor.config.timeout,
-                verify_tls: monitor.config.verifyTls,
-                follow_redirects: monitor.config.followRedirects,
-            },
-            relayId: monitor.relayId,
-        }),
+			name: monitor.name,
+			config: {
+				url: monitor.config.url,
+				interval: monitor.config.interval,
+				timeout: monitor.config.timeout,
+				verify_tls: monitor.config.verifyTls,
+				follow_redirects: monitor.config.followRedirects,
+			},
+			relayId: monitor.relayId,
+		}),
 	});
 	if (!response.ok) {
 		throw new Error(`Unable to create monitor (${response.status})`);

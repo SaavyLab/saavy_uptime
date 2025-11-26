@@ -33,7 +33,7 @@ const LOCATION_HINTS = [
 	{ value: "oc", label: "Oceania" },
 ];
 
-const DEFAULT_FORM_VALUES: RelayFormValues = {
+const defaultValues: RelayFormValues = {
 	slug: "",
 	name: "",
 	locationHint: LOCATION_HINTS[0]?.value ?? "wnam",
@@ -68,8 +68,8 @@ function RelaysPage() {
 		},
 	});
 
-	const form = useAppForm<RelayFormValues>({
-		defaultValues: DEFAULT_FORM_VALUES,
+	const form = useAppForm({
+		defaultValues,
 		onSubmit: async ({ value, formApi }) => {
 			await createRelayMutation.mutateAsync(value);
 			formApi.reset();
@@ -80,8 +80,7 @@ function RelaysPage() {
 	const hasRelays = relays.length > 0;
 
 	const sortedRelays = useMemo(
-		() =>
-			[...relays].sort((a, b) => b.createdAt - a.createdAt),
+		() => [...relays].sort((a, b) => b.createdAt - a.createdAt),
 		[relays],
 	);
 
@@ -91,8 +90,8 @@ function RelaysPage() {
 				<div>
 					<h1 className="text-2xl font-bold tracking-tight">Relays</h1>
 					<p className="text-muted-foreground">
-						Pin Durable Objects to specific Cloudflare regions and route monitors
-						through them.
+						Pin Durable Objects to specific Cloudflare regions and route
+						monitors through them.
 					</p>
 				</div>
 				<Button asChild variant="secondary">
@@ -143,7 +142,8 @@ function RelaysPage() {
 										<div className="text-xs text-muted-foreground">
 											<p>DO ID: {relay.durableObjectId.slice(0, 12)}…</p>
 											<p>
-												Bootstrapped: {formatTimestamp(relay.lastBootstrappedAt)}
+												Bootstrapped:{" "}
+												{formatTimestamp(relay.lastBootstrappedAt)}
 											</p>
 										</div>
 									</div>
@@ -185,7 +185,10 @@ function RelaysPage() {
 									}}
 								>
 									{(field) => (
-										<field.TextField label="Display name" placeholder="WNAM Relay" />
+										<field.TextField
+											label="Display name"
+											placeholder="WNAM Relay"
+										/>
 									)}
 								</form.AppField>
 
@@ -193,9 +196,7 @@ function RelaysPage() {
 									name="slug"
 									validators={{
 										onBlur: ({ value }) =>
-											value?.trim().length
-												? undefined
-												: "Slug is required",
+											value?.trim().length ? undefined : "Slug is required",
 									}}
 								>
 									{(field) => (
@@ -206,7 +207,9 @@ function RelaysPage() {
 								<form.AppField name="locationHint">
 									{(field) => (
 										<div className="space-y-2">
-											<Label className="text-sm font-medium">Location hint</Label>
+											<Label className="text-sm font-medium">
+												Location hint
+											</Label>
 											<Select
 												value={field.state.value ?? ""}
 												onValueChange={field.handleChange}
@@ -231,22 +234,19 @@ function RelaysPage() {
 									)}
 								</form.AppField>
 
-
 								<div className="rounded-lg border border-dashed border-border/70 bg-muted/10 p-3 text-xs text-muted-foreground">
 									<p className="font-semibold text-foreground text-sm mb-1">
 										Jurisdiction policy
 									</p>
 									<p>
-										European hints (WEUR/EEUR) pin the Durable Object to the EU to
-										match data residency; other regions remain global.
+										European hints (WEUR/EEUR) pin the Durable Object to the EU
+										to match data residency; other regions remain global.
 									</p>
 								</div>
 
 								<form.SubmitButton
 									label={
-										createRelayMutation.isPending
-											? "Creating…"
-											: "Create relay"
+										createRelayMutation.isPending ? "Creating…" : "Create relay"
 									}
 									className="w-full"
 								/>
