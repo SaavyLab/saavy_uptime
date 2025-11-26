@@ -1,9 +1,19 @@
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Register, RootRoute } from "@tanstack/react-router";
 import { createRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ShieldCheck } from "lucide-react";
 import { useAppForm } from "@/components/form/useAppForm";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { createMonitor } from "@/lib/monitors";
+import { getRelays, type Relay } from "@/lib/relays";
 import type { RouterContext } from "@/router-context";
 import {
 	defaultMonitorFormValues,
@@ -12,6 +22,16 @@ import {
 
 function MonitorNewPage() {
 	const navigate = useNavigate({ from: "/monitors/new" });
+	const queryClient = useQueryClient();
+	const relaysQuery = useQuery<Relay[]>({
+		queryKey: ["relays"],
+		queryFn: () => getRelays(),
+	});
+
+	const relays = relaysQuery.data ?? [];
+	const hasRelays = relays.length > 0;
+	const relayLoadError =
+		relaysQuery.error instanceof Error ? relaysQuery.error.message : null;
 	const defaultValues: MonitorFormValues = {
 		...defaultMonitorFormValues,
 	};
@@ -19,10 +39,13 @@ function MonitorNewPage() {
 	const form = useAppForm({
 		defaultValues,
 		onSubmit: async ({ value, formApi }) => {
+			console.log(value);
 			await createMonitor({
 				name: value.name,
 				config: value.config,
+				relayId: value.relayId,
 			});
+			await queryClient.invalidateQueries({ queryKey: ["monitors"] });
 			formApi.reset();
 			navigate({ to: "/monitors" });
 		},
@@ -50,6 +73,59 @@ function MonitorNewPage() {
 							}}
 						>
 							<div className="grid gap-6">
+								<form.AppField
+									name="relayId"
+									validators={{
+										onBlur: ({ value }) =>
+											value?.trim().length ? undefined : "Select a relay",
+									}}
+								>
+									{(field) => (
+										<div className="space-y-2">
+											<Label className="text-sm font-medium">Relay</Label>
+											<Select
+												value={field.state.value ?? ""}
+												onValueChange={field.handleChange}
+												disabled={!hasRelays || !!relayLoadError}
+											>
+												<SelectTrigger className="w-full">
+													<SelectValue
+														placeholder={
+															relaysQuery.isLoading
+																? "Loading relays…"
+																: hasRelays
+																	? "Choose a relay"
+																	: "No relays available"
+														}
+													/>
+												</SelectTrigger>
+												<SelectContent>
+													{relays.map((relay) => (
+														<SelectItem key={relay.id} value={relay.id}>
+															{relay.name} ({relay.locationHint})
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+											{relayLoadError ? (
+												<p className="text-sm text-destructive">
+													{relayLoadError}
+												</p>
+											) : null}
+											{!hasRelays && !relayLoadError ? (
+												<p className="text-sm text-muted-foreground">
+													No relays configured. Head to the Relays page to
+													create one before adding monitors.
+												</p>
+											) : null}
+											{field.state.meta.errors[0] ? (
+												<p className="text-sm text-destructive">
+													{field.state.meta.errors[0]}
+												</p>
+											) : null}
+										</div>
+									)}
+								</form.AppField>
 								<form.AppField
 									name="name"
 									validators={{
@@ -142,7 +218,11 @@ function MonitorNewPage() {
 							</div>
 
 							<div className="flex flex-col gap-3 sm:flex-row">
-								<form.SubmitButton className="flex-1" label="Create monitor" />
+								<form.SubmitButton
+									className="flex-1"
+									label="Create monitor"
+									disabled={!hasRelays || !!relayLoadError}
+								/>
 								<Link to="/monitors" className="flex-1">
 									<Button variant="secondary" className="w-full">
 										Cancel
@@ -183,6 +263,27 @@ function MonitorNewPage() {
 							Status pages automatically—no extra wiring required.
 						</p>
 					</div>
+
+					{relayLoadError ? (
+						<div className="rounded-lg border border-destructive/40 bg-destructive/5 p-6">
+							<p className="text-sm font-medium text-destructive">
+								Unable to load relays
+							</p>
+							<p className="text-sm text-destructive/80">{relayLoadError}</p>
+						</div>
+					) : !hasRelays ? (
+						<div className="rounded-lg border border-dashed border-border/60 bg-muted/20 p-6">
+							<p className="text-sm font-medium text-foreground">
+								No relays configured
+							</p>
+							<p className="text-sm text-muted-foreground">
+								Create at least one relay to unlock monitor scheduling.
+							</p>
+							<Button asChild variant="link" className="px-0 text-primary">
+								<Link to="/relays">Open Relay manager</Link>
+							</Button>
+						</div>
+					) : null}
 				</aside>
 			</div>
 		</div>

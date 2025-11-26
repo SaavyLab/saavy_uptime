@@ -17,15 +17,13 @@ export const monitorConfigResponseSchema = z.object({
 	follow_redirects: z.boolean(),
 });
 
-export const httpMonitorConfigSchema = monitorConfigResponseSchema.transform(
-	(config) => ({
-		url: config.url,
-		interval: config.interval,
-		timeout: config.timeout,
-		verifyTls: config.verify_tls,
-		followRedirects: config.follow_redirects,
-	}),
-);
+export const httpMonitorConfigSchema = z.object({
+	url: z.string(),
+	interval: z.number(),
+	timeout: z.number(),
+	verifyTls: z.boolean(),
+	followRedirects: z.boolean(),
+});
 
 export type MonitorConfigResponse = z.infer<typeof monitorConfigResponseSchema>;
 
@@ -35,15 +33,14 @@ const monitorSchema = z.object({
 	name: z.string(),
 	kind: monitorKindSchema,
 	enabled: z.number(),
-	config: monitorConfigResponseSchema.transform((config) =>
-		httpMonitorConfigSchema.parse(config),
-	),
+	config: monitorConfigResponseSchema,
 	status: z.string().transform((status) => status.toLowerCase()),
 	lastCheckedAt: z.number().nullable(),
 	lastFailedAt: z.number().nullable(),
 	firstCheckedAt: z.number().nullable(),
 	rtMs: z.number().nullable(),
 	region: z.string().nullable(),
+	relayId: z.string(),
 	lastError: z.string().nullable(),
 	nextRunAt: z.number().nullable(),
 	createdAt: z.number(),
@@ -55,10 +52,17 @@ export type Monitor = z.infer<typeof monitorSchema>;
 const createMonitorSchema = z.object({
 	name: z.string(),
 	config: httpMonitorConfigSchema,
+	relayId: z.string(),
+});
+
+const updateMonitorSchema = z.object({
+	name: z.string(),
+	relayId: z.string(),
+	config: httpMonitorConfigSchema,
 });
 
 export type CreateMonitorInput = z.infer<typeof createMonitorSchema>;
-export type UpdateMonitorInput = z.infer<typeof createMonitorSchema>;
+export type UpdateMonitorInput = z.infer<typeof updateMonitorSchema>;
 
 const heartbeatSampleSchema = z.object({
 	timestampMs: z.number(),
@@ -131,7 +135,17 @@ export const createMonitor = async (
 		headers: withAccessHeader({
 			"Content-Type": "application/json",
 		}),
-		body: JSON.stringify(monitor),
+		body: JSON.stringify({
+			name: monitor.name,
+			config: {
+				url: monitor.config.url,
+				interval: monitor.config.interval,
+				timeout: monitor.config.timeout,
+				verify_tls: monitor.config.verifyTls,
+				follow_redirects: monitor.config.followRedirects,
+			},
+			relayId: monitor.relayId,
+		}),
 	});
 	if (!response.ok) {
 		throw new Error(`Unable to create monitor (${response.status})`);
@@ -143,12 +157,13 @@ export const updateMonitor = async (
 	monitorId: string,
 	monitor: UpdateMonitorInput,
 ): Promise<Monitor> => {
+	const payload = updateMonitorSchema.parse(monitor);
 	const response = await fetch(`${apiBase}/api/monitors/${monitorId}`, {
 		method: "PATCH",
 		headers: withAccessHeader({
 			"Content-Type": "application/json",
 		}),
-		body: JSON.stringify(monitor),
+		body: JSON.stringify(payload),
 	});
 
 	if (!response.ok) {

@@ -25,9 +25,16 @@ Instead of buying uptime from someone else, you deploy this Worker + Durable Obj
 
 - **Sub-minute scheduling** – Durable Object alarms claim due monitors in batches and dispatch immediately, no cron drift or VM orchestration.
 - **Cloudflare-first architecture** – Axum Worker secured by Access, DO ticker for stateful scheduling, D1 for config + monitor hot state, Analytics Engine for aggregates written directly from dispatch.
+- **Regional Relays (in-flight)** – monitors can pin to location-hinted Relay Durable Objects or rotate across several regions, so checks originate from the colo you care about without third-party probe fleets.
 - **Bring-your-own cost model** – tweak intervals, retention, and aggregation to match your budget; you pay Cloudflare directly.
 - **One-click deploy** – Wrangler + Pages handle everything; no extra infrastructure to babysit.
 - **Stretch goals** – real-time execution DAG, geographic POP map, predictive cost dashboard, R2 time-travel incident replay, collaborative incident timelines (`docs/highlight-features.md`).
+
+### Regional Relay control plane
+
+Ticker remains the global scheduler, but each monitor now targets one or more **Relay Durable Objects** that are pinned to Cloudflare regions via `locationHint` (`wnam`, `weur`, `apac`, etc.). Round-robin monitors emit a single pending dispatch per cadence, while all-region monitors fan out to every Relay simultaneously. This keeps hot-path latency to a single hop, lets us surface “where did this heartbeat originate?” in the UI, and avoids outsourcing probes to third parties.
+
+> **What “global coverage” really means today:** Cloudflare only guarantees hard residency for the `eu` and `fedramp` jurisdictions. Location hints such as `wnam`, `enam`, `weur`, `apac`, and `oc` are *best-effort* signals—Workers tries to spin the Relay up in a nearby colo, but the platform may place or migrate it elsewhere to balance load. Saavy Uptime automatically ties WEUR/EEUR hints to the `eu` jurisdiction for compliance and labels every other Relay as “global,” so you still get geographically diverse checks without promising data sovereignty that Cloudflare cannot enforce yet.
 
 ---
 

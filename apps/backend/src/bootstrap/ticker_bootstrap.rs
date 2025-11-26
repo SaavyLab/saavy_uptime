@@ -1,9 +1,10 @@
-use crate::{bootstrap::types::BootstrapError, d1c::queries::organizations::select_all_org_ids};
+use crate::{
+    bootstrap::types::BootstrapError, cloudflare::durable_objects::ticker::AppTicker,
+    d1c::queries::organizations::select_all_org_ids,
+};
 use serde::Serialize;
 use std::result::Result;
-use worker::{
-    console_error, wasm_bindgen::JsValue, D1Database, Method, ObjectNamespace, Request, RequestInit,
-};
+use worker::{console_error, wasm_bindgen::JsValue, D1Database, Method, Request, RequestInit};
 
 #[derive(Serialize)]
 struct BootstrapPayload<'a> {
@@ -16,11 +17,10 @@ struct BootstrapPayload<'a> {
     fields(org_id = %org_id)
 )]
 pub async fn ensure_ticker_bootstrapped(
-    ticker: &ObjectNamespace,
+    ticker: &AppTicker,
     org_id: &str,
 ) -> Result<(), BootstrapError> {
-    let id = ticker.id_from_name(org_id)?;
-    let stub = id.get_stub()?;
+    let stub = ticker.stub(org_id)?;
 
     let body = serde_json::to_string(&BootstrapPayload { org_id })
         .map_err(|err| worker::Error::RustError(format!("ticker bootstrap serialize: {err:?}")))?;
@@ -43,12 +43,9 @@ pub struct TickerReconcileSummary {
     pub failed: usize,
 }
 
-#[tracing::instrument(
-    name = "bootstrap.ensure_all_tickers",
-    skip(ticker, d1),
-)]
+#[tracing::instrument(name = "bootstrap.ensure_all_tickers", skip(ticker, d1))]
 pub async fn ensure_all_tickers(
-    ticker: &ObjectNamespace,
+    ticker: &AppTicker,
     d1: &D1Database,
 ) -> Result<TickerReconcileSummary, BootstrapError> {
     let rows = select_all_org_ids(d1).await?;

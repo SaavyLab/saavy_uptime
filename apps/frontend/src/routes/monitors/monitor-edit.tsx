@@ -41,6 +41,7 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 				updateMonitor(monitorId, {
 					name: values.name,
 					config: values.config,
+					relayId: values.relayId,
 				}),
 			onSuccess: async (monitor) => {
 				toast.success("Monitor updated", {
@@ -263,4 +264,5 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 const mapMonitorToFormValues = (monitor: Monitor): MonitorFormValues => ({
 	name: monitor.name,
 	config: httpMonitorConfigSchema.parse(monitor.config),
+	relayId: monitor.relayId ?? "",
 });

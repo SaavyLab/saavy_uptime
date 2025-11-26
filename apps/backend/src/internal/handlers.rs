@@ -2,12 +2,15 @@ use crate::auth::membership::load_membership;
 use crate::bootstrap::ticker_bootstrap::ensure_all_tickers;
 use crate::cloudflare::analytics::AppAnalytics;
 use crate::cloudflare::d1::AppDb;
+use crate::cloudflare::durable_objects::relay::AppRelays;
 use crate::cloudflare::durable_objects::ticker::AppTicker;
 use crate::cloudflare::request::RequestCf;
 use crate::internal::dispatch::handle_dispatch;
 use crate::internal::types::{DispatchRequest, MonitorKind, ReconcileResponse};
 use crate::monitors::service::create_monitor_for_org;
 use crate::monitors::types::{CreateMonitor, HttpMonitorConfig};
+use crate::relays::service::{list_relays, register_relay};
+use crate::relays::types::{RegisterRelayPayload, RelayRecord};
 use crate::router::AppState;
 use axum::{
     extract::State,
@@ -26,7 +29,7 @@ use worker::console_error;
     fields(user = %_user.sub())
 )]
 pub async fn reconcile_tickers_handler(
-    AppTicker(ticker): AppTicker,
+    ticker: AppTicker,
     AppDb(d1): AppDb,
     _user: User,
 ) -> Result<Json<ReconcileResponse>, StatusCode> {
@@ -38,6 +41,37 @@ pub async fn reconcile_tickers_handler(
         })),
         Err(err) => Err(err.into()),
     }
+}
+
+#[worker::send]
+#[tracing::instrument(
+    name = "internal.handlers.register_relay_handler",
+    skip(relays, d1, _user, payload),
+    fields(user = %_user.sub())
+)]
+pub async fn register_relay_handler(
+    relays: AppRelays,
+    AppDb(d1): AppDb,
+    _user: User,
+    Json(payload): Json<RegisterRelayPayload>,
+) -> Result<Json<RelayRecord>, StatusCode> {
+    register_relay(&relays, &d1, payload)
+        .await
+        .map(Json)
+        .map_err(StatusCode::from)
+}
+
+#[worker::send]
+#[tracing::instrument(
+    name = "internal.handlers.list_relays_handler",
+    skip(d1, _user),
+    fields(user = %_user.sub())
+)]
+pub async fn list_relays_handler(
+    AppDb(d1): AppDb,
+    _user: User,
+) -> Result<Json<Vec<RelayRecord>>, StatusCode> {
+    list_relays(&d1).await.map(Json).map_err(StatusCode::from)
 }
 
 #[worker::send]
@@ -92,7 +126,7 @@ pub struct SeedResponse {
 
 #[worker::send]
 pub async fn seed_monitors_handler(
-    AppTicker(ticker): AppTicker,
+    ticker: AppTicker,
     AppDb(d1): AppDb,
     auth: User,
     Json(payload): Json<SeedRequest>,
@@ -100,7 +134,13 @@ pub async fn seed_monitors_handler(
     let membership = load_membership(&d1, auth.sub())
         .await
         .map_err(|err| StatusCode::from(err))?;
-    let templates = seed_definitions(payload.quantity.unwrap_or(300));
+    let relays = list_relays(&d1).await.map_err(StatusCode::from)?;
+    let Some(default_relay) = relays.first() else {
+        console_error!("seed.monitor: no relays registered");
+        return Err(StatusCode::FAILED_DEPENDENCY);
+    };
+
+    let templates = seed_definitions(payload.quantity.unwrap_or(300), &default_relay.id);
     let mut created = 0;
     let mut failed = 0;
 
@@ -117,7 +157,7 @@ pub async fn seed_monitors_handler(
     Ok(Json(SeedResponse { created, failed }))
 }
 
-fn seed_definitions(quantity: usize) -> Vec<CreateMonitor> {
+fn seed_definitions(quantity: usize, relay_id: &str) -> Vec<CreateMonitor> {
     let mut monitors = Vec::new();
 
     let target = quantity / 3;
@@ -128,6 +168,7 @@ fn seed_definitions(quantity: usize) -> Vec<CreateMonitor> {
         urls: &[&str],
         count: usize,
         follow_redirects: bool,
+        relay_id: &str,
     ) {
         for (idx, url) in urls.iter().cycle().take(count).enumerate() {
             let config = HttpMonitorConfig::new(url, 60, 7000, true, follow_redirects);
@@ -135,6 +176,7 @@ fn seed_definitions(quantity: usize) -> Vec<CreateMonitor> {
                 name: format!("{prefix} #{:03}", idx + 1),
                 kind: MonitorKind::Http,
                 config,
+                relay_id: relay_id.to_string(),
             };
 
             list.push(monitor);
@@ -146,14 +188,14 @@ fn seed_definitions(quantity: usize) -> Vec<CreateMonitor> {
         "https://httpstat.us/503",
         "https://httpstat.us/200?sleep=2000",
     ];
-    push_many(&mut monitors, "httpstat", &httpstat, target, true);
+    push_many(&mut monitors, "httpstat", &httpstat, target, true, relay_id);
 
     let postman = [
         "https://postman-echo.com/status/200",
         "https://postman-echo.com/status/500",
         "https://postman-echo.com/delay/1",
     ];
-    push_many(&mut monitors, "postman", &postman, target, true);
+    push_many(&mut monitors, "postman", &postman, target, true, relay_id);
 
     let real = [
         "https://www.cloudflare.com",
@@ -162,7 +204,7 @@ fn seed_definitions(quantity: usize) -> Vec<CreateMonitor> {
         "https://workers.cloudflare.com",
         "https://www.iana.org/domains/reserved",
     ];
-    push_many(&mut monitors, "real", &real, target, true);
+    push_many(&mut monitors, "real", &real, target, true, relay_id);
 
     monitors
 }

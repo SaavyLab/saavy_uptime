@@ -80,6 +80,7 @@ pub struct CreateMonitor {
     #[serde(default = "default_monitor_kind")]
     pub kind: MonitorKind,
     pub config: HttpMonitorConfig,
+    pub relay_id: String,
 }
 
 #[derive(
@@ -121,6 +122,7 @@ pub struct Monitor {
     pub first_checked_at: Option<i64>,
     pub rt_ms: Option<i64>,
     pub region: Option<String>,
+    pub relay_id: Option<String>,
     pub last_error: Option<String>,
     pub next_run_at: Option<i64>,
     pub created_at: i64,
@@ -159,6 +161,7 @@ impl TryFrom<crate::d1c::queries::monitors::GetMonitorByIdRow> for Monitor {
             first_checked_at: row.first_checked_at,
             rt_ms: row.rt_ms,
             region: row.region,
+            relay_id: row.relay_id,
             last_error: row.last_error,
             next_run_at: row.next_run_at,
             created_at: row.created_at,
@@ -199,6 +202,7 @@ impl TryFrom<crate::d1c::queries::monitors::GetMonitorsByOrgIdRow> for Monitor {
             first_checked_at: row.first_checked_at,
             rt_ms: row.rt_ms,
             region: row.region,
+            relay_id: row.relay_id,
             last_error: row.last_error,
             next_run_at: row.next_run_at,
             created_at: row.created_at,

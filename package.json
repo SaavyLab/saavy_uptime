@@ -26,6 +26,9 @@
       "ENABLE_TICKER_ADMIN": {
         "description": "Set to 1 to expose internal ticker controls; leave unset/0 for production."
       },
+      "TICKER_LOCATION_HINT": {
+        "description": "Optional location hint (wnam/enam/weur/eeur/apac/oc) used when instantiating ticker Durable Object instances."
+      },
       "AE_ACCOUNT_ID": {
         "description": "Analytics Engine account ID (from Cloudflare dashboard → Analytics Engine)."
       },
@@ -46,6 +49,9 @@
       },
       "TICKER": {
         "description": "Durable Object namespace backing the global ticker that schedules monitor execution."
+      },
+      "RELAYS": {
+        "description": "Durable Object namespace for regional relay runners pinned to jurisdictions."
       }
     }
   }

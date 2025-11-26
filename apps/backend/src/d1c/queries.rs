@@ -4,3 +4,4 @@ pub mod bootstrap;
 pub mod monitor_dispatches;
 pub mod monitors;
 pub mod organizations;
+pub mod relays;

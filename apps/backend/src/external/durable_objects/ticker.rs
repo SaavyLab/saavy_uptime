@@ -40,8 +40,7 @@ impl Ticker {
             .storage()
             .get::<TickerState>("state")
             .await?
-            .unwrap_or_default()
-        )
+            .unwrap_or_default())
     }
 
     async fn save_state(&self, state: &TickerState) -> Result<()> {
@@ -321,7 +320,7 @@ impl Ticker {
 
         let url = format!("{}/api/internal/dispatch/run", dispatch_url);
 
-        let mut headers = Headers::new();
+        let headers = Headers::new();
         headers
             .set("Content-Type", "application/json")
             .map_err(|err| TickerError::request("ticker.dispatch.headers", err))?;
@@ -400,10 +399,7 @@ impl DurableObject for Ticker {
         }
     }
 
-    #[tracing::instrument(
-        name = "external.durable_objects.ticker.alarm",
-        skip(self),
-    )]
+    #[tracing::instrument(name = "external.durable_objects.ticker.alarm", skip(self))]
     async fn alarm(&self) -> Result<Response> {
         if let Err(err) = self.run_tick(false).await {
             console_log!("ticker alarm error: {err:?}");

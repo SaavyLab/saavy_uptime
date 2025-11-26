@@ -4,6 +4,7 @@ import { httpMonitorConfigSchema } from "@/lib/monitors";
 export const monitorFormSchema = z.object({
 	name: z.string(),
 	config: httpMonitorConfigSchema,
+	relayId: z.string(),
 });
 
 export type MonitorFormValues = z.infer<typeof monitorFormSchema>;
@@ -17,4 +18,5 @@ export const defaultMonitorFormValues: MonitorFormValues = {
 		followRedirects: true,
 		verifyTls: true,
 	},
+	relayId: "",
 };

@@ -106,7 +106,12 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 						<p className="font-mono text-sm text-red-400">
 							{monitorQuery.error.message}
 						</p>
-						<Button type="button" size="sm" className="mt-4" onClick={() => monitorQuery.refetch()}>
+						<Button
+							type="button"
+							size="sm"
+							className="mt-4"
+							onClick={() => monitorQuery.refetch()}
+						>
 							Try again
 						</Button>
 					</div>
@@ -127,7 +132,9 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 							</div>
 							<div className="flex items-center gap-2">
 								<Link to="/monitors/$monitorId/edit" params={{ monitorId }}>
-									<Button variant="outline" size="sm">Edit</Button>
+									<Button variant="outline" size="sm">
+										Edit
+									</Button>
 								</Link>
 								<Button
 									type="button"
@@ -147,7 +154,9 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 							<div className="rounded-lg border border-white/[0.06] bg-zinc-900/50 p-4">
 								<div className="flex items-center gap-2 text-zinc-500 mb-2">
 									<Clock size={12} />
-									<span className="text-[10px] font-medium uppercase tracking-wider">Last Check</span>
+									<span className="text-[10px] font-medium uppercase tracking-wider">
+										Last Check
+									</span>
 								</div>
 								<div className="text-sm font-mono font-medium text-zinc-200">
 									{formatTimestamp(monitor.lastCheckedAt)}
@@ -156,7 +165,9 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 							<div className="rounded-lg border border-white/[0.06] bg-zinc-900/50 p-4">
 								<div className="flex items-center gap-2 text-zinc-500 mb-2">
 									<Timer size={12} />
-									<span className="text-[10px] font-medium uppercase tracking-wider">Interval</span>
+									<span className="text-[10px] font-medium uppercase tracking-wider">
+										Interval
+									</span>
 								</div>
 								<div className="text-sm font-mono font-medium text-zinc-200">
 									{monitor.config.interval}s
@@ -165,7 +176,9 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 							<div className="rounded-lg border border-white/[0.06] bg-zinc-900/50 p-4">
 								<div className="flex items-center gap-2 text-zinc-500 mb-2">
 									<Settings2 size={12} />
-									<span className="text-[10px] font-medium uppercase tracking-wider">Timeout</span>
+									<span className="text-[10px] font-medium uppercase tracking-wider">
+										Timeout
+									</span>
 								</div>
 								<div className="text-sm font-mono font-medium text-zinc-200">
 									{monitor.config.timeout}ms
@@ -173,7 +186,9 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 							</div>
 							<div className="rounded-lg border border-white/[0.06] bg-zinc-900/50 p-4">
 								<div className="flex items-center gap-2 text-zinc-500 mb-2">
-									<span className="text-[10px] font-medium uppercase tracking-wider">Response Time</span>
+									<span className="text-[10px] font-medium uppercase tracking-wider">
+										Response Time
+									</span>
 								</div>
 								<div className="text-sm font-mono font-medium text-zinc-200">
 									{monitor.rtMs ? `${monitor.rtMs}ms` : "—"}
@@ -186,19 +201,23 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 							{/* Configuration */}
 							<div className="lg:col-span-2 rounded-lg border border-white/[0.06] bg-zinc-900/50">
 								<div className="border-b border-white/[0.06] px-5 py-4">
-									<h2 className="text-sm font-medium text-zinc-200">Configuration</h2>
+									<h2 className="text-sm font-medium text-zinc-200">
+										Configuration
+									</h2>
 								</div>
 								<div className="p-5 space-y-3">
 									<div className="flex justify-between items-center py-2 border-b border-white/[0.04]">
-										<span className="text-xs text-zinc-500">Follow Redirects</span>
+										<span className="text-xs text-zinc-500">
+											Follow Redirects
+										</span>
 										<span className="text-xs font-medium text-zinc-300">
-											{monitor.config.followRedirects ? "Yes" : "No"}
+											{monitor.config.follow_redirects ? "Yes" : "No"}
 										</span>
 									</div>
 									<div className="flex justify-between items-center py-2 border-b border-white/[0.04]">
 										<span className="text-xs text-zinc-500">Verify TLS</span>
 										<span className="text-xs font-medium text-zinc-300">
-											{monitor.config.verifyTls ? "Yes" : "No"}
+											{monitor.config.verify_tls ? "Yes" : "No"}
 										</span>
 									</div>
 									<div className="flex justify-between items-center py-2 border-b border-white/[0.04]">
@@ -209,10 +228,12 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 									</div>
 									<div className="flex justify-between items-center py-2">
 										<span className="text-xs text-zinc-500">Enabled</span>
-										<span className={cn(
-											"text-xs font-medium",
-											monitor.enabled ? "text-emerald-400" : "text-zinc-500"
-										)}>
+										<span
+											className={cn(
+												"text-xs font-medium",
+												monitor.enabled ? "text-emerald-400" : "text-zinc-500",
+											)}
+										>
 											{monitor.enabled ? "Yes" : "No"}
 										</span>
 									</div>
@@ -222,7 +243,9 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 							{/* Heartbeats */}
 							<div className="lg:col-span-3 rounded-lg border border-white/[0.06] bg-zinc-900/50">
 								<div className="border-b border-white/[0.06] px-5 py-4">
-									<h2 className="text-sm font-medium text-zinc-200">Recent Heartbeats</h2>
+									<h2 className="text-sm font-medium text-zinc-200">
+										Recent Heartbeats
+									</h2>
 									{heartbeatWindow && (
 										<p className="text-[10px] text-zinc-600 font-mono mt-1">
 											Last {heartbeatWindow.hours}h · {heartbeats.length} checks
@@ -254,7 +277,8 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 									) : heartbeats.length === 0 ? (
 										<div className="p-8 text-center">
 											<p className="text-xs text-zinc-500">
-												No heartbeats yet. Checks will appear here after the first run.
+												No heartbeats yet. Checks will appear here after the
+												first run.
 											</p>
 										</div>
 									) : (
@@ -282,18 +306,22 @@ export default (parentRoute: RootRoute<Register, undefined, RouterContext>) => {
 function HeartbeatRow({ heartbeat }: { heartbeat: HeartbeatSample }) {
 	const ok = heartbeat.status === "up";
 	const region = heartbeat.region ?? heartbeat.colo ?? "—";
-	
+
 	return (
 		<div className="flex items-center justify-between px-5 py-3 hover:bg-white/[0.02] transition-colors">
 			<div className="flex items-center gap-3">
-				<div className={cn(
-					"w-1.5 h-1.5 rounded-full",
-					ok ? "bg-emerald-400" : "bg-red-400"
-				)} />
-				<span className={cn(
-					"text-xs font-mono font-medium w-8",
-					ok ? "text-emerald-400" : "text-red-400"
-				)}>
+				<div
+					className={cn(
+						"w-1.5 h-1.5 rounded-full",
+						ok ? "bg-emerald-400" : "bg-red-400",
+					)}
+				/>
+				<span
+					className={cn(
+						"text-xs font-mono font-medium w-8",
+						ok ? "text-emerald-400" : "text-red-400",
+					)}
+				>
 					{ok ? "OK" : "FAIL"}
 				</span>
 				<span className="text-[10px] font-mono text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded">
